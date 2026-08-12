@@ -1,0 +1,260 @@
+"""Referral API tests — endpoints, scoping (§7), and the taxonomy lookups (§5)."""
+
+import pytest
+
+from apps.referrals.models import Referral, ReferralStatus
+from apps.users.models import Role, User
+
+pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def case(make_case, case_manager):
+    return make_case(case_manager)
+
+
+@pytest.fixture
+def partner_staff(partner):
+    return User.objects.create_user(
+        "partner-staff", "pw-Test-12345", full_name="Partner Staff", role=Role.PARTNER_STAFF, partner=partner
+    )
+
+
+# ---------------------------------------------------------------------------
+# Taxonomy endpoints — spec §5
+# ---------------------------------------------------------------------------
+
+
+def test_categories_are_served_from_the_lookup_table(taxonomy, case_manager, as_user):
+    response = as_user(case_manager).get("/api/v1/referrals/categories/")
+    assert response.status_code == 200
+    codes = {row["code"] for row in response.data}
+    assert {"TRAINING", "EMPLOYMENT", "COMPLEMENTARY_SERVICE", "OTHER"} <= codes
+
+
+def test_complementary_service_is_flagged_exempt(taxonomy, case_manager, as_user):
+    """§6.3 working default, exposed so the UI can explain the cap."""
+    response = as_user(case_manager).get("/api/v1/referrals/categories/")
+    row = next(r for r in response.data if r["code"] == "COMPLEMENTARY_SERVICE")
+    assert row["exempt_from_parallel_cap"] is True
+
+
+def test_retired_terms_disappear_from_the_lookup(taxonomy, case_manager, as_user):
+    """Deactivated terms stay on historical referrals but leave the picker."""
+    taxonomy["training"].is_active = False
+    taxonomy["training"].save()
+
+    response = as_user(case_manager).get("/api/v1/referrals/categories/")
+    assert "TRAINING" not in {row["code"] for row in response.data}
+
+
+def test_outcome_types_can_be_filtered_by_category(taxonomy, case_manager, as_user):
+    """§5.3: each outcome applies to specific categories; Other applies to all."""
+    response = as_user(case_manager).get("/api/v1/referrals/outcome-types/?category=TRAINING")
+    codes = {row["code"] for row in response.data}
+    assert "TRAINING_COMPLETION" in codes
+    assert "OTHER" in codes  # unrestricted
+    assert "JOB_PLACEMENT" not in codes
+
+
+# ---------------------------------------------------------------------------
+# Initiate and transition endpoints — spec §6.2
+# ---------------------------------------------------------------------------
+
+
+def test_initiate_creates_a_pending_referral(case, taxonomy, partner, case_manager, as_user):
+    response = as_user(case_manager).post(
+        "/api/v1/referrals/initiate/",
+        {"case": str(case.pk), "referral_category": "TRAINING", "receiving_partner": str(partner.pk)},
+        format="json",
+    )
+    assert response.status_code == 201, response.data
+    assert response.data["status"] == ReferralStatus.PENDING_CONFIRMATION
+    assert response.data["trigger_display"] == "Manual"
+
+
+def test_cannot_initiate_on_another_managers_case(
+    make_case, other_case_manager, taxonomy, partner, case_manager, as_user
+):
+    """Passing a case id must not bypass §7 caseload scoping."""
+    theirs = make_case(other_case_manager, name="Theirs")
+    response = as_user(case_manager).post(
+        "/api/v1/referrals/initiate/",
+        {"case": str(theirs.pk), "referral_category": "TRAINING", "receiving_partner": str(partner.pk)},
+        format="json",
+    )
+    assert response.status_code == 404
+
+
+def test_direct_post_is_refused_in_favour_of_initiate(case, case_manager, as_user, taxonomy):
+    response = as_user(case_manager).post("/api/v1/referrals/", {}, format="json")
+    assert response.status_code == 405
+
+
+def test_status_cannot_be_changed_by_patch(case, make_referral, case_manager, as_user):
+    """§6.2 is the only route between statuses."""
+    referral = make_referral(case)
+    response = as_user(case_manager).patch(f"/api/v1/referrals/{referral.pk}/", {"status": "ACTIVE"}, format="json")
+    referral.refresh_from_db()
+    assert referral.status == ReferralStatus.PENDING_CONFIRMATION
+    assert response.status_code in (200, 400)  # field is read-only, so silently ignored or rejected
+
+
+def test_confirm_then_complete_through_the_api(case, make_referral, taxonomy, case_manager, as_user):
+    referral = make_referral(case)
+    client = as_user(case_manager)
+
+    confirmed = client.post(
+        f"/api/v1/referrals/{referral.pk}/confirm/", {"confirmed_by": "Tigist Bekele"}, format="json"
+    )
+    assert confirmed.status_code == 200, confirmed.data
+    assert confirmed.data["status"] == ReferralStatus.ACTIVE
+
+    completed = client.post(
+        f"/api/v1/referrals/{referral.pk}/complete/",
+        {"outcome_type": "TRAINING_COMPLETION", "outcome_verification_method": "Home visit"},
+        format="json",
+    )
+    assert completed.status_code == 200, completed.data
+    assert completed.data["status"] == ReferralStatus.COMPLETED
+
+
+def test_decline_requires_a_failure_reason_via_api(case, make_referral, case_manager, as_user, taxonomy):
+    referral = make_referral(case)
+    response = as_user(case_manager).post(f"/api/v1/referrals/{referral.pk}/decline/", {}, format="json")
+    assert response.status_code == 400
+    assert "failure_reason_code" in response.data
+
+
+def test_completing_a_pending_referral_is_refused(case, make_referral, case_manager, as_user, taxonomy):
+    """Active -> Completed exists in §6.2; Pending -> Completed does not."""
+    referral = make_referral(case)
+    response = as_user(case_manager).post(
+        f"/api/v1/referrals/{referral.pk}/complete/", {"outcome_type": "TRAINING_COMPLETION"}, format="json"
+    )
+    assert response.status_code == 400
+
+
+def test_transitions_endpoint_lists_only_legal_moves(case, make_referral, case_manager, as_user):
+    referral = make_referral(case)
+    response = as_user(case_manager).get(f"/api/v1/referrals/{referral.pk}/transitions/")
+    assert {row["to_status"] for row in response.data} == {"ACTIVE", "FAILED", "CANCELLED"}
+
+
+def test_parallel_cap_is_reported_as_a_field_error(case, make_referral, taxonomy, case_manager, as_user):
+    client = as_user(case_manager)
+    for category in (taxonomy["training"], taxonomy["employment"]):
+        ref = make_referral(case, category=category)
+        client.post(f"/api/v1/referrals/{ref.pk}/confirm/", {"confirmed_by": "X"}, format="json")
+
+    third = make_referral(case, category=taxonomy["enterprise"])
+    response = client.post(f"/api/v1/referrals/{third.pk}/confirm/", {"confirmed_by": "X"}, format="json")
+    assert response.status_code == 400
+    assert "status" in response.data
+
+
+# ---------------------------------------------------------------------------
+# Prompts and stack — spec §6.2, §6.4
+# ---------------------------------------------------------------------------
+
+
+def test_prompts_endpoint_surfaces_onward_and_replacement(case, make_referral, taxonomy, case_manager, as_user):
+    client = as_user(case_manager)
+
+    completed = make_referral(case, category=taxonomy["training"])
+    completed.transition_to(ReferralStatus.ACTIVE, actor=case_manager)
+    completed.transition_to(ReferralStatus.COMPLETED, actor=case_manager, outcome_type=taxonomy["training_completion"])
+
+    failed = make_referral(case, category=taxonomy["employment"])
+    failed.transition_to(ReferralStatus.FAILED, actor=case_manager, failure_reason_code=taxonomy["capacity"])
+
+    response = client.get("/api/v1/referrals/prompts/")
+    assert [r["id"] for r in response.data["onward"]] == [str(completed.pk)]
+    assert [r["id"] for r in response.data["replacement"]] == [str(failed.pk)]
+
+
+def test_stack_endpoint_returns_the_nested_chain(case, make_referral, taxonomy, partner, case_manager, as_user):
+    from apps.referrals import services
+
+    first = make_referral(case, category=taxonomy["training"])
+    first.transition_to(ReferralStatus.ACTIVE, actor=case_manager)
+    first.transition_to(ReferralStatus.COMPLETED, actor=case_manager, outcome_type=taxonomy["training_completion"])
+    services.create_onward_referral(
+        parent=first,
+        referral_category=taxonomy["employment"],
+        receiving_partner=partner,
+        initiated_by=case_manager,
+    )
+
+    response = as_user(case_manager).get(f"/api/v1/referrals/stack/{case.pk}/")
+    assert response.status_code == 200
+    assert len(response.data) == 1
+    assert len(response.data[0]["children"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# Scoping — spec §7
+# ---------------------------------------------------------------------------
+
+
+def test_partner_staff_see_only_their_own_institutions_referrals(
+    case, make_referral, make_partner, partner, partner_staff, as_user, taxonomy
+):
+    """§7: "View/update, own institution's referrals only"."""
+    other_partner = make_partner(name="Bishoftu Automotive")
+    mine = make_referral(case, category=taxonomy["training"], receiving_partner=partner)
+    make_referral(case, category=taxonomy["employment"], receiving_partner=other_partner)
+
+    response = as_user(partner_staff).get("/api/v1/referrals/")
+    assert [row["id"] for row in response.data["results"]] == [str(mine.pk)]
+
+
+def test_partner_staff_may_confirm_their_own_referral(case, make_referral, partner_staff, as_user, taxonomy):
+    """§7 gives partner staff "Referral receipt confirmation"."""
+    referral = make_referral(case)
+    response = as_user(partner_staff).post(
+        f"/api/v1/referrals/{referral.pk}/confirm/", {"confirmed_by": "Tigist"}, format="json"
+    )
+    assert response.status_code == 200, response.data
+
+
+def test_partner_staff_cannot_reach_another_institutions_referral(
+    case, make_referral, make_partner, partner_staff, as_user, taxonomy
+):
+    other_partner = make_partner(name="Somewhere Else")
+    theirs = make_referral(case, receiving_partner=other_partner)
+    assert as_user(partner_staff).get(f"/api/v1/referrals/{theirs.pk}/").status_code == 404
+
+
+def test_supervisor_sees_woreda_referrals_but_cannot_act(case, make_referral, supervisor, as_user, taxonomy):
+    referral = make_referral(case)
+    client = as_user(supervisor)
+    assert client.get("/api/v1/referrals/").data["count"] == 1
+    response = client.post(f"/api/v1/referrals/{referral.pk}/confirm/", {"confirmed_by": "X"}, format="json")
+    assert response.status_code == 403
+
+
+def test_system_admin_sees_no_referrals(case, make_referral, system_admin, as_user, taxonomy):
+    make_referral(case)
+    assert as_user(system_admin).get("/api/v1/referrals/").status_code == 403
+
+
+def test_case_manager_cannot_see_another_caseloads_referrals(
+    make_case, make_referral, case_manager, other_case_manager, as_user, taxonomy
+):
+    theirs = make_case(other_case_manager, name="Theirs")
+    make_referral(theirs, initiated_by=other_case_manager)
+    assert as_user(case_manager).get("/api/v1/referrals/").data["count"] == 0
+
+
+def test_referrals_cannot_be_deleted(case, make_referral, case_manager, as_user, taxonomy):
+    referral = make_referral(case)
+    assert as_user(case_manager).delete(f"/api/v1/referrals/{referral.pk}/").status_code == 405
+
+
+def test_referral_count_matches_the_case(case, make_referral, taxonomy, case_manager, as_user):
+    make_referral(case, category=taxonomy["training"])
+    make_referral(case, category=taxonomy["employment"])
+    response = as_user(case_manager).get(f"/api/v1/referrals/?case={case.pk}")
+    assert response.data["count"] == 2
+    assert Referral.objects.filter(case=case).count() == 2

@@ -1,0 +1,31 @@
+# Youth Employment Platform — runtime dependencies
+# Stack fixed by docs/YOUTH_EMPLOYMENT_PLATFORM_DEV_SPEC.md §2. Do not substitute
+# a framework, database, or hosting approach here without spec sign-off.
+#
+# Ranges rather than exact pins: a pip-compile lockfile is a Sprint 10 hardening
+# deliverable. Until then CI resolves fresh on each build.
+
+Django>=5.2,<5.3                        # 5.2 LTS — long support suits a government handover
+djangorestframework>=3.15,<3.17
+djangorestframework-simplejwt>=5.3,<6.0  # §2 auth for the pilot; Keycloak is the scale-up path
+drf-spectacular>=0.27,<0.29              # §2 OpenAPI schema
+django-cors-headers>=4.3,<5.0
+django-filter>=24.0,<26.0
+
+psycopg[binary]>=3.1,<4.0
+celery>=5.3,<6.0                         # §2 stall detection, onward/replacement prompts, retention reminders
+redis>=5.0,<7.0
+django-celery-beat>=2.6,<3.0
+
+django-simple-history>=3.5,<4.0          # §9 audit trail — date, actor, rationale on every status change
+django-storages[s3]>=1.14,<2.0           # §2 MinIO (S3-compatible), in-country object storage
+boto3>=1.34,<2.0
+
+python-decouple>=3.8,<4.0
+django-axes>=6.3,<8.0                    # login rate limiting
+argon2-cffi>=23.1,<26.0                  # password hashing
+phonenumbers>=8.13,<10.0
+Pillow>=10.2,<12.0
+
+gunicorn>=21.2,<24.0
+whitenoise>=6.6,<7.0

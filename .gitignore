@@ -1,0 +1,32 @@
+# Secrets
+.env
+infra/.env
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+staticfiles/
+media/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Node / React
+node_modules/
+web/dist/
+web/.vite/
+
+# Flutter
+mobile/build/
+mobile/.dart_tool/
+
+# Editors / OS
+.DS_Store
+.idea/
+*.swp
+
+# Claude Code local state (settings.json is shared and IS committed if present)
+.claude/settings.local.json
+.claude/*.tmp.*

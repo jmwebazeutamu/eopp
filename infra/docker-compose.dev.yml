@@ -1,0 +1,45 @@
+# Development overlay. Never applied in production — it must be named explicitly:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Adds: source bind-mount with autoreload, published Postgres/Redis ports for a
+# DB GUI on the Mac host, and the development settings module.
+
+services:
+  db:
+    ports:
+      - "${DB_HOST_PORT:-5407}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_HOST_PORT:-6307}:6379"
+
+  web:
+    build:
+      args:
+        REQUIREMENTS: development
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "*"
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      # Live source. Named volume over staticfiles/ so collectstatic output from
+      # the image is not shadowed by an empty host directory.
+      - ../backend:/app
+      - static_dev:/app/staticfiles
+
+  celery:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+    volumes:
+      - ../backend:/app
+
+  celery-beat:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+    volumes:
+      - ../backend:/app
+
+volumes:
+  static_dev:
