@@ -7,6 +7,7 @@ Environment-specific overrides live in development.py and production.py.
 
 from pathlib import Path
 
+from celery.schedules import crontab
 from decouple import Csv, config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -66,6 +67,7 @@ LOCAL_APPS = [
     "apps.partners",  # Spec §4.11 Partner / Provider Organisation — Sprint 2
     "apps.cases",  # Spec §4.2 Case, §4.3 Profiling, §4.4 Pathway — Sprints 1-2
     "apps.referrals",  # Spec §4.6 Referral, §5 taxonomy, §6 state machine — Sprint 3
+    "apps.alerts",  # Spec §4.13 Alert / Task, §6 system actions — Sprint 4
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -209,6 +211,38 @@ CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TASK_DEFAULT_QUEUE = "default"
 
+# Spec §10 Sprint 4. DatabaseScheduler syncs these into django_celery_beat's
+# tables on startup, so they are version-controlled here rather than typed into
+# the admin, while remaining adjustable there without a deploy.
+#
+# Daily rather than hourly: every condition these detect is measured in days
+# (§4.13 thresholds), so a tighter cadence would only add load. Times are EAT
+# and sit before the working day so an alert is waiting when staff log in.
+CELERY_BEAT_SCHEDULE = {
+    "detect-stalled-cases": {
+        "task": "alerts.detect_stalled_cases",
+        "schedule": crontab(hour=5, minute=0),
+    },
+    "detect-overdue-confirmations": {
+        "task": "alerts.detect_overdue_confirmations",
+        "schedule": crontab(hour=5, minute=10),
+    },
+    "generate-onward-prompts": {
+        "task": "alerts.generate_onward_prompts",
+        "schedule": crontab(hour=5, minute=20),
+    },
+    "generate-replacement-prompts": {
+        "task": "alerts.generate_replacement_prompts",
+        "schedule": crontab(hour=5, minute=30),
+    },
+    # Runs more often than detection: clearing a resolved alert out of somebody's
+    # inbox promptly is what stops the inbox being ignored.
+    "resolve-cleared-alerts": {
+        "task": "alerts.resolve_cleared_alerts",
+        "schedule": crontab(minute=0, hour="*/4"),
+    },
+}
+
 # --------------------------------------------------------------------------
 # Object storage — spec §2: MinIO, self-hosted, data stays in-country
 # --------------------------------------------------------------------------
@@ -257,6 +291,11 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 STALL_ALERT_THRESHOLD_DAYS = config("STALL_ALERT_THRESHOLD_DAYS", default=30, cast=int)
 REFERRAL_CONFIRMATION_OVERDUE_DAYS = config("REFERRAL_CONFIRMATION_OVERDUE_DAYS", default=7, cast=int)
 CASELOAD_CEILING = config("CASELOAD_CEILING", default=50, cast=int)
+
+# §4.13 alert thresholds whose source entities arrive in later sprints. Declared
+# now so `threshold_for()` has one configuration point for all six alert types.
+FOLLOW_UP_DUE_DAYS = config("FOLLOW_UP_DUE_DAYS", default=14, cast=int)  # Follow-Up (§4.9), Sprint 6
+RETENTION_CHECK_DUE_DAYS = config("RETENTION_CHECK_DUE_DAYS", default=30, cast=int)  # Placement (§4.7), Sprint 5
 
 # Spec §6.3: at most two Active referrals may share a parallel_group_id.
 MAX_PARALLEL_ACTIVE_REFERRALS = 2

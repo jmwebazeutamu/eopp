@@ -170,12 +170,13 @@ These need validation, but they are not on the §11 list.
 - **Sprint 3 — done.** Referral entity (§4.6), taxonomy as admin-editable lookup
   tables (§5, §9), the state machine with every §6.2 transition tested, the §6.3
   parallel cap, the §6.4 stack query, and the case-screen referral timeline.
-- **Sprint 4 — next.** Onward/replacement auto-prompts materialised as Alerts
-  (§4.13), stall and confirmation-overdue detection, Celery beat jobs,
-  "next action" on the case screen.
+- **Sprint 4 — done.** Alert entity (§4.13), the four detection jobs, auto
+  resolution, Celery beat schedule, alert inbox and case-screen alerts.
+- **Sprint 5 — next.** Training Enrolment (§4.5) and Placement (§4.7) with the
+  30/60/90-day retention checkpoints, plus trainer and employer-liaison screens.
 
-Later sprints: 5 training/placement · 6 enterprise/follow-up/grievance ·
-7 dashboards · 8–9 mobile · 10 hardening.
+Later sprints: 6 enterprise/follow-up/grievance · 7 dashboards ·
+8–9 mobile · 10 hardening.
 
 ## The referral engine (spec §4.6, §5, §6)
 
@@ -201,8 +202,28 @@ The core of the platform. Read §6 before touching `apps/referrals`.
 - **The stack is a query.** `build_referral_stack()` rebuilds it from
   `parent_referral` each call. Never cache or denormalise it (§6.4).
 - **Prompts are conditions, not rows.** `awaiting_onward_prompt()` and
-  `awaiting_replacement_prompt()` are querysets; Sprint 4's job materialises
+  `awaiting_replacement_prompt()` are querysets; the Sprint 4 jobs materialise
   them into Alerts. Keep the queryset as the single definition.
+
+## Alerts (spec §4.13)
+
+- **Detection jobs never create case data.** §5.2 requires the case manager to
+  confirm before an onward or replacement referral exists, so the jobs raise a
+  prompt and stop.
+- **Stall detection does not set `case_status = STALLED`.** §6.2's System Action
+  column lists alerts only; moving a case to Stalled is a judgement, not an
+  observation about the clock.
+- **Every job is idempotent**, backed by two partial unique indexes rather than
+  by trust. Two are needed because Postgres treats NULLs as distinct, so the
+  three-column index does not constrain case-level (referral IS NULL) alerts.
+- **Auto-resolution re-checks against `alert.threshold_days`**, the value
+  recorded when the alert was raised — not today's setting. An alert raised
+  under a 30-day rule must not be silently re-judged at 90.
+- **A system-closed alert has `actioned_by = NULL`.** That is how the §9 audit
+  trail distinguishes the resolution sweep from a person.
+- **Never name a DRF viewset method `action`.** It shadows the imported
+  `@action` decorator for every route below it in the class body and fails at
+  class-creation time. Use `url_path` to keep the REST path.
 
 ## Definition of Done (spec §10.1)
 

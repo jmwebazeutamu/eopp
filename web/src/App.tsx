@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AppLayout from "./components/AppLayout";
 import { AuthProvider } from "./auth/AuthContext";
+import AlertsPage from "./pages/AlertsPage";
 import CaseDetailPage from "./pages/CaseDetailPage";
 import CaseListPage from "./pages/CaseListPage";
 import LoginPage from "./pages/LoginPage";
@@ -22,6 +23,7 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route path="/cases" element={<CaseListPage />} />
                 <Route path="/cases/:caseId" element={<CaseDetailPage />} />
+                <Route path="/alerts" element={<AlertsPage />} />
                 <Route path="/youth" element={<YouthListPage />} />
                 <Route path="/partners" element={<PartnersPage />} />
                 <Route path="/users" element={<UsersPage />} />

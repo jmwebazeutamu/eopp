@@ -292,3 +292,59 @@ export const REFERRAL_STATUS_COLOURS: Record<ReferralStatusCode, string> = {
   REPLACED: "purple",
   CANCELLED: "default",
 };
+
+// --- Sprint 4: alerts (spec §4.13) -----------------------------------------
+
+export type AlertTypeCode =
+  | "STALL"
+  | "REFERRAL_CONFIRMATION_OVERDUE"
+  | "FOLLOW_UP_DUE"
+  | "ONWARD_REFERRAL_PROMPT"
+  | "REPLACEMENT_REFERRAL_PROMPT"
+  | "RETENTION_CHECK_DUE";
+
+export type AlertStatusCode = "OPEN" | "ACTIONED" | "DISMISSED";
+
+export interface Alert {
+  id: string;
+  case: string;
+  youth_name: string;
+  woreda: string;
+  referral: string | null;
+  alert_type: AlertTypeCode;
+  alert_type_display: string;
+  summary: string;
+  triggered_date: string;
+  threshold_days: number;
+  age_days: number;
+  assigned_to: string;
+  assigned_to_name: string;
+  status: AlertStatusCode;
+  status_display: string;
+  actioned_date: string | null;
+  actioned_by: string | null;
+  actioned_by_name: string | null;
+}
+
+export interface AlertSummary {
+  open_total: number;
+  assigned_to_me: number;
+  by_type: { alert_type: AlertTypeCode; label: string; count: number }[];
+}
+
+export const ALERT_TYPE_COLOURS: Record<AlertTypeCode, string> = {
+  STALL: "red",
+  REFERRAL_CONFIRMATION_OVERDUE: "orange",
+  FOLLOW_UP_DUE: "blue",
+  ONWARD_REFERRAL_PROMPT: "green",
+  REPLACEMENT_REFERRAL_PROMPT: "volcano",
+  RETENTION_CHECK_DUE: "purple",
+};
+
+/**
+ * Alert types whose detection job arrives with its source entity: Follow-Up
+ * (§4.9, Sprint 6) and Placement retention checks (§4.7, Sprint 5). Listed so
+ * the summary view can label them as not-yet-generated rather than showing a
+ * bare zero that reads as "none outstanding".
+ */
+export const ALERT_TYPES_PENDING_ENTITIES: AlertTypeCode[] = ["FOLLOW_UP_DUE", "RETENTION_CHECK_DUE"];

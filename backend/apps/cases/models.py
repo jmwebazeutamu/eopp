@@ -51,7 +51,12 @@ class CaseQuerySet(models.QuerySet):
         """
         threshold_days = threshold_days if threshold_days is not None else settings.STALL_ALERT_THRESHOLD_DAYS
         cutoff = (as_of or date.today()) - timedelta(days=threshold_days)
-        return self.open().filter(last_activity_date__lt=cutoff)
+        # `lte`, not `lt`: a case last touched exactly `threshold_days` ago has
+        # reached the threshold and must alert. This has to agree with
+        # Case.is_stalled_by_threshold, which tests `days_since >= threshold` —
+        # the two were off by one at the boundary, so the property called a case
+        # stalled while the queryset that feeds the alert job skipped it.
+        return self.open().filter(last_activity_date__lte=cutoff)
 
 
 class Case(BaseModel):

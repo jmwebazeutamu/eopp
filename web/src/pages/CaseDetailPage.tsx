@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
+import CaseAlerts from "../components/CaseAlerts";
 import ReferralPanel from "../components/ReferralPanel";
 import {
   PATHWAY_OPTIONS,
@@ -236,6 +237,11 @@ export default function CaseDetailPage() {
               <Empty description="No profiling record yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             )}
           </Card>
+        </Col>
+
+        {/* What the system has noticed, above what the case manager intends. */}
+        <Col span={24}>
+          <CaseAlerts caseId={record.id} onChanged={load} />
         </Col>
 
         <Col span={24}>

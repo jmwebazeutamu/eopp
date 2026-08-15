@@ -204,3 +204,16 @@ def test_caseload_summary_flags_managers_over_the_ceiling(
     row = next(r for r in response.data["case_managers"] if r["full_name"] == "Manager A")
     assert row["open_cases"] == 2
     assert row["over_ceiling"] is True
+
+
+@pytest.mark.parametrize("days_idle", [0, 29, 30, 31, 60])
+def test_stall_property_and_queryset_agree_at_every_boundary(make_case, case_manager, settings, days_idle):
+    """The computed property and the queryset that feeds the alert job must
+    never disagree. They were off by one at exactly `threshold_days`, which made
+    a case read as stalled on screen while the detection job skipped it.
+    """
+    settings.STALL_ALERT_THRESHOLD_DAYS = 30
+    case = make_case(case_manager, last_activity_date=date.today() - timedelta(days=days_idle))
+
+    in_queryset = Case.objects.stalled_beyond_threshold().filter(pk=case.pk).exists()
+    assert case.is_stalled_by_threshold == in_queryset

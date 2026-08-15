@@ -78,4 +78,8 @@ history (§4.4), Partner organisations (§4.11), and partner-institution scoping
 admin-editable configuration (§5), the state machine (§6.2), the two-referral
 parallel cap (§6.3), and the referral stack (§6.4).
 
-Sprint 4 next: alerts and the onward/replacement auto-prompts.
+**Sprint 4** — the Alert entity (§4.13), scheduled detection of stalled cases,
+overdue partner confirmations, and the §6.2 onward/replacement prompts, with
+auto-resolution when the underlying condition clears.
+
+Sprint 5 next: training enrolment and placement with retention checkpoints.
