@@ -1,9 +1,12 @@
-import { App, Card, Input, Select, Space, Table, Tag, Typography } from "antd";
+import { EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { App, Button, Card, Input, Select, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useState } from "react";
 
 import { api, errorMessage } from "../api/client";
-import type { MouStatus, Paginated, Partner } from "../api/types";
+import { PARTNER_TYPE_OPTIONS, type MouStatus, type Paginated, type Partner } from "../api/types";
+import { useAuth } from "../auth/AuthContext";
+import PartnerFormModal from "../components/PartnerFormModal";
 
 const MOU_COLOURS: Record<MouStatus, string> = {
   NONE: "default",
@@ -13,10 +16,24 @@ const MOU_COLOURS: Record<MouStatus, string> = {
   TERMINATED: "red",
 };
 
-/** Partner directory — spec §4.11. Read-only here; §7 gives writes to the
- *  programme manager and system administrator, who use the Django admin. */
+/**
+ * Partner directory — spec §4.11.
+ *
+ * Every operational user reads it (a case manager choosing a referral
+ * destination needs to). Writing is limited to the roles that own partner
+ * relationships. Deletion is not offered at all: referral history and the §8
+ * partner performance dashboards depend on the record, so a partner that stops
+ * taking referrals is deactivated instead.
+ */
 export default function PartnersPage() {
   const { message } = App.useApp();
+  const { user } = useAuth();
+  const [editing, setEditing] = useState<Partner | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  // §7 does not cover Partner, which is organisational reference data rather
+  // than case content. Writes are limited to the roles that own partner
+  // relationships; the API enforces the same set independently.
+  const canWrite = user?.role === "SYSTEM_ADMIN" || user?.role === "PROGRAMME_MANAGER";
   const [rows, setRows] = useState<Partner[]>([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -95,10 +112,38 @@ export default function PartnersPage() {
       render: (value: boolean) =>
         value ? <Tag color="green">Accepting</Tag> : <Tag color="default">Inactive</Tag>,
     },
+    ...(canWrite
+      ? [
+          {
+            title: "",
+            key: "actions",
+            width: 90,
+            render: (_: unknown, row: Partner) => (
+              <Button type="link" icon={<EditOutlined />} onClick={() => openForm(row)}>
+                Edit
+              </Button>
+            ),
+          },
+        ]
+      : []),
   ];
 
+  function openForm(partner: Partner | null) {
+    setEditing(partner);
+    setFormOpen(true);
+  }
+
   return (
-    <Card title="Partners and providers">
+    <Card
+      title="Partners and providers"
+      extra={
+        canWrite && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => openForm(null)}>
+            New partner
+          </Button>
+        )
+      }
+    >
       <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
           placeholder="Name, contact, or email"
@@ -118,17 +163,7 @@ export default function PartnersPage() {
             setType(value);
             setPage(1);
           }}
-          options={[
-            { value: "TVET_INSTITUTION", label: "TVET Institution" },
-            { value: "EMPLOYER", label: "Employer" },
-            { value: "ENTERPRISE_DEVELOPMENT_AGENCY", label: "Enterprise Development Agency" },
-            { value: "SAVINGS_GROUP", label: "Savings Group" },
-            { value: "HEALTH_SERVICE", label: "Health Service" },
-            { value: "PSYCHOSOCIAL_SERVICE", label: "Psychosocial Service" },
-            { value: "LEGAL_AID", label: "Legal Aid" },
-            { value: "FINANCE_INSTITUTION", label: "Finance Institution" },
-            { value: "OTHER", label: "Other" },
-          ]}
+          options={PARTNER_TYPE_OPTIONS}
         />
       </Space>
 
@@ -145,6 +180,13 @@ export default function PartnersPage() {
           onChange: setPage,
           showTotal: (total) => `${total} partner${total === 1 ? "" : "s"}`,
         }}
+      />
+
+      <PartnerFormModal
+        open={formOpen}
+        partner={editing}
+        onClose={() => setFormOpen(false)}
+        onSaved={load}
       />
     </Card>
   );

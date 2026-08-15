@@ -34,6 +34,23 @@ class YouthViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     ordering_fields = ["full_name", "registration_date", "date_of_birth"]
     ordering = ["full_name"]
 
+    def get_queryset(self):
+        """`?without_case=true` lists youth who have no case yet.
+
+        Case is one-to-one with Youth (§3), so the "open a case" picker must not
+        offer someone who already has one — the create would fail on the unique
+        constraint only after the user had filled in the whole form.
+
+        `super()` is ScopedQuerySetMixin, so §7 scoping is applied first and this
+        narrows within it rather than around it.
+        """
+        queryset = super().get_queryset()
+        flag = self.request.query_params.get("without_case")
+        if flag is not None:
+            wants_uncased = flag.lower() in {"1", "true", "yes"}
+            queryset = queryset.filter(case__isnull=wants_uncased)
+        return queryset
+
     def get_serializer_class(self):
         if self.action == "create":
             return YouthIntakeSerializer

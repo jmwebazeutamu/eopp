@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, EditOutlined } from "@ant-design/icons";
 import {
   App,
   Button,
@@ -22,6 +22,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
 import CaseAlerts from "../components/CaseAlerts";
+import CaseFormModal from "../components/CaseFormModal";
 import ReferralPanel from "../components/ReferralPanel";
 import {
   PATHWAY_OPTIONS,
@@ -43,6 +44,7 @@ export default function CaseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [revising, setRevising] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [reviseForm] = Form.useForm<{ selected_pathway: Pathway; revision_reason: string }>();
 
   const load = useCallback(async () => {
@@ -108,9 +110,16 @@ export default function CaseDetailPage() {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/cases")} type="text">
-        Back to cases
-      </Button>
+      <Space style={{ width: "100%", justifyContent: "space-between" }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/cases")} type="text">
+          Back to cases
+        </Button>
+        {canWrite && (
+          <Button icon={<EditOutlined />} onClick={() => setEditing(true)}>
+            Edit case
+          </Button>
+        )}
+      </Space>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={14}>
@@ -269,6 +278,8 @@ export default function CaseDetailPage() {
           <ReferralPanel caseId={record.id} woreda={record.woreda} onChanged={load} />
         </Col>
       </Row>
+
+      <CaseFormModal open={editing} record={record} onClose={() => setEditing(false)} onSaved={() => load()} />
 
       <Modal
         open={revising}

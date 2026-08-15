@@ -1,4 +1,5 @@
-import { App, Card, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
+import { App, Button, Card, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { api, errorMessage } from "../api/client";
 import type { CaseListRow, CaseStatus, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import CaseFormModal from "../components/CaseFormModal";
 
 const STATUS_COLOURS: Record<CaseStatus, string> = {
   ACTIVE: "green",
@@ -28,6 +30,9 @@ export default function CaseListPage() {
   const [status, setStatus] = useState<CaseStatus | undefined>();
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+
+  const canWrite = user?.access.case_write ?? false;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,13 +103,20 @@ export default function CaseListPage() {
     <Card
       title="Cases"
       extra={
-        <Typography.Text type="secondary">
+        <Space>
+          {canWrite && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormOpen(true)}>
+              Open a case
+            </Button>
+          )}
+          <Typography.Text type="secondary">
           {user?.access.case_scope === "OWN_CASELOAD"
             ? "Your caseload"
             : user?.access.case_scope === "OWN_WOREDA"
               ? `Woredas: ${user.woreda_assignment.join(", ")}`
               : "All woredas"}
-        </Typography.Text>
+          </Typography.Text>
+        </Space>
       }
     >
       <Space style={{ marginBottom: 16 }} wrap>
@@ -151,6 +163,13 @@ export default function CaseListPage() {
           showTotal: (total) => `${total} case${total === 1 ? "" : "s"}`,
         }}
         locale={{ emptyText: "No cases match this view." }}
+      />
+
+      <CaseFormModal
+        open={formOpen}
+        record={null}
+        onClose={() => setFormOpen(false)}
+        onSaved={(caseId) => (caseId ? navigate(`/cases/${caseId}`) : load())}
       />
     </Card>
   );

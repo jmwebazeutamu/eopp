@@ -134,3 +134,17 @@ class ScopedTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["role"] = user.role
         token["full_name"] = user.full_name
         return token
+
+
+class AssignableUserSerializer(serializers.ModelSerializer):
+    """Minimal shape for assignment pickers.
+
+    §7 keeps user management with the system administrator, so this deliberately
+    exposes only what is needed to choose an assignee — no email, account status
+    or partner link.
+    """
+
+    class Meta:
+        model = User
+        fields = ["id", "full_name", "woreda_assignment"]
+        read_only_fields = fields

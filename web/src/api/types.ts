@@ -348,3 +348,59 @@ export const ALERT_TYPE_COLOURS: Record<AlertTypeCode, string> = {
  * bare zero that reads as "none outstanding".
  */
 export const ALERT_TYPES_PENDING_ENTITIES: AlertTypeCode[] = ["FOLLOW_UP_DUE", "RETENTION_CHECK_DUE"];
+
+// --- Full youth record (spec §4.1) -----------------------------------------
+
+export interface Youth extends YouthSummary {
+  national_or_kebele_id: string;
+  region: string;
+  zone: string;
+  household_id: string;
+  psnp_status: string;
+  education_level: string;
+  disability_status: string;
+  consent_given: boolean;
+  consent_date: string | null;
+  registration_date: string;
+  registering_worker: string;
+  registering_worker_name: string;
+  is_age_eligible: boolean;
+  /** Present only on the create response — §11's age band is unconfirmed, so
+   *  an out-of-band registration warns rather than blocks. */
+  age_band_warning?: string | null;
+}
+
+/** Name and woredas only — what an assignment picker needs (§7). */
+export interface AssignableUser {
+  id: string;
+  full_name: string;
+  woreda_assignment: string[];
+}
+
+export const CASE_STATUS_OPTIONS: { value: CaseStatus; label: string }[] = [
+  { value: "ACTIVE", label: "Active" },
+  { value: "STALLED", label: "Stalled" },
+  { value: "REFERRAL_PENDING", label: "Referral Pending" },
+  { value: "PLACED", label: "Placed" },
+  { value: "EXITED", label: "Exited" },
+];
+
+export const PARTNER_TYPE_OPTIONS: { value: PartnerTypeCode; label: string }[] = [
+  { value: "TVET_INSTITUTION", label: "TVET Institution" },
+  { value: "EMPLOYER", label: "Employer" },
+  { value: "ENTERPRISE_DEVELOPMENT_AGENCY", label: "Enterprise Development Agency" },
+  { value: "SAVINGS_GROUP", label: "Savings Group" },
+  { value: "HEALTH_SERVICE", label: "Health Service" },
+  { value: "PSYCHOSOCIAL_SERVICE", label: "Psychosocial Service" },
+  { value: "LEGAL_AID", label: "Legal Aid" },
+  { value: "FINANCE_INSTITUTION", label: "Finance Institution" },
+  { value: "OTHER", label: "Other" },
+];
+
+export const MOU_STATUS_OPTIONS: { value: MouStatus; label: string }[] = [
+  { value: "NONE", label: "No MOU" },
+  { value: "DRAFT", label: "Draft" },
+  { value: "SIGNED", label: "Signed" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "TERMINATED", label: "Terminated" },
+];
