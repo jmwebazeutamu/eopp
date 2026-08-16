@@ -1,9 +1,14 @@
 """Youth intake and registration API — spec §4.1, §10 Sprint 1."""
 
+from django.db.models import Exists, OuterRef, Subquery
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import filters, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
+from apps.cases.models import Case, CaseStatus
+from apps.common.summaries import summary_response
 from apps.users.permissions import CanAccessCases, IsOperational, ScopedQuerySetMixin
 
 from .models import Youth
@@ -45,11 +50,44 @@ class YouthViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         narrows within it rather than around it.
         """
         queryset = super().get_queryset()
+        # Annotated rather than resolved per row: the registry screen shows an
+        # "open case" pill on every card, and a property would be one query per
+        # youth on a page of forty.
+        # Both annotated from the same subquery: the registry shows an "open
+        # case" pill on every card, and the pill has to be able to open the case
+        # it names, which needs the id rather than just the fact.
+        open_case = Case.objects.filter(youth_id=OuterRef("pk"), case_status__in=CaseStatus.open_statuses())
+        queryset = queryset.annotate(
+            has_open_case=Exists(open_case),
+            open_case_id=Subquery(open_case.values("pk")[:1]),
+        )
         flag = self.request.query_params.get("without_case")
         if flag is not None:
             wants_uncased = flag.lower() in {"1", "true", "yes"}
             queryset = queryset.filter(case__isnull=wants_uncased)
         return queryset
+
+    @extend_schema(responses={200: None})
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Registry counts, split on the one thing the screen filters by.
+
+        `without_case` is the registry's only real question — who is registered
+        but not yet being case-managed — so the counters answer it directly
+        rather than restating the woreda filter that already has chips.
+        """
+        visible = self.filter_queryset(self.get_queryset())
+        with_case = visible.filter(case__isnull=False).count()
+        counters = [
+            {"param": "without_case", "value": "false", "label": "With a case", "count": with_case},
+            {
+                "param": "without_case",
+                "value": "true",
+                "label": "No case yet",
+                "count": visible.filter(case__isnull=True).count(),
+            },
+        ]
+        return Response(summary_response(visible, counters))
 
     def get_serializer_class(self):
         if self.action == "create":

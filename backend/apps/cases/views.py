@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from apps.common.summaries import counters_for, summary_response
 from apps.users.models import Role, User
 from apps.users.permissions import CanAccessCases, IsOperational, ScopedQuerySetMixin
 
@@ -87,6 +88,20 @@ class CaseViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         return Response(CaseSerializer(case, context=self.get_serializer_context()).data)
 
     @extend_schema(responses=CaseListSerializer(many=True))
+    @extend_schema(responses={200: None})
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Caseload counts by status, for the screen's counter row.
+
+        Filtered by `filter_queryset`, so a search narrows the counters with the
+        list — but the client omits `case_status` when asking, because a counter
+        that only ever counts the status already selected cannot tell you where
+        to look next.
+        """
+        visible = self.filter_queryset(self.get_queryset())
+        counters = counters_for(visible, param="case_status", field="case_status", choices=CaseStatus)
+        return Response(summary_response(visible, counters))
+
     @action(detail=False, methods=["get"], url_path="my-caseload")
     def my_caseload(self, request):
         """Open cases assigned to the requesting user.

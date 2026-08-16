@@ -166,3 +166,59 @@ def test_youth_cannot_be_deleted(locations, as_user, outreach_worker, make_youth
     youth = make_youth()
     client = as_user(outreach_worker)
     assert client.delete(f"/api/v1/youth/{youth.pk}/").status_code == 405
+
+
+# ---------------------------------------------------------------------------
+# The registry's open-case pill
+# ---------------------------------------------------------------------------
+
+
+def test_youth_list_says_whether_each_record_has_an_open_case(make_youth, make_case, case_manager, as_user):
+    """The registry shows the pill on every card, so the flag ships with the row.
+
+    Annotated rather than resolved per record: a page of forty cards would
+    otherwise be forty extra queries.
+    """
+    with_case = make_youth(name="Has A Case")
+    make_case(case_manager, youth=with_case)
+    make_youth(name="No Case Yet")
+
+    response = as_user(case_manager).get("/api/v1/youth/")
+    flags = {row["full_name"]: row["has_open_case"] for row in response.data["results"]}
+    assert flags["Has A Case"] is True
+
+
+def test_a_closed_case_does_not_count_as_an_open_one(make_youth, make_case, case_manager, as_user):
+    from apps.cases.models import CaseStatus
+
+    youth = make_youth(name="Exited Youth")
+    case = make_case(case_manager, youth=youth)
+    case.case_status = CaseStatus.EXITED
+    case.save(update_fields=["case_status"])
+
+    response = as_user(case_manager).get(f"/api/v1/youth/{youth.pk}/")
+    assert response.data["has_open_case"] is False
+
+
+def test_the_registry_row_carries_the_case_it_links_to(make_youth, make_case, case_manager, as_user):
+    """The "Open case" pill has to open the case, which needs its id.
+
+    Without this the pill could only report that a case exists, and the screen
+    fell back to opening the youth's own edit form — a control that said one
+    thing and did another.
+    """
+    youth = make_youth(name="Has A Case")
+    case = make_case(case_manager, youth=youth)
+
+    response = as_user(case_manager).get(f"/api/v1/youth/{youth.pk}/")
+    assert str(response.data["open_case_id"]) == str(case.pk)
+
+
+def test_a_youth_without_a_case_has_no_case_to_link_to(make_youth, outreach_worker, as_user):
+    """Asked as the outreach worker: a case manager's scope resolves through the
+    case, so a youth with no case is invisible to them by design (§7)."""
+    make_youth(name="No Case Yet")
+    rows = as_user(outreach_worker).get("/api/v1/youth/").data["results"]
+    row = next(item for item in rows if item["full_name"] == "No Case Yet")
+    assert row["open_case_id"] is None
+    assert row["has_open_case"] is False

@@ -1,13 +1,17 @@
 """User management API — spec §10 Sprint 2 builds the admin UI on top of this."""
 
+from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
-from rest_framework import viewsets
+from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
+
+from apps.cases.models import CaseStatus
+from apps.common.summaries import counters_for, summary_response
 
 from .models import AccountStatus, Role, Scope, User
 from .permissions import CanAccessCases, HasRole, IsOperational
@@ -32,13 +36,43 @@ class UserViewSet(viewsets.ModelViewSet):
     Restricted to system administrators: §7 gives only that role user management.
     """
 
-    queryset = User.objects.all()
+    # Annotated because the user list shows each account's live load, and §11's
+    # CASELOAD_CEILING is meaningless to an administrator who cannot see it.
+    # Open cases only: a closed case is not work in hand.
+    # `order_by` restated because Django drops Meta.ordering on an aggregate
+    # query, and an unordered queryset makes paginated pages overlap.
+    queryset = User.objects.annotate(
+        caseload_count=Count(
+            "managed_cases",
+            filter=Q(managed_cases__case_status__in=CaseStatus.open_statuses()),
+            distinct=True,
+        )
+    ).order_by("full_name")
     serializer_class = UserSerializer
     permission_classes = [IsOperational, HasRole.of(Role.SYSTEM_ADMIN)]
-    filter_backends = [DjangoFilterBackend]
+    # SearchFilter added so the screen's "find a person" box works; the fields
+    # were already declared but nothing was reading them.
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["role", "account_status"]
     search_fields = ["full_name", "username", "email"]
     ordering_fields = ["full_name", "date_joined", "last_login"]
+
+    @extend_schema(responses={200: None})
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Account counts by role, plus the ones that cannot sign in.
+
+        Roles with nobody in them are dropped: ten counters, six of them zero,
+        would bury the four that matter on a pilot of twenty users.
+        """
+        visible = self.filter_queryset(self.get_queryset())
+        counters = counters_for(visible, param="role", field="role", choices=Role, include_zero=False)
+        suspended = visible.exclude(account_status=AccountStatus.ACTIVE).count()
+        if suspended:
+            counters.append(
+                {"param": "account_status", "value": AccountStatus.SUSPENDED, "label": "Suspended", "count": suspended}
+            )
+        return Response(summary_response(visible, counters))
 
     def perform_destroy(self, instance):
         """Accounts are deactivated, never deleted.

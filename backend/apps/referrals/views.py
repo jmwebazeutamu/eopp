@@ -1,5 +1,6 @@
 """Referral API — spec §4.6, §6, §10 Sprint 3."""
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -11,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.cases.models import Case
+from apps.common.summaries import counters_for, summary_response
 from apps.partners.models import Partner
 from apps.users.models import Role
 from apps.users.permissions import CanAccessReferrals, IsOperational, ScopedQuerySetMixin
@@ -271,6 +273,35 @@ class ReferralViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         return Response(ReferralStackNodeSerializer(build_referral_stack(case), many=True).data)
 
     @extend_schema(responses={200: None})
+    @extend_schema(responses={200: None})
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Referral counts by §6.1 status, for the queue's counter row."""
+        visible = self.filter_queryset(self.get_queryset())
+        return Response(
+            summary_response(visible, counters_for(visible, param="status", field="status", choices=ReferralStatus))
+        )
+
+    @extend_schema(responses={200: None})
+    @action(detail=False, methods=["get"], url_path="rules")
+    def rules(self, request):
+        """The programme rules the case screen has to state out loud (§6.3).
+
+        The parallel cap is a programme decision, not a client constant: the
+        case screen shows "2 of 2 parallel referrals in use" and blocks the new
+        referral button on it, and if the number is ever revised in settings a
+        deployed client must not keep claiming the old one.
+        """
+        return Response(
+            {
+                "parallel_limit": settings.MAX_PARALLEL_ACTIVE_REFERRALS,
+                "stall_alert_threshold_days": settings.STALL_ALERT_THRESHOLD_DAYS,
+                "referral_confirmation_overdue_days": settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS,
+                # §11 working default: exempt categories run as a third stream.
+                "complementary_service_exempt": settings.COMPLEMENTARY_SERVICE_EXEMPT_FROM_PARALLEL_CAP,
+            }
+        )
+
     @action(detail=False, methods=["get"], url_path="prompts")
     def prompts(self, request):
         """Referrals awaiting an onward or replacement decision (§6.2).

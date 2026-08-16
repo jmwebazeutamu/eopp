@@ -13,6 +13,8 @@ class UserSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     partner_name = serializers.CharField(source="partner.partner_name", read_only=True, default=None)
     password = serializers.CharField(write_only=True, required=False, style={"input_type": "password"})
+    # Annotated by the viewset; 0 for an account that manages no cases.
+    caseload_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = User
@@ -27,6 +29,7 @@ class UserSerializer(serializers.ModelSerializer):
             "partner",
             "partner_name",
             "account_status",
+            "caseload_count",
             "last_login",
             "date_joined",
             "password",

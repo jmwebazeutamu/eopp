@@ -3,13 +3,16 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import filters, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.permissions import SAFE_METHODS, BasePermission
+from rest_framework.response import Response
 
+from apps.common.summaries import counters_for, summary_response
 from apps.users.models import Role
 from apps.users.permissions import IsOperational
 
-from .models import Partner
+from .models import MouStatus, Partner
 from .serializers import PartnerSerializer
 
 
@@ -49,6 +52,34 @@ class PartnerViewSet(viewsets.ModelViewSet):
     search_fields = ["partner_name", "contact_name", "email"]
     ordering_fields = ["partner_name", "partner_type", "created_at"]
     ordering = ["partner_name"]
+
+    @extend_schema(responses={200: None})
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Partner counts by the two things a supervisor chases: MOU and capacity.
+
+        Whether a partner can take a referral today, and whether the paperwork
+        behind that is signed, are different questions — a partner can be
+        accepting referrals on a draft MOU, which is exactly the gap worth
+        seeing on the screen.
+        """
+        visible = self.filter_queryset(self.get_queryset())
+        counters = [
+            {
+                "param": "active_status",
+                "value": "true",
+                "label": "Accepting referrals",
+                "count": visible.filter(active_status=True).count(),
+            },
+            {
+                "param": "active_status",
+                "value": "false",
+                "label": "Paused",
+                "count": visible.filter(active_status=False).count(),
+            },
+        ]
+        counters += counters_for(visible, param="mou_status", field="mou_status", choices=MouStatus, include_zero=False)
+        return Response(summary_response(visible, counters))
 
     @extend_schema(
         parameters=[

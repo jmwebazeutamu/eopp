@@ -12,6 +12,11 @@ from .models import Youth
 class YouthSerializer(serializers.ModelSerializer):
     age = serializers.IntegerField(read_only=True)
     is_age_eligible = serializers.BooleanField(read_only=True)
+    # Annotated by the viewset. `default=False` rather than required, so a
+    # serializer used outside that queryset — the create response — still works.
+    has_open_case = serializers.BooleanField(read_only=True, default=False)
+    # The case the registry's pill links to; null when there is no open one.
+    open_case_id = serializers.UUIDField(read_only=True, default=None)
     sex_display = serializers.CharField(source="get_sex_display", read_only=True)
     registering_worker_name = serializers.CharField(source="registering_worker.full_name", read_only=True)
 
@@ -37,6 +42,8 @@ class YouthSerializer(serializers.ModelSerializer):
             "disability_status",
             "consent_given",
             "consent_date",
+            "has_open_case",
+            "open_case_id",
             "registration_date",
             "registering_worker",
             "registering_worker_name",

@@ -27,7 +27,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.cases.models import Case
+from apps.cases.models import Case, Pathway, PathwayAssignment, ProfilingRecord
 from apps.partners.models import Partner
 from apps.referrals import services
 from apps.referrals.models import Referral, ReferralStatus
@@ -168,6 +168,45 @@ class Command(BaseCommand):
         )
         return case
 
+    def profile_and_assign(self, case, pathway, day, revise_to=None, revise_day=None):
+        """Give the case the §4.3 profiling and §4.4 pathway a real one would have.
+
+        Without these the case screen has no pathway to show and the goal panel
+        counts a journey that never left step one, which makes the demo look
+        like a bug rather than like a case.
+        """
+        ProfilingRecord.objects.create(
+            case=case,
+            work_history_summary="Casual farm labour, no formal employment.",
+            skills_list=["Basic literacy", "Numeracy"],
+            eligibility_flags=[pathway],
+            assessed_date=self.day(day),
+            assessor=self.case_manager,
+        )
+        assignment = PathwayAssignment.objects.create(
+            case=case,
+            selected_pathway=pathway,
+            assessed_interests="Wants a trade with local demand.",
+            capacities="Completed grade 10.",
+            barriers="No transport from kebele; limited tools.",
+            assessment_date=self.day(day),
+            assessor=self.case_manager,
+            is_current=True,
+        )
+        case.current_pathway_assignment = assignment
+        case.save(update_fields=["current_pathway_assignment", "updated_at"])
+
+        # One case carries a revision so the §9 rationale trail has something in
+        # it — the history is the part the pathway card exists to show.
+        if revise_to:
+            assignment.revise(
+                selected_pathway=revise_to,
+                assessor=self.case_manager,
+                revision_reason="TVET place fell through; youth redirected to wage employment.",
+                assessment_date=self.day(revise_day),
+            )
+        return assignment
+
     def initiate(self, case, category_code, partner_name, day):
         return services.initiate_referral(
             case=case,
@@ -251,6 +290,7 @@ class Command(BaseCommand):
     def sequential_chain(self):
         """Completed training, then the onward referral it prompted. No parallel, no failure."""
         case = self.make_case("sequential", "Marta Girma", -170)
+        self.profile_and_assign(case, Pathway.TRAINING, -165, revise_to=Pathway.WAGE_EMPLOYMENT, revise_day=-112)
         first = self.initiate(case, "TRAINING", "Adama Polytechnic College", -150)
         self.confirm(first, -146)
         self.complete(first, "TRAINING_COMPLETION", -110)
@@ -262,6 +302,7 @@ class Command(BaseCommand):
     def parallel_pair(self):
         """Two concurrent referrals, plus an exempt third stream (§6.3)."""
         case = self.make_case("parallel", "Hanna Wolde", -140)
+        self.profile_and_assign(case, Pathway.SELF_EMPLOYMENT, -135)
         training = self.initiate(case, "TRAINING", "Adama Skills Hub", -120)
         self.confirm(training, -115)
         finance = self.initiate(case, "FINANCE_ACCESS", "Oromia Credit and Savings", -100)
@@ -277,6 +318,7 @@ class Command(BaseCommand):
     def failure_and_replacement(self):
         """A failed referral, its replacement, and the replacement's outcome."""
         case = self.make_case("replacement", "Yonas Alemu", -180)
+        self.profile_and_assign(case, Pathway.TRAINING, -175)
         failed = self.initiate(case, "TRAINING", "Adama Skills Hub", -160)
         self.confirm(failed, -155)
         self.fail(failed, "PARTNER_CAPACITY", -120)
@@ -289,6 +331,7 @@ class Command(BaseCommand):
     def three_onward_hops(self):
         """The long chain: training to apprenticeship to employment, over ~7 months."""
         case = self.make_case("onward3", "Selam Bekele", -230)
+        self.profile_and_assign(case, Pathway.TRAINING, -225, revise_to=Pathway.APPRENTICESHIP, revise_day=-168)
         first = self.initiate(case, "TRAINING", "Adama Skills Hub", -200)
         self.confirm(first, -196)
         self.complete(first, "TRAINING_COMPLETION", -170)
@@ -303,6 +346,7 @@ class Command(BaseCommand):
     def pending_and_cancelled(self):
         """The two quiet statuses: one withdrawn, one still waiting on a partner."""
         case = self.make_case("mixed", "Tigist Haile", -60)
+        self.profile_and_assign(case, Pathway.WAGE_EMPLOYMENT, -55)
         withdrawn = self.initiate(case, "MARKET_LINKAGE", "Rift Valley Enterprise Agency", -45)
         self.cancel(withdrawn, -40)
         # Left in Pending Confirmation: the partner has not answered yet.

@@ -298,3 +298,35 @@ def test_referral_count_matches_the_case(case, make_referral, taxonomy, case_man
     response = as_user(case_manager).get(f"/api/v1/referrals/?case={case.pk}")
     assert response.data["count"] == 2
     assert Referral.objects.filter(case=case).count() == 2
+
+
+# ---------------------------------------------------------------------------
+# Programme rules (§6.3)
+# ---------------------------------------------------------------------------
+
+
+def test_rules_endpoint_serves_the_parallel_cap(case_manager, as_user, settings):
+    """The case screen states the cap out loud, so it must not guess at it.
+
+    §6.3's limit is a programme decision. A client that hardcoded 2 would keep
+    claiming it after the setting changed, and the screen's "2 of 2 in use" chip
+    and blocked button would both be lying.
+    """
+    settings.MAX_PARALLEL_ACTIVE_REFERRALS = 3
+    response = as_user(case_manager).get("/api/v1/referrals/rules/")
+    assert response.status_code == 200
+    assert response.data["parallel_limit"] == 3
+
+
+def test_rules_endpoint_serves_the_thresholds_the_ui_shows(case_manager, as_user):
+    response = as_user(case_manager).get("/api/v1/referrals/rules/")
+    assert set(response.data) == {
+        "parallel_limit",
+        "stall_alert_threshold_days",
+        "referral_confirmation_overdue_days",
+        "complementary_service_exempt",
+    }
+
+
+def test_rules_endpoint_needs_authentication(api):
+    assert api.get("/api/v1/referrals/rules/").status_code == 401

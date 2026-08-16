@@ -134,3 +134,38 @@ def test_without_case_filter_still_respects_scope(make_youth, make_case, case_ma
     make_case(other_case_manager, name="Someone Elses")
     response = as_user(case_manager).get("/api/v1/youth/?without_case=false")
     assert response.data["count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Caseload on the user list
+# ---------------------------------------------------------------------------
+
+
+def test_user_list_carries_each_account_s_open_caseload(system_admin, case_manager, make_case, as_user):
+    """§11 sets a caseload ceiling; an administrator cannot apply it unseen."""
+    make_case(case_manager, name="One")
+    make_case(case_manager, name="Two")
+
+    response = as_user(system_admin).get("/api/v1/users/")
+    row = next(item for item in response.data["results"] if item["username"] == case_manager.username)
+    assert row["caseload_count"] == 2
+
+
+def test_closed_cases_do_not_count_toward_the_caseload(system_admin, case_manager, make_case, as_user):
+    from apps.cases.models import CaseStatus
+
+    case = make_case(case_manager, name="Closed One")
+    case.case_status = CaseStatus.EXITED
+    case.save(update_fields=["case_status"])
+
+    response = as_user(system_admin).get("/api/v1/users/")
+    row = next(item for item in response.data["results"] if item["username"] == case_manager.username)
+    assert row["caseload_count"] == 0
+
+
+def test_the_user_list_stays_ordered_under_the_caseload_annotation(system_admin, case_manager, as_user):
+    """Django drops Meta.ordering on an aggregate query, and unordered
+    pagination silently repeats and skips rows between pages."""
+    response = as_user(system_admin).get("/api/v1/users/")
+    names = [row["full_name"] for row in response.data["results"]]
+    assert names == sorted(names)
