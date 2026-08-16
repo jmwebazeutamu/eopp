@@ -2,6 +2,7 @@ import {
   ApartmentOutlined,
   BellOutlined,
   LogoutOutlined,
+  ShareAltOutlined,
   SolutionOutlined,
   TeamOutlined,
   UserSwitchOutlined,
@@ -26,9 +27,10 @@ export default function AppLayout() {
   const [openAlerts, setOpenAlerts] = useState(0);
 
   const refreshBadge = useCallback(async () => {
-    // System administrators have no case content (§7), so the alert endpoints
-    // return 403 for them — skip rather than spam the console with errors.
-    if (!user || user.role === "SYSTEM_ADMIN") return;
+    // The alert endpoints are gated on case access, so a role with none — no
+    // longer the system administrator, but still anything the matrix does not
+    // cover — would only 403 here. Skip rather than spam the console.
+    if (!user || user.access.case_scope === "NONE") return;
     try {
       const response = await api.get<AlertSummary>("/alerts/summary/");
       setOpenAlerts(response.data.assigned_to_me);
@@ -52,6 +54,13 @@ export default function AppLayout() {
 
   const navItems = [
     { key: "/cases", icon: <SolutionOutlined />, label: "Cases" },
+    // Driven by the matrix rather than by role: the system administrator reads
+    // referrals since the 2026-08-16 deviation, but a role the matrix does not
+    // cover still gets nothing and would only 403. As with Users below, the API
+    // is the authority; hiding the item just avoids a screen that cannot load.
+    ...(user.access.referral_scope === "NONE"
+      ? []
+      : [{ key: "/referrals", icon: <ShareAltOutlined />, label: "Referrals" }]),
     {
       key: "/alerts",
       icon: <BellOutlined />,

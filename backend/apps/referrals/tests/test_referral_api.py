@@ -234,9 +234,24 @@ def test_supervisor_sees_woreda_referrals_but_cannot_act(case, make_referral, su
     assert response.status_code == 403
 
 
-def test_system_admin_sees_no_referrals(case, make_referral, system_admin, as_user, taxonomy):
-    make_referral(case)
-    assert as_user(system_admin).get("/api/v1/referrals/").status_code == 403
+def test_system_admin_sees_and_may_act_on_every_referral(case, make_referral, system_admin, as_user, taxonomy):
+    """Deviation from §7, decided 2026-08-16 — see the ACCESS_MATRIX comment.
+
+    §7 gives this role no case content. The programme asked for full access, so
+    the administrator now sees every referral and can drive the §6.2 machine.
+    """
+    referral = make_referral(case)
+    client = as_user(system_admin)
+
+    listing = client.get("/api/v1/referrals/")
+    assert listing.status_code == 200
+    assert listing.data["count"] == 1
+
+    confirmed = client.post(
+        f"/api/v1/referrals/{referral.pk}/confirm/", {"confirmed_by": "Tigist Bekele"}, format="json"
+    )
+    assert confirmed.status_code == 200, confirmed.data
+    assert confirmed.data["status"] == ReferralStatus.ACTIVE
 
 
 def test_case_manager_cannot_see_another_caseloads_referrals(
@@ -245,6 +260,31 @@ def test_case_manager_cannot_see_another_caseloads_referrals(
     theirs = make_case(other_case_manager, name="Theirs")
     make_referral(theirs, initiated_by=other_case_manager)
     assert as_user(case_manager).get("/api/v1/referrals/").data["count"] == 0
+
+
+def test_list_carries_the_woreda_for_the_cross_case_queue(case, make_referral, case_manager, as_user, taxonomy):
+    """The referral queue lists referrals without their case in hand.
+
+    It needs the woreda for the location column and to narrow the partner picker
+    when a referral is followed on, so the serializer carries the value Case
+    already denormalises (§4.2) rather than making the client fetch each case.
+    """
+    make_referral(case)
+    response = as_user(case_manager).get("/api/v1/referrals/")
+    assert response.data["results"][0]["woreda"] == case.woreda
+
+
+def test_partner_staff_get_a_woreda_without_case_access(case, make_referral, partner, partner_staff, as_user, taxonomy):
+    """The queue is the only referral surface partner staff can reach.
+
+    §7 scopes their case access to LINKED, which resolves to nothing, so the
+    case screen is unavailable to them — everything the queue shows has to come
+    off the referral serializer itself.
+    """
+    make_referral(case, receiving_partner=partner)
+    response = as_user(partner_staff).get("/api/v1/referrals/")
+    assert response.data["results"][0]["woreda"] == case.woreda
+    assert as_user(partner_staff).get(f"/api/v1/cases/{case.pk}/").status_code == 404
 
 
 def test_referrals_cannot_be_deleted(case, make_referral, case_manager, as_user, taxonomy):

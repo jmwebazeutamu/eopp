@@ -133,10 +133,25 @@ def test_programme_manager_sees_every_woreda(make_case, case_manager, programme_
     assert response.data["count"] == 2
 
 
-def test_system_admin_sees_no_case_content(make_case, case_manager, system_admin, as_user):
-    """§7: 'Configuration only, no case content by default'."""
+def test_system_admin_sees_every_case(make_case, case_manager, system_admin, as_user):
+    """Deviation from §7, decided 2026-08-16 — see the ACCESS_MATRIX comment.
+
+    §7 gives this role no case content; the programme asked for full access, so
+    the administrator sees every woreda's cases and can change them.
+    """
     make_case(case_manager)
-    assert as_user(system_admin).get("/api/v1/cases/").status_code == 403
+    make_case(case_manager, name="In Bishoftu", woreda="Bishoftu")
+
+    response = as_user(system_admin).get("/api/v1/cases/")
+    assert response.status_code == 200
+    assert response.data["count"] == 2
+
+
+def test_system_admin_may_write_a_case(make_case, case_manager, system_admin, as_user):
+    """The write half of the same deviation."""
+    case = make_case(case_manager)
+    response = as_user(system_admin).patch(f"/api/v1/cases/{case.pk}/", {"next_action": "Follow up"}, format="json")
+    assert response.status_code == 200, response.data
 
 
 def test_supervisor_cannot_write(make_case, case_manager, supervisor, as_user):

@@ -43,6 +43,11 @@ class ReferralSerializer(serializers.ModelSerializer):
     outcome_type_label = serializers.CharField(source="outcome_type.label", read_only=True, default=None)
     failure_reason_label = serializers.CharField(source="failure_reason_code.label", read_only=True, default=None)
     youth_name = serializers.CharField(source="case.youth.full_name", read_only=True)
+    # Denormalised on Case already (§4.2). Exposed because the cross-case
+    # referral queue lists referrals without their case in hand, and the partner
+    # picker for an onward or replacement referral needs the woreda to narrow to
+    # partners that actually cover it.
+    woreda = serializers.CharField(source="case.woreda", read_only=True)
     allowed_transitions = serializers.ListField(child=serializers.CharField(), read_only=True)
     counts_toward_parallel_cap = serializers.BooleanField(read_only=True)
 
@@ -52,6 +57,7 @@ class ReferralSerializer(serializers.ModelSerializer):
             "id",
             "case",
             "youth_name",
+            "woreda",
             "referral_category",
             "referral_category_label",
             "referral_trigger",

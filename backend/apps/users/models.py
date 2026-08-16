@@ -53,6 +53,22 @@ class Scope(models.TextChoices):
     ALL = "ALL", _("All records")
 
 
+# The access row for a role the matrix does not cover.
+#
+# Kept as its own constant, and deliberately not an alias for any real role's
+# row: `User.access` falls back to it, so a role added to `Role` but forgotten
+# here, or a stale value read off an old database row, sees nothing rather than
+# inheriting whatever the fallback role happens to be allowed at the time. It
+# used to be the system administrator's row, which stopped being safe the moment
+# that role was widened below.
+NO_ACCESS = {
+    "case_scope": Scope.NONE,
+    "case_write": False,
+    "referral_scope": Scope.NONE,
+    "referral_write": False,
+}
+
+
 # Spec §7, transcribed. `write` means the role may change the record, not that it
 # may change every field — field-level permissions are a configuration detail
 # layered on top of this record-level scoping (§7 preamble).
@@ -112,13 +128,21 @@ ACCESS_MATRIX = {
         "referral_write": False,
     },
     Role.SYSTEM_ADMIN: {
-        # "Configuration only, no case content by default" (§7). Deliberately not
-        # a superuser over case data: an administrator who needs case access gets
-        # a second account with a case-facing role, so the audit trail stays honest.
-        "case_scope": Scope.NONE,
-        "case_write": False,
-        "referral_scope": Scope.NONE,
-        "referral_write": False,
+        # TODO(spec-deviation): §7 says "Configuration only, no case content by
+        # default" and the original implementation followed it — an administrator
+        # who needed case access took a second account with a case-facing role,
+        # so §9 could attribute every action to a person in a known role.
+        #
+        # Widened to full access on 2026-08-16 at the programme's request, with
+        # the trade-off stated: an administrator now reads and writes every case
+        # and referral in every woreda, and work done from a shared admin login
+        # is harder to attribute than the same work done from a named case-facing
+        # account. Carry this to Phase 1 sign-off rather than treating it as
+        # settled — it is the one place the matrix departs from §7 as written.
+        "case_scope": Scope.ALL,
+        "case_write": True,
+        "referral_scope": Scope.ALL,
+        "referral_write": True,
     },
 }
 
@@ -212,8 +236,8 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
 
     @property
     def access(self):
-        """This user's row from ACCESS_MATRIX (spec §7)."""
-        return ACCESS_MATRIX.get(self.role, ACCESS_MATRIX[Role.SYSTEM_ADMIN])
+        """This user's row from ACCESS_MATRIX (spec §7), or nothing if unlisted."""
+        return ACCESS_MATRIX.get(self.role, NO_ACCESS)
 
     def case_scope(self):
         return self.access["case_scope"]

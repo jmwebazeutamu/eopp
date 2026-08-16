@@ -237,6 +237,8 @@ export interface Referral {
   id: string;
   case: string;
   youth_name: string;
+  /** Denormalised from the case (§4.2) — the queue lists referrals case-less. */
+  woreda: string;
   referral_category: string;
   referral_category_label: string;
   referral_trigger: ReferralTriggerCode;
@@ -271,6 +273,9 @@ export interface Referral {
   failure_reason_label: string | null;
   failure_date: string | null;
   notes: string;
+  created_at: string;
+  /** The timeline closes a Cancelled bar here — §6.2 stamps no date for it. */
+  updated_at: string;
 }
 
 /** A node of the §6.4 stack: a referral plus the referrals that followed it. */

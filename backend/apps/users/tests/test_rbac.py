@@ -59,12 +59,37 @@ def test_access_matrix_covers_every_role():
     assert len(Role) == 10
 
 
-def test_system_admin_sees_no_case_content():
-    """§7: 'Configuration only, no case content by default'."""
+def test_system_admin_has_full_access():
+    """Deviation from §7, decided 2026-08-16 — see the ACCESS_MATRIX comment.
+
+    §7 as written gives this role no case content. The programme asked for full
+    access instead, so the administrator reads and writes every case and referral
+    in every woreda. Pinned here so the departure is visible in the test names
+    rather than only in a diff.
+    """
     admin = make_user(Role.SYSTEM_ADMIN)
-    assert admin.case_scope() == Scope.NONE
-    assert admin.referral_scope() == Scope.NONE
-    assert not admin.can_write_cases()
+    assert admin.case_scope() == Scope.ALL
+    assert admin.referral_scope() == Scope.ALL
+    assert admin.can_write_cases()
+    assert admin.can_write_referrals()
+
+
+def test_an_unlisted_role_still_gets_nothing():
+    """The fallback fails closed, independently of what any real role may do.
+
+    `User.access` returns NO_ACCESS for a role the matrix does not cover. It used
+    to return the system administrator's row, which was safe only while that row
+    was empty; widening the administrator would otherwise have turned every
+    unrecognised role into a full-access one.
+    """
+    stray = make_user("NOT_A_ROLE")
+    assert stray.case_scope() == Scope.NONE
+    assert stray.referral_scope() == Scope.NONE
+    assert not stray.can_write_cases()
+    assert not stray.can_write_referrals()
+
+    view = ScopedView(scope_kind="case")
+    assert view.apply_scope(RecordingQuerySet(), stray).is_none is True
 
 
 @pytest.mark.parametrize(
@@ -143,9 +168,17 @@ def test_supervisor_allowed_case_reads():
     assert CanAccessCases().has_permission(request, None) is True
 
 
-def test_system_admin_blocked_from_case_reads():
-    request = APIRequestFactory().get("/")
+def test_system_admin_allowed_case_and_referral_writes():
+    """Deviation from §7 — see test_system_admin_has_full_access."""
+    request = APIRequestFactory().post("/")
     request.user = make_user(Role.SYSTEM_ADMIN)
+    assert CanAccessCases().has_permission(request, None) is True
+    assert CanAccessReferrals().has_permission(request, None) is True
+
+
+def test_an_unlisted_role_is_blocked_from_case_reads():
+    request = APIRequestFactory().get("/")
+    request.user = make_user("NOT_A_ROLE")
     assert CanAccessCases().has_permission(request, None) is False
     assert CanAccessReferrals().has_permission(request, None) is False
 
@@ -167,10 +200,11 @@ def test_programme_manager_scope_is_unfiltered():
     assert result.filters is None and result.is_none is False
 
 
-def test_system_admin_scope_is_empty():
+def test_system_admin_scope_is_unfiltered():
+    """Deviation from §7 — see test_system_admin_has_full_access."""
     view = ScopedView(scope_kind="case")
     result = view.apply_scope(RecordingQuerySet(), make_user(Role.SYSTEM_ADMIN))
-    assert result.is_none is True
+    assert result.filters is None and result.is_none is False
 
 
 def test_woreda_scope_filters_to_assigned_woredas():

@@ -50,9 +50,17 @@ def test_picker_is_narrowed_to_overlapping_woredas(case_manager, as_user, db):
     assert "Far Manager" not in {row["full_name"] for row in response.data}
 
 
-def test_system_admin_cannot_use_the_case_picker(system_admin, as_user):
-    """§7: no case content, and assignment is case content."""
-    assert as_user(system_admin).get("/api/v1/users/case-managers/").status_code == 403
+def test_system_admin_can_use_the_case_picker(system_admin, case_manager, as_user):
+    """Follows from the §7 deviation of 2026-08-16 — see ACCESS_MATRIX.
+
+    The picker is gated on case access, so widening the administrator to write
+    cases necessarily hands them the assignment picker too: assigning a case is
+    meaningless without seeing who may take it. Their scope is ALL, so no woreda
+    narrowing applies and every active manager is offered.
+    """
+    response = as_user(system_admin).get("/api/v1/users/case-managers/")
+    assert response.status_code == 200
+    assert "Manager A" in {row["full_name"] for row in response.data}
 
 
 # ---------------------------------------------------------------------------
