@@ -263,6 +263,10 @@ The web UI follows that handoff, which is high-fidelity and final on colour,
 type, spacing and interaction states. Its README is the source of truth; the
 `.dc.html` prototype is reference only and must not be ported.
 
+**Run `/design` before writing UI code.** `.claude/skills/design/` carries the
+working summary — the rules below plus the screen recipes and the rendering
+faults that have already shipped here once.
+
 - **Tokens are `web/src/styles/tokens.css`.** Every colour, radius and spacing
   step comes from there. No literal hex in a component except in
   `design/status.ts` and the antd theme, which cannot take a custom property.
