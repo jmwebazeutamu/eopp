@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
-import type { CaseListRow, CaseStatus, Paginated } from "../api/types";
+import { CASE_STATUS_OPTIONS, type CaseListRow, type CaseStatus, type Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import CaseFormModal from "../components/CaseFormModal";
 
@@ -32,7 +32,11 @@ export default function CaseListPage() {
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
 
-  const canWrite = user?.access.case_write ?? false;
+  // A caseload-scoped role resolves youth through the case, so `?without_case`
+  // can only ever return nothing for them — §7 gives case opening to the
+  // woreda-scoped outreach worker. Showing the button to a case manager offers
+  // a form they can never complete.
+  const canOpenCase = (user?.access.case_write ?? false) && user?.access.case_scope !== "OWN_CASELOAD";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,7 +108,7 @@ export default function CaseListPage() {
       title="Cases"
       extra={
         <Space>
-          {canWrite && (
+          {canOpenCase && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setFormOpen(true)}>
               Open a case
             </Button>
@@ -138,13 +142,7 @@ export default function CaseListPage() {
             setStatus(value);
             setPage(1);
           }}
-          options={[
-            { value: "ACTIVE", label: "Active" },
-            { value: "STALLED", label: "Stalled" },
-            { value: "REFERRAL_PENDING", label: "Referral Pending" },
-            { value: "PLACED", label: "Placed" },
-            { value: "EXITED", label: "Exited" },
-          ]}
+          options={CASE_STATUS_OPTIONS}
         />
       </Space>
 

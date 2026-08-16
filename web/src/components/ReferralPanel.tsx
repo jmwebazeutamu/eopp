@@ -57,6 +57,23 @@ export default function ReferralPanel({ caseId, woreda, onChanged }: Props) {
 
   const canWrite = user?.access.referral_write ?? false;
 
+  // §5.1/§5.3/§5.4 mark some terms (the "Other" catch-alls) as requiring a
+  // free-text note, and the backend rejects the write without one. Watching the
+  // selection lets the form say so up front instead of surfacing a 400 after
+  // the user has submitted.
+  const selectedCategory = Form.useWatch("referral_category", form) as string | undefined;
+  const selectedOutcome = Form.useWatch("outcome_type", form) as string | undefined;
+  const selectedFailure = Form.useWatch("failure_reason_code", form) as string | undefined;
+
+  const noteRequired =
+    categories.some((c) => c.code === selectedCategory && c.requires_note) ||
+    outcomeTypes.some((o) => o.code === selectedOutcome && o.requires_note) ||
+    failureReasons.some((f) => f.code === selectedFailure && f.requires_note);
+
+  const noteRules = noteRequired
+    ? [{ required: true, message: "This selection requires a note." }]
+    : [];
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -66,7 +83,10 @@ export default function ReferralPanel({ caseId, woreda, onChanged }: Props) {
         api.get<OutcomeTypeTerm[]>("/referrals/outcome-types/"),
         api.get<TaxonomyTerm[]>("/referrals/failure-reasons/"),
         // Only partners covering this case's woreda can realistically serve it.
-        api.get<Paginated<Partner>>("/partners/", { params: { woreda } }),
+        // page_size: the active-partner filter below runs client-side, so a
+        // truncated first page could hide every partner that can actually
+        // receive a referral.
+        api.get<Paginated<Partner>>("/partners/", { params: { woreda, page_size: 500 } }),
       ]);
       setStack(stackRes.data);
       setCategories(cats.data);
@@ -274,7 +294,12 @@ export default function ReferralPanel({ caseId, woreda, onChanged }: Props) {
           <Form.Item name="receiving_contact_name" label="Contact at the partner">
             <Input />
           </Form.Item>
-          <Form.Item name="notes" label="Notes" extra="Required for the Other category.">
+          <Form.Item
+            name="notes"
+            label="Notes"
+            rules={noteRules}
+            extra={noteRequired ? "This category requires a note." : undefined}
+          >
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
@@ -306,8 +331,20 @@ export default function ReferralPanel({ caseId, woreda, onChanged }: Props) {
 
           {action?.kind === "complete" && (
             <>
-              <Form.Item name="outcome_type" label="Outcome" rules={[{ required: true }]}>
+              <Form.Item
+                name="outcome_type"
+                label="Outcome"
+                rules={[{ required: true }]}
+                extra={
+                  outcomeTypes.filter(
+                    (o) => o.applies_to.length === 0 || o.applies_to.includes(action.referral.referral_category),
+                  ).length === 0
+                    ? "No outcome type is configured for this referral category. An administrator must map one (spec §5.3)."
+                    : undefined
+                }
+              >
                 <Select
+                  notFoundContent="No outcome type applies to this category."
                   options={outcomeTypes
                     .filter(
                       (o) =>
@@ -344,7 +381,12 @@ export default function ReferralPanel({ caseId, woreda, onChanged }: Props) {
             </>
           )}
 
-          <Form.Item name="notes" label="Notes">
+          <Form.Item
+            name="notes"
+            label="Notes"
+            rules={noteRules}
+            extra={noteRequired ? "This selection requires a note." : undefined}
+          >
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>

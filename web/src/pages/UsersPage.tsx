@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api, errorMessage } from "../api/client";
 import {
+  ACCOUNT_STATUS_OPTIONS,
   ROLE_OPTIONS,
   WOREDA_SCOPED_ROLES,
   type Location,
@@ -41,7 +42,7 @@ export default function UsersPage() {
       const [users, locs, parts] = await Promise.all([
         api.get<Paginated<ManagedUser>>("/users/"),
         api.get<Location[]>("/locations/", { params: { level: "WOREDA" } }),
-        api.get<Paginated<Partner>>("/partners/"),
+        api.get<Paginated<Partner>>("/partners/", { params: { page_size: 500 } }),
       ]);
       setRows(users.data.results);
       setWoredas(locs.data);
@@ -197,14 +198,12 @@ export default function UsersPage() {
             <Input.Password autoComplete="new-password" />
           </Form.Item>
 
-          <Form.Item name="account_status" label="Account status">
-            <Select
-              options={[
-                { value: "ACTIVE", label: "Active" },
-                { value: "SUSPENDED", label: "Suspended" },
-                { value: "INACTIVE", label: "Inactive" },
-              ]}
-            />
+          <Form.Item
+            name="account_status"
+            label="Account status"
+            extra="Accounts are deactivated, never deleted — the audit trail still references them."
+          >
+            <Select options={ACCOUNT_STATUS_OPTIONS} />
           </Form.Item>
         </Form>
       </Modal>

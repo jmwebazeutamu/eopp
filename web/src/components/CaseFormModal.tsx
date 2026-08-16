@@ -56,7 +56,10 @@ export default function CaseFormModal({ open, record, onClose, onSaved }: Props)
       form.resetFields();
       form.setFieldsValue({ case_status: "ACTIVE", opened_date: dayjs() });
       api
-        .get<Paginated<Youth>>("/youth/", { params: { without_case: "true" } })
+        // page_size: a picker that renders page 1 and ignores `next` silently
+        // truncates its options, and the user cannot tell "not offered" from
+        // "not there".
+        .get<Paginated<Youth>>("/youth/", { params: { without_case: "true", page_size: 500 } })
         .then((response) => setYouth(response.data.results))
         .catch(() => setYouth([]));
     }

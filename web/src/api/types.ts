@@ -404,3 +404,10 @@ export const MOU_STATUS_OPTIONS: { value: MouStatus; label: string }[] = [
   { value: "EXPIRED", label: "Expired" },
   { value: "TERMINATED", label: "Terminated" },
 ];
+
+/** Spec §4.12 account states. Deactivation replaces deletion throughout. */
+export const ACCOUNT_STATUS_OPTIONS = [
+  { value: "ACTIVE", label: "Active" },
+  { value: "SUSPENDED", label: "Suspended" },
+  { value: "INACTIVE", label: "Inactive" },
+];
