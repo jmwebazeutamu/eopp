@@ -59,8 +59,25 @@ $C exec web flake8 .                                 # lint
 Reference data:
 
 ```bash
-$C exec web python manage.py seed_locations    # Ethiopian admin hierarchy, idempotent
+$C exec web python manage.py seed_locations          # Ethiopian admin hierarchy, idempotent
+$C exec web python manage.py seed_referral_taxonomy  # §5 starter lists
 ```
+
+Demo data (development only — it writes youth and case records, and refuses to
+run with `DEBUG` off unless forced):
+
+```bash
+$C exec web python manage.py seed_demo_referrals            # six backdated cases
+$C exec web python manage.py seed_demo_referrals --refresh  # delete and rebuild
+$C exec web python manage.py seed_demo_referrals --reset    # delete only
+```
+
+One case per shape the §6.4 timeline has to draw — sequential chain, parallel
+pair plus an exempt third stream, failure and replacement, three onward hops,
+pending and cancelled, and an empty case. Referrals go through `services` and
+`transition_to`, so the rows are the ones the application would produce; only
+the dates are seeded. Case ids are `uuid5`-derived, so `--refresh` keeps the
+same URLs.
 
 Frontend (`web/`, runs on the host, not in a container):
 
@@ -69,6 +86,8 @@ cd web
 npm install
 npm run dev        # Vite on 8100, proxies /api -> localhost:8007
 npm run build      # tsc -b && vite build — this is the typecheck gate
+npm test           # vitest, jsdom — layout logic and component rendering
+npm run lint       # oxlint
 ```
 
 `scripts/bootstrap.sh` does first-run setup end to end (generates `infra/.env`,
@@ -172,6 +191,8 @@ These need validation, but they are not on the §11 list.
   parallel cap, the §6.4 stack query, and the case-screen referral timeline.
 - **Sprint 4 — done.** Alert entity (§4.13), the four detection jobs, auto
   resolution, Celery beat schedule, alert inbox and case-screen alerts.
+- **Sprint 3 addendum.** `ReferralStackTimeline` (§6.4 as Figure 4) on the case
+  screen, with vitest added to `web/` for its layout tests.
 - **Sprint 5 — next.** Training Enrolment (§4.5) and Placement (§4.7) with the
   30/60/90-day retention checkpoints, plus trainer and employer-liaison screens.
 
@@ -204,6 +225,14 @@ The core of the platform. Read §6 before touching `apps/referrals`.
 - **Prompts are conditions, not rows.** `awaiting_onward_prompt()` and
   `awaiting_replacement_prompt()` are querysets; the Sprint 4 jobs materialise
   them into Alerts. Keep the queryset as the single definition.
+- **The stack timeline colours status only.** `web/src/components/referrals/`
+  renders §6.4 as the Concept Note's Figure 4, per
+  `docs/REFERRAL_STACK_TIMELINE_COMPONENT_PROMPT.md`. That mockup's legend spent
+  two of five colours on "parallel", conflating status with structure —
+  `parallel_group_id` is independent of `status`, so a parallel referral can also
+  be Failed. Concurrency is a bracket, not a colour. Do not reintroduce it as one.
+  Layout arithmetic lives in `timelineLayout.ts`, apart from the component and
+  free of pixels, because that is the part worth unit testing.
 
 ## Alerts (spec §4.13)
 
@@ -238,8 +267,11 @@ The core of the platform. Read §6 before touching `apps/referrals`.
   which Docker 29 rejects; the provider silently fails and every route 404s.
 - **Only `web` has a build block.** `celery` and `celery-beat` reference the
   image by tag. Three services building one tag makes buildx race on export.
-- **`User.partner` does not exist yet.** It arrives with the Partner entity in
-  Sprint 2. Until then `PARTNER_STAFF` accounts are scoped to nothing, by design.
+- **`User.partner` scopes partner staff to their own institution** (§4.12), and
+  `User.clean` requires it on a `PARTNER_STAFF` account. Note that `CaseViewSet`
+  and `YouthViewSet` declare no `partner_field`, so partner staff see referrals
+  but no case or youth records — that fails closed, but it does contradict §7's
+  "View, linked cases only". A Phase 1 question, not a bug to widen away.
 - **Test doubles in `test_rbac.py`** — the mixin's decision logic is tested
   against a recording queryset. `apps/cases/tests/test_cases.py` covers the same
   boundaries against real rows; keep both.
