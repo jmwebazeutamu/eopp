@@ -1,7 +1,6 @@
-import { PlusOutlined } from "@ant-design/icons";
-import { App, Button, Card, Form, Input, Modal, Select, Table, Tag, Typography } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { App, Form, Input, Modal, Select } from "antd";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
 import {
@@ -15,6 +14,10 @@ import {
   type Role,
 } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import UserDetailModal from "../components/UserDetailModal";
+import { Button, Card, MutedChip, PageHeader } from "../components/ui";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
  * Administrator user management — spec §10 Sprint 2.
@@ -25,7 +28,10 @@ import { useAuth } from "../auth/AuthContext";
 export default function UsersPage() {
   const { user } = useAuth();
   const { message } = App.useApp();
+  const { t } = useLang();
 
+  const [params] = useSearchParams();
+  const [viewing, setViewing] = useState<ManagedUser | null>(null);
   const [rows, setRows] = useState<ManagedUser[]>([]);
   const [woredas, setWoredas] = useState<Location[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -40,7 +46,13 @@ export default function UsersPage() {
     setLoading(true);
     try {
       const [users, locs, parts] = await Promise.all([
-        api.get<Paginated<ManagedUser>>("/users/"),
+        api.get<Paginated<ManagedUser>>("/users/", {
+          params: {
+            search: params.get("q") || undefined,
+            role: params.get("role") ?? undefined,
+            account_status: params.get("account_status") ?? undefined,
+          },
+        }),
         api.get<Location[]>("/locations/", { params: { level: "WOREDA" } }),
         api.get<Paginated<Partner>>("/partners/", { params: { page_size: 500 } }),
       ]);
@@ -52,7 +64,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [message]);
+  }, [params, message]);
 
   useEffect(() => {
     void load();
@@ -60,11 +72,11 @@ export default function UsersPage() {
 
   if (user?.role !== "SYSTEM_ADMIN") {
     return (
-      <Card>
-        <Typography.Text type="secondary">
-          User management is limited to system administrators (spec §7).
-        </Typography.Text>
-      </Card>
+      <div className="page">
+        <Card>
+          <div className="t-meta">User management is limited to system administrators (spec §7).</div>
+        </Card>
+      </div>
     );
   }
 
@@ -100,50 +112,93 @@ export default function UsersPage() {
     }
   }
 
-  const columns: ColumnsType<ManagedUser> = [
-    { title: "Name", dataIndex: "full_name" },
-    { title: "Username", dataIndex: "username", width: 150 },
-    { title: "Role", dataIndex: "role_display", width: 260 },
-    {
-      title: "Scope",
-      key: "scope",
-      render: (_, row) =>
-        row.partner_name ? (
-          <Tag color="blue">{row.partner_name}</Tag>
-        ) : row.woreda_assignment.length ? (
-          row.woreda_assignment.map((w) => <Tag key={w}>{w}</Tag>)
-        ) : (
-          <Typography.Text type="secondary">All</Typography.Text>
-        ),
-    },
-    {
-      title: "Status",
-      dataIndex: "account_status",
-      width: 120,
-      render: (value: string) => <Tag color={value === "ACTIVE" ? "green" : "red"}>{value}</Tag>,
-    },
-    {
-      title: "",
-      key: "actions",
-      width: 80,
-      render: (_, row) => (
-        <Button type="link" onClick={() => openEdit(row)}>
-          Edit
-        </Button>
-      ),
-    },
-  ];
-
   return (
-    <Card
-      title="Users"
-      extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          New user
-        </Button>
-      }
-    >
-      <Table rowKey="id" columns={columns} dataSource={rows} loading={loading} pagination={{ pageSize: 25 }} />
+    <div className="page stack">
+      <PageHeader
+        title={t("users.title")}
+        subtitle={`${rows.length} accounts`}
+        action={
+          <Button variant="primary" onClick={openCreate}>
+            {t("users.add")}
+          </Button>
+        }
+      />
+
+      <SearchBox placeholder="Search by name, username or email" />
+
+      <MiniDashboard resource="/users" />
+
+      {loading && <div className="t-meta">{t("common.loading")}</div>}
+
+      {/* Stacked rows rather than a table: the scope column is a list of
+          woredas, which a fixed-width cell truncates into uselessness. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {rows.map((row) => (
+          /* The record opens read-only; the edit form is a step inside it,
+             because that form carries the role and a password field. */
+          <Card key={row.id} onClick={() => setViewing(row)}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-start" }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div className="t-body-strong">{row.full_name}</div>
+                <div className="t-meta">
+                  {row.role_display} · {row.username}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+                  {row.partner_name ? (
+                    <MutedChip style={{ fontSize: 12 }}>{row.partner_name}</MutedChip>
+                  ) : row.woreda_assignment.length ? (
+                    row.woreda_assignment.map((woreda) => (
+                      <MutedChip key={woreda} style={{ fontSize: 12 }}>
+                        {woreda}
+                      </MutedChip>
+                    ))
+                  ) : (
+                    <span className="t-meta">All woredas</span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ textAlign: "right" }}>
+                {/* Caseload is the number an administrator acts on — §11's
+                    CASELOAD_CEILING is 50, still a placeholder pending sign-off. */}
+                {row.role === "CASE_MANAGER" && (
+                  <div className="tabular" style={{ fontWeight: 600 }}>
+                    {row.caseload_count} cases
+                  </div>
+                )}
+                <div className="t-meta">
+                  {/* Presence and the offline queue are Sprint 8 concerns; last
+                      sign-in is what this system actually knows today. */}
+                  {row.last_login ? `Last seen ${new Date(row.last_login).toLocaleDateString("en-GB")}` : "Never signed in"}
+                </div>
+                {row.account_status !== "ACTIVE" && (
+                  <span
+                    className="chip"
+                    style={{
+                      color: "var(--terra-700)",
+                      background: "var(--terra-100)",
+                      borderColor: "var(--terra-border)",
+                      fontSize: 12,
+                      marginTop: 4,
+                    }}
+                  >
+                    {row.account_status}
+                  </span>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <UserDetailModal
+        user={viewing}
+        onClose={() => setViewing(null)}
+        onEdit={(user) => {
+          setViewing(null);
+          openEdit(user);
+        }}
+      />
 
       <Modal
         open={creating}
@@ -207,6 +262,6 @@ export default function UsersPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+    </div>
   );
 }

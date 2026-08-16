@@ -1,0 +1,88 @@
+/*
+ * Design tokens — docs/design_handoff_youth_employment/README.md.
+ *
+ * Values are lifted verbatim from the handoff's token tables. Contrast ratios
+ * in the comments are the handoff's own, measured against --surface unless
+ * noted; they are the reason for the palette, not decoration. The brief's hard
+ * constraint is a cheap LCD at half brightness in Ethiopian sunlight.
+ *
+ * Blue is deliberately absent, and red is reserved for genuine failure so that
+ * a failed placement still stands out on a screen that already carries colour.
+ */
+
+:root {
+  /* -- Green: the programme colour ------------------------------------- */
+  --green-900: #0a3a2c; /* 15.4:1 — goal panel, utility bar, dashboard hero */
+  --green-700: #0f4f3c; /* 10.6:1 — primary buttons, nav rail, active filter */
+  --green-500: #1c7a5b; /* 4.9:1  — active referral bar, active nav item */
+  --green-100: #e4efe9; /* 12.9:1 with --ink-900 — active/verified chip */
+  --green-border: #9cc4b4;
+  --green-ink: #0b4a38; /* 8.9:1 — text on --green-100 */
+
+  /* -- Gold: waiting and due. Reads as time passing, not danger --------- */
+  --gold-700: #7a5308; /* 7.6:1 — waiting/due text */
+  --gold-500: #c98a15; /* 2.6:1 — FILL ONLY, never behind text */
+  --gold-300: #e9c877; /* accent on dark green */
+  --gold-100: #fbf1dc; /* 13.9:1 with ink — next-action banner */
+  --gold-border: #e0bc72;
+
+  /* -- Terracotta: stalled. Intervention without red's alarm ----------- */
+  --terra-700: #8a3a1e; /* 7.9:1 */
+  --terra-500: #a84b2a;
+  --terra-100: #f7e7df; /* 13.1:1 with ink */
+  --terra-border: #dba98f;
+
+  /* -- Red: genuine failure only --------------------------------------- */
+  --red-700: #8c1d18; /* 9.2:1 */
+  --red-500: #b3261e;
+  --red-100: #fae6e4; /* 13.7:1 with ink */
+  --red-border: #dca6a2;
+
+  /* -- Ink and surfaces ------------------------------------------------- */
+  --ink-900: #1a1915; /* 15.9:1 on paper */
+  --ink-600: #4e4a42; /* 8.7:1 */
+  --ink-400: #7a7568; /* 4.6:1 */
+  --line: #e3ded2;
+  --line-soft: #f4f1ea;
+  --paper: #f7f4ee;
+  --surface: #ffffff;
+  --surface-alt: #fcfbf8;
+  --fill-muted: #f1eee7;
+  --fill-muted-2: #edeae1;
+  --closed-border: #d2ccbe;
+  --cancelled-bar: #9b9587;
+
+  /* Text on --green-700 / --green-900. */
+  --on-dark: #ffffff;
+  --on-dark-2: #d8e4de;
+  --on-dark-3: #b9cfc6;
+
+  /* -- Spacing: 4 · 8 · 12 · 16 · 24 · 32 ------------------------------- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+
+  /* -- Radii ------------------------------------------------------------ */
+  --r-control: 6px;
+  --r-button: 8px;
+  --r-group: 10px; /* chip groups and banners */
+  --r-card: 12px;
+  --r-modal: 14px;
+  --r-chip: 999px;
+
+  /* -- Elevation. No shadows in the content area; cards are flat borders. */
+  --raised: 0 1px 2px rgba(26, 25, 21, 0.08), 0 2px 6px rgba(26, 25, 21, 0.06);
+  --overlay: 0 8px 24px rgba(26, 25, 21, 0.28);
+
+  /* -- Layout ----------------------------------------------------------- */
+  --rail-width: 236px;
+  --tabbar-height: 56px;
+  --touch: 48px; /* minimum touch target, low-end Android */
+
+  /* Set per language by LanguageProvider; Ge'ez needs the looser leading. */
+  --font-body: "Archivo", "Noto Sans Ethiopic", sans-serif;
+  --leading: 1.5;
+}

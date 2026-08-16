@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AppLayout from "./components/AppLayout";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { LanguageProvider } from "./i18n/LanguageContext";
 import AlertsPage from "./pages/AlertsPage";
 import CaseDetailPage from "./pages/CaseDetailPage";
 import CaseListPage from "./pages/CaseListPage";
@@ -31,13 +32,47 @@ function Home() {
   return <Navigate to="/cases" replace />;
 }
 
+/**
+ * Ant Design keeps the behaviour-heavy components — Modal, Select, DatePicker,
+ * Form, message — and this maps them onto the design handoff's tokens so they
+ * do not read as a second design system inside the bespoke one. Literal hex
+ * values here because antd's theme algorithm derives shades numerically and
+ * cannot take a CSS custom property.
+ */
+const ANTD_THEME = {
+  token: {
+    colorPrimary: "#0f4f3c",
+    colorError: "#8c1d18",
+    colorWarning: "#c98a15",
+    colorSuccess: "#1c7a5b",
+    colorText: "#1a1915",
+    colorTextSecondary: "#4e4a42",
+    colorTextTertiary: "#7a7568",
+    colorBorder: "#e3ded2",
+    colorBgContainer: "#ffffff",
+    colorBgLayout: "#f7f4ee",
+    borderRadius: 6,
+    borderRadiusLG: 12,
+    fontFamily: "var(--font-body)",
+    fontSize: 15,
+    // The brief's floor for a low-end Android, applied to antd's controls too.
+    controlHeight: 40,
+    controlHeightLG: 48,
+  },
+  components: {
+    Modal: { borderRadiusLG: 14 },
+    Button: { borderRadius: 8, fontWeight: 600 },
+  },
+};
+
 export default function App() {
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: "#1668dc", borderRadius: 6 } }}>
+    <ConfigProvider theme={ANTD_THEME}>
       {/* AntApp supplies the context that App.useApp()'s message API needs. */}
       <AntApp>
         <BrowserRouter>
           <AuthProvider>
+            <LanguageProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route element={<AppLayout />}>
@@ -52,7 +87,8 @@ export default function App() {
               </Route>
               {/* Unknown paths go through Home so the landing screen stays role-aware. */}
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+              </Routes>
+            </LanguageProvider>
           </AuthProvider>
         </BrowserRouter>
       </AntApp>

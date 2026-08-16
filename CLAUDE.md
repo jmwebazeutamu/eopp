@@ -193,6 +193,9 @@ These need validation, but they are not on the §11 list.
   resolution, Celery beat schedule, alert inbox and case-screen alerts.
 - **Sprint 3 addendum.** `ReferralStackTimeline` (§6.4 as Figure 4) on the case
   screen, with vitest added to `web/` for its layout tests.
+- **Design handoff applied.** Every web screen rebuilt on the token layer; see
+  the design system section below. Added `/referrals/rules/` (the §6.3 cap as a
+  server rule), `Youth.has_open_case` and `User.caseload_count`.
 - **Sprint 5 — next.** Training Enrolment (§4.5) and Placement (§4.7) with the
   30/60/90-day retention checkpoints, plus trainer and employer-liaison screens.
 
@@ -253,6 +256,51 @@ The core of the platform. Read §6 before touching `apps/referrals`.
 - **Never name a DRF viewset method `action`.** It shadows the imported
   `@action` decorator for every route below it in the class body and fails at
   class-creation time. Use `url_path` to keep the REST path.
+
+## The design system (`docs/design_handoff_youth_employment/`)
+
+The web UI follows that handoff, which is high-fidelity and final on colour,
+type, spacing and interaction states. Its README is the source of truth; the
+`.dc.html` prototype is reference only and must not be ported.
+
+- **Tokens are `web/src/styles/tokens.css`.** Every colour, radius and spacing
+  step comes from there. No literal hex in a component except in
+  `design/status.ts` and the antd theme, which cannot take a custom property.
+- **Ant Design keeps behaviour, not looks.** Modal, Select, DatePicker, Form and
+  message stay antd, themed to the tokens in `App.tsx`. Everything visual —
+  chips, cards, buttons, tables, nav — is in `components/ui`. This is what §2's
+  fixed stack and the handoff's fidelity bar both allow.
+- **Never colour alone.** Every status renders as colour *plus* a label *plus* a
+  geometric mark (`design/status.ts`), so it survives a monochrome screen, a
+  colour-blind reader and a cheap LCD at half brightness. Do not add a status
+  that is only a colour.
+- **Blue is absent and red is reserved for genuine failure.** Gold carries
+  waiting, terracotta carries stalled. `--gold-500` is fill only, never behind
+  text — it is 2.6:1.
+- **One breakpoint, 780px.** Below it: cards and a bottom tab bar sticky *inside*
+  the main column, never `position: fixed`. At or above: nav rail and tables.
+  Touch targets 48px, tab bar 56px.
+- **Phone numbers are masked by default** (`maskPhone`). The case screen has a
+  per-view, never-persisted Reveal; the registry has none at all.
+- **Strings go through `i18n/`.** English is populated; Amharic and Afaan Oromo
+  are empty tables awaiting a translator, and fall back to English rather than
+  showing a key. The language switch swaps the font stack and the leading
+  together — Ge'ez leads at 1.75, Latin at 1.5.
+- **No icon fonts or chart libraries.** Users are on 3G or worse: icons are
+  inline SVG paths in `components/ui`, fonts are self-hosted via `@fontsource`.
+- **Every list screen carries a counter row that is also its filter.**
+  `GET /<resource>/summary/` returns `{total, counters: [{param, value, label,
+  count}]}`, and `MiniDashboard` renders any of them: the server names the query
+  parameter, so a counter cannot drift from the list it filters to. Counts cover
+  the whole *scoped* set — never the loaded page — and narrow with the search
+  box. Build them with `apps/common/summaries.counters_for`, which counts through
+  a subquery on the primary keys: grouping a viewset's own queryset picks up its
+  annotations in the GROUP BY and silently splits or inflates every count.
+
+Screens not built, and why: the **programme dashboard** is Sprint 7 and its
+funnel needs Placement (Sprint 5), so there is nothing truthful to plot; the
+**offline/sync strip** is Sprint 8; the **design-tokens screen** is documentation
+the handoff itself marks optional.
 
 ## Definition of Done (spec §10.1)
 

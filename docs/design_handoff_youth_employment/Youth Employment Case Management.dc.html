@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#F7F4EE;-webkit-font-smoothing:antialiased}
+  a{color:#0F4F3C;text-decoration:underline;text-underline-offset:2px}
+  a:hover{color:#1C7A5B}
+  button{font:inherit;cursor:pointer}
+  input{font:inherit}
+  ::selection{background:#FBF1DC}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  @keyframes rise{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#F7F4EE;color:#1A1915;font-family:{{ font }};line-height:{{ lh }};font-size:15px;display:flex;justify-content:center">
+<div style="position:relative;width:{{ shellW }};max-width:1440px;box-shadow:{{ shellShadow }};background:#F7F4EE;min-height:100vh;display:flex;flex-direction:column">
+
+  <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;background:#0A3A2C;color:#D8E4DE;font-size:12px;flex-wrap:wrap">
+    <span style="font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#E9C877">Oromia Youth Employment</span>
+    <span style="opacity:.6">Woreda: Adama</span>
+    <span style="flex:1"></span>
+    <div style="display:flex;gap:4px;background:rgba(255,255,255,.12);padding:3px;border-radius:6px">
+      <button onClick="{{ langEn }}" style="border:0;background:{{ enBg }};color:{{ enFg }};padding:5px 10px;border-radius:4px;font-size:12px;font-weight:600">EN</button>
+      <button onClick="{{ langAm }}" style="border:0;background:{{ amBg }};color:{{ amFg }};padding:5px 10px;border-radius:4px;font-size:12px;font-weight:600">አማርኛ</button>
+    </div>
+    <div style="display:flex;gap:4px;background:rgba(255,255,255,.12);padding:3px;border-radius:6px">
+      <button onClick="{{ setPhone }}" style="border:0;background:{{ dvPhoneBg }};color:{{ dvPhoneFg }};padding:5px 10px;border-radius:4px;font-size:12px;font-weight:600">360</button>
+      <button onClick="{{ setLaptop }}" style="border:0;background:{{ dvLapBg }};color:{{ dvLapFg }};padding:5px 10px;border-radius:4px;font-size:12px;font-weight:600">1440</button>
+      <button onClick="{{ setAuto }}" style="border:0;background:transparent;color:#D8E4DE;padding:5px 10px;border-radius:4px;font-size:12px;font-weight:600">Auto</button>
+    </div>
+  </div>
+
+  <div style="display:flex;flex:1;min-height:0">
+
+    <sc-if value="{{ laptop }}" hint-placeholder-val="{{ true }}">
+      <nav style="width:236px;flex:none;background:#0F4F3C;padding:18px 12px;display:flex;flex-direction:column;gap:2px">
+        <div style="padding:0 10px 16px;display:flex;align-items:center;gap:10px">
+          <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="7" fill="#E9C877"></rect><path d="M8 20l4-10 3 7 2-4 5 7z" fill="#0A3A2C"></path></svg>
+          <div style="color:#fff;font-size:13px;font-weight:600;line-height:1.3">Case<br /><span style="opacity:.6;font-weight:400">Management</span></div>
+        </div>
+        <sc-for list="{{ nav }}" as="n" hint-placeholder-count="9">
+          <button onClick="{{ n.go }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 10px;border:0;border-radius:8px;background:{{ n.bg }};color:{{ n.fg }};font-size:14px;font-weight:500;text-align:left">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ n.d }}"></path></svg>
+            <span>{{ n.label }}</span>
+          </button>
+        </sc-for>
+        <div style="flex:1"></div>
+        <div style="padding:12px 10px;border-top:1px solid rgba(255,255,255,.15);color:#D8E4DE;font-size:12px">
+          <div style="font-weight:600;color:#fff">Chaltu Tadesse</div>
+          <div style="opacity:.7">Youth case manager · 132 cases</div>
+        </div>
+      </nav>
+    </sc-if>
+
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+      <sc-if value="{{ phone }}">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#0F4F3C;color:#fff;position:sticky;top:0;z-index:5">
+          <svg width="26" height="26" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="7" fill="#E9C877"></rect><path d="M8 20l4-10 3 7 2-4 5 7z" fill="#0A3A2C"></path></svg>
+          <div style="font-size:16px;font-weight:600">{{ screenTitle }}</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showSync }}">
+        <button onClick="{{ cycleSync }}" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 16px;border:0;border-bottom:1px solid {{ syncBd }};background:{{ syncBg }};color:{{ syncFg }};font-size:13px;font-weight:500">
+          <span style="width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 1.6s ease-in-out infinite;flex:none"></span>
+          <span>{{ syncLabel }}</span>
+        </button>
+      </sc-if>
+
+      <div style="flex:1;padding:{{ pad }};padding-bottom:32px">
+
+        <sc-if value="{{ isCase }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;margin-bottom:18px">
+            <div style="flex:1;min-width:240px">
+              <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:600;margin-bottom:6px">Case YE-OR-AD-04821 · Adama woreda</div>
+              <h1 style="margin:0 0 8px;font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-.01em">{{ rows.0.name }}</h1>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+                <span style="display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;color:#7A5308;background:#FBF1DC;border:1px solid #E0BC72">◔ {{ rows.0.chip.label }}</span>
+                <span style="font-size:13px;color:#4E4A42">{{ L.pathway }}: Wage employment · TVET completed</span>
+              </div>
+            </div>
+            <div style="min-width:230px;background:#0A3A2C;color:#fff;border-radius:12px;padding:14px 16px">
+              <div style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#E9C877;font-weight:600;margin-bottom:4px">{{ L.goal }}</div>
+              <div style="font-size:15px;font-weight:500;line-height:1.4">Target: placed by 30 Sep 2026, retained to 31 Mar 2027</div>
+              <div style="margin-top:10px;height:6px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden"><div style="width:62%;height:100%;background:#E9C877"></div></div>
+              <div style="font-size:12px;opacity:.75;margin-top:6px">Step 3 of 5 · TVET done, employment pending</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:flex-start;background:#FBF1DC;border:1px solid #E0BC72;border-radius:10px;padding:14px 16px;margin-bottom:20px;flex-wrap:wrap">
+            <div style="flex:1;min-width:220px">
+              <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#7A5308">{{ L.next }}</div>
+              <div style="font-size:16px;font-weight:600;margin-top:3px">Chase Bishoftu Automotive Plc for confirmation</div>
+              <div style="font-size:13px;color:#7A5308;margin-top:2px">Referral RF-9127 · waiting 22 days · overdue by 8 days</div>
+            </div>
+            <button onClick="{{ chaseAction }}" style="min-height:48px;padding:0 18px;border:0;border-radius:8px;background:#0F4F3C;color:#fff;font-size:15px;font-weight:600">Send reminder</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
+            <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px">
+              <h2 style="margin:0 0 12px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">{{ L.identity }}</h2>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;font-size:14px">
+                <div><div style="color:#7A7568;font-size:12px">{{ L.age }}</div><div style="font-weight:600">23</div></div>
+                <div><div style="color:#7A7568;font-size:12px">{{ L.sex }}</div><div style="font-weight:600">Male</div></div>
+                <div><div style="color:#7A7568;font-size:12px">{{ L.kebele }}</div><div style="font-weight:600">Kebele 04, Adama</div></div>
+                <div><div style="color:#7A7568;font-size:12px">Education</div><div style="font-weight:600">Grade 10 complete</div></div>
+                <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid #EFEBE2">
+                  <div style="flex:1"><div style="color:#7A7568;font-size:12px">{{ L.phone }}</div><div style="font-weight:600;font-variant-numeric:tabular-nums">{{ phoneShown }}</div></div>
+                  <button onClick="{{ toggleReveal }}" style="min-height:40px;padding:0 12px;border:1px solid #E3DED2;border-radius:8px;background:#fff;color:#0F4F3C;font-size:13px;font-weight:600">{{ revealLabel }}</button>
+                </div>
+                <div style="grid-column:1/-1;font-size:12px;color:#7A7568">{{ L.consent }}: signed 14 Jan 2026, data sharing with partners — yes</div>
+              </div>
+            </section>
+
+            <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px">
+              <h2 style="margin:0 0 12px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Profiling &amp; eligibility</h2>
+              <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
+                <div style="display:flex;justify-content:space-between;gap:12px"><span>Unemployed 6+ months</span><span style="color:#0B4A38;font-weight:600">✓ Verified</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px"><span>Age 18–29</span><span style="color:#0B4A38;font-weight:600">✓ Verified</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px"><span>Resident of programme woreda</span><span style="color:#0B4A38;font-weight:600">✓ Verified</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px"><span>Household income band</span><span style="color:#7A5308;font-weight:600">◔ Self-reported</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px"><span>Vulnerability screen</span><span style="color:#7A7568;font-weight:600">◯ Not required</span></div>
+                <div style="margin-top:6px;padding-top:10px;border-top:1px solid #EFEBE2;font-size:13px;color:#4E4A42">Barrier recorded: no transport from kebele 04 after 19:00 — avoid night-shift placements.</div>
+              </div>
+            </section>
+          </div>
+
+          <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px;margin-bottom:20px">
+            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px">
+              <h2 style="margin:0;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700;flex:1">{{ L.slots }}</h2>
+              <span style="display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700;color:#8A3A1E;background:#F7E7DF;border:1px solid #DBA98F">{{ limitLabel }}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+              <sc-for list="{{ slotPills }}" as="p" hint-placeholder-count="2">
+                <div style="border:1px solid #E3DED2;border-radius:10px;padding:10px 12px;background:#FCFBF8">
+                  <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">{{ p.n }}</div>
+                  <div style="font-size:14px;font-weight:600;margin-top:2px">{{ p.label }}</div>
+                  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#4E4A42"><span style="width:8px;height:8px;border-radius:50%;background:{{ p.tone }};flex:none"></span>{{ p.sub }}</div>
+                </div>
+              </sc-for>
+              <div style="border:1px dashed #C9C3B4;border-radius:10px;padding:10px 12px;background:#F7F4EE">
+                <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Exempt</div>
+                <div style="font-size:14px;font-weight:600;margin-top:2px">Adama Health Centre 03</div>
+                <div style="font-size:12px;color:#4E4A42">Complementary service · no slot</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px;font-size:13px;color:#4E4A42">
+              <span style="flex:1;min-width:200px">{{ slotsNote }}</span>
+              <button onClick="{{ newReferral }}" style="min-height:48px;padding:0 16px;border:1px solid #E3DED2;border-radius:8px;background:#fff;color:#7A7568;font-size:14px;font-weight:600">+ New referral (blocked)</button>
+            </div>
+          </section>
+
+          <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px;margin-bottom:20px">
+            <h2 style="margin:0 0 4px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Referral timeline 2026</h2>
+            <div style="font-size:12px;color:#7A7568;margin-bottom:12px">Three fixed tracks. Scroll sideways on a phone.</div>
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+              <div style="min-width:660px">
+                <div style="display:flex;font-size:11px;color:#7A7568;border-bottom:1px solid #EFEBE2;padding-bottom:4px;margin-left:78px">
+                  <span style="flex:1">Jan</span><span style="flex:1">Feb</span><span style="flex:1">Mar</span><span style="flex:1">Apr</span><span style="flex:1">May</span><span style="flex:1">Jun</span><span style="flex:1">Jul</span><span style="flex:1">Aug</span><span style="flex:1">Sep</span><span style="flex:1">Oct</span>
+                </div>
+                <sc-for list="{{ tracks }}" as="t" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #F4F1EA">
+                    <div style="width:70px;flex:none;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#7A7568;padding-top:5px">{{ t.label }}</div>
+                    <div style="flex:1;min-width:0">
+                      <div style="position:relative;height:22px;background:repeating-linear-gradient(90deg,#F7F4EE 0 1px,transparent 1px 10%)">
+                        <sc-for list="{{ t.items }}" as="i" hint-placeholder-count="1">
+                          <div title="{{ i.name }}" style="position:absolute;top:2px;height:18px;left:{{ i.left }};width:{{ i.w }};background:{{ i.bar }};border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700">{{ i.mark }}</div>
+                        </sc-for>
+                      </div>
+                      <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:5px">
+                        <sc-for list="{{ t.items }}" as="i" hint-placeholder-count="1">
+                          <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:{{ i.text }}">{{ i.mark }} {{ i.name }}<span style="font-weight:400;color:#7A7568">{{ i.span }}</span></span>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </div>
+                </sc-for>
+                <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#4E4A42">
+                  <span>■ <span style="color:#0F4F3C;font-weight:600">Completed</span></span>
+                  <span>■ <span style="color:#1C7A5B;font-weight:600">Active</span></span>
+                  <span>■ <span style="color:#7A5308;font-weight:600">Pending confirmation</span></span>
+                  <span>■ <span style="color:#B3261E;font-weight:600">Failed</span></span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h2 style="margin:0 0 12px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">{{ L.history }}</h2>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <sc-for list="{{ refs }}" as="r" hint-placeholder-count="4">
+                <article style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:14px 16px">
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:baseline">
+                    <div style="flex:1;min-width:200px">
+                      <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">{{ r.kindLabel }} · {{ r.id }}</div>
+                      <div style="font-size:17px;font-weight:600;margin-top:2px">{{ r.partner }}</div>
+                    </div>
+                    <span style="display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;color:{{ r.fg }};background:{{ r.bg }};border:1px solid {{ r.bd }}">{{ r.mark }} {{ r.stateLabel }}</span>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;align-items:center">
+                    <span style="font-size:12px;font-weight:600;color:#4E4A42;background:#F1EEE7;border-radius:6px;padding:3px 8px">{{ r.slotLabel }}</span>
+                    <span style="font-size:13px;color:#4E4A42">{{ r.period }}</span>
+                    <sc-if value="{{ r.overdue }}">
+                      <span style="font-size:13px;font-weight:700;color:#8C1D18;background:#FAE6E4;border-radius:6px;padding:3px 8px">{{ r.waiting }}</span>
+                    </sc-if>
+                  </div>
+                  <div style="font-size:14px;color:#4E4A42;text-wrap:pretty">{{ r.detail }}</div>
+                  <sc-if value="{{ r.overdue }}">
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+                      <button onClick="{{ r.confirm }}" style="min-height:48px;padding:0 16px;border:0;border-radius:8px;background:#0F4F3C;color:#fff;font-size:14px;font-weight:600">{{ L.confirmed }}</button>
+                      <button onClick="{{ r.decline }}" style="min-height:48px;padding:0 16px;border:1px solid #DCA6A2;border-radius:8px;background:#fff;color:#8C1D18;font-size:14px;font-weight:600">{{ L.declined }}</button>
+                      <button onClick="{{ r.decline }}" style="min-height:48px;padding:0 16px;border:1px solid #E3DED2;border-radius:8px;background:#fff;color:#4E4A42;font-size:14px;font-weight:600">{{ L.withdraw }}</button>
+                    </div>
+                  </sc-if>
+                </article>
+              </sc-for>
+            </div>
+            <button onClick="{{ toggleClosed }}" style="margin-top:12px;min-height:48px;padding:0 16px;border:1px solid #E3DED2;border-radius:8px;background:#fff;color:#0F4F3C;font-size:14px;font-weight:600">{{ closedLabel }}</button>
+            <sc-if value="{{ closedOpen }}">
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+                <sc-for list="{{ closedRefs }}" as="r" hint-placeholder-count="3">
+                  <article style="background:#FCFBF8;border:1px solid #E3DED2;border-radius:12px;padding:12px 14px">
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:baseline">
+                      <div style="flex:1;min-width:180px">
+                        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">{{ r.kindLabel }} · {{ r.id }}</div>
+                        <div style="font-size:15px;font-weight:600">{{ r.partner }}</div>
+                      </div>
+                      <span style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;color:{{ r.fg }};background:{{ r.bg }};border:1px solid {{ r.bd }}">{{ r.mark }} {{ r.stateLabel }}</span>
+                    </div>
+                    <div style="font-size:13px;color:#4E4A42;margin-top:4px">{{ r.period }} — {{ r.detail }}</div>
+                  </article>
+                </sc-for>
+              </div>
+            </sc-if>
+          </section>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isCases }}">
+        <div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px">
+            <div style="flex:1;min-width:200px">
+              <h1 style="margin:0;font-size:24px;font-weight:700">{{ L.caseload }}</h1>
+              <div style="font-size:13px;color:#4E4A42">{{ count }} {{ L.results }} · Chaltu Tadesse</div>
+            </div>
+          </div>
+          <div style="position:sticky;top:0;z-index:3;background:#F7F4EE;padding-bottom:10px">
+            <input value="{{ q }}" onChange="{{ setQ }}" placeholder="{{ L.search }}" style="width:100%;min-height:48px;padding:0 14px;border:1px solid #E3DED2;border-radius:10px;background:#fff;font-size:16px;color:#1A1915" />
+            <div style="display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px">
+              <sc-for list="{{ wFilters }}" as="f" hint-placeholder-count="4">
+                <button onClick="{{ f.pick }}" style="flex:none;min-height:40px;padding:0 14px;border:1px solid {{ f.bd }};border-radius:999px;background:{{ f.bg }};color:{{ f.fg }};font-size:13px;font-weight:600;white-space:nowrap">{{ f.label }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px">
+              <sc-for list="{{ sFilters }}" as="f" hint-placeholder-count="5">
+                <button onClick="{{ f.pick }}" style="flex:none;min-height:40px;padding:0 14px;border:1px solid {{ f.bd }};border-radius:999px;background:{{ f.bg }};color:{{ f.fg }};font-size:13px;font-weight:600;white-space:nowrap">{{ f.mark }} {{ f.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+
+          <sc-if value="{{ laptop }}">
+            <div style="background:#fff;border:1px solid #E3DED2;border-radius:12px;overflow:hidden">
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead>
+                  <tr style="background:#FCFBF8;text-align:left;color:#4E4A42">
+                    <th style="padding:10px 12px;font-weight:700;border-bottom:1px solid #E3DED2">{{ L.name }}</th>
+                    <th style="padding:10px 12px;font-weight:700;border-bottom:1px solid #E3DED2">{{ L.status }}</th>
+                    <th style="padding:10px 12px;font-weight:700;border-bottom:1px solid #E3DED2">{{ L.woreda }}</th>
+                    <th style="padding:10px 12px;font-weight:700;border-bottom:1px solid #E3DED2">{{ L.cm }}</th>
+                    <th style="padding:10px 12px;font-weight:700;border-bottom:1px solid #E3DED2">{{ L.last }}</th>
+                    <th style="padding:10px 12px;font-weight:700;border-bottom:1px solid #E3DED2">{{ L.next }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+                    <tr onClick="{{ r.open }}" style="border-bottom:1px solid #F4F1EA">
+                      <td style="padding:{{ rowPad }}">
+                        <div style="font-weight:600;font-size:14px">{{ r.name }}</div>
+                        <div style="color:#7A7568;font-size:12px;font-variant-numeric:tabular-nums">{{ r.id }} · {{ r.age }} · {{ r.sex }}</div>
+                      </td>
+                      <td style="padding:{{ rowPad }}"><span style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;color:{{ r.chip.fg }};background:{{ r.chip.bg }};border:1px solid {{ r.chip.bd }};white-space:nowrap">{{ r.chip.mark }} {{ r.chip.label }}</span></td>
+                      <td style="padding:{{ rowPad }};color:#4E4A42">{{ r.woredaLabel }} · {{ L.kebele }} {{ r.kebele }}</td>
+                      <td style="padding:{{ rowPad }};color:#4E4A42">{{ r.cm }}</td>
+                      <td style="padding:{{ rowPad }};color:#4E4A42;white-space:nowrap">{{ r.last }}</td>
+                      <td style="padding:{{ rowPad }};color:#1A1915">{{ r.next }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ phone }}">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+                <button onClick="{{ r.open }}" style="text-align:left;width:100%;background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:12px 14px;min-height:48px">
+                  <div style="display:flex;gap:8px;align-items:baseline">
+                    <div style="flex:1;font-size:16px;font-weight:600;line-height:1.3">{{ r.name }}</div>
+                    <span style="flex:none;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:700;color:{{ r.chip.fg }};background:{{ r.chip.bg }};border:1px solid {{ r.chip.bd }}">{{ r.chip.mark }} {{ r.chip.label }}</span>
+                  </div>
+                  <div style="font-size:12px;color:#7A7568;margin-top:2px;font-variant-numeric:tabular-nums">{{ r.id }} · {{ r.age }} · {{ r.woredaLabel }} {{ r.kebele }}</div>
+                  <div style="display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid #F4F1EA;font-size:13px">
+                    <span style="color:#7A7568;flex:none">{{ L.next }}:</span>
+                    <span style="color:#1A1915;font-weight:500">{{ r.next }}</span>
+                  </div>
+                  <div style="font-size:12px;color:#7A7568;margin-top:4px">{{ L.last }}: {{ r.last }}</div>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isQueue }}">
+        <div>
+          <h1 style="margin:0 0 4px;font-size:24px;font-weight:700">Referrals queue</h1>
+          <div style="font-size:13px;color:#4E4A42;margin-bottom:18px">Decision inbox · Adama, Bishoftu, Lume</div>
+          <div style="display:flex;flex-direction:column;gap:22px">
+            <sc-for list="{{ queue }}" as="g" hint-placeholder-count="3">
+              <section>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                  <h2 style="margin:0;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">{{ g.title }}</h2>
+                  <span style="font-size:12px;font-weight:700;color:#4E4A42;background:#EDEAE1;border-radius:999px;padding:2px 8px">{{ g.n }}</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="2">
+                    <article style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:12px 14px">
+                      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:baseline">
+                        <div style="flex:1;min-width:200px">
+                          <div style="font-size:16px;font-weight:600">{{ r.youthLabel }}</div>
+                          <div style="font-size:13px;color:#4E4A42">{{ r.kind }} → {{ r.partner }}</div>
+                          <div style="font-size:12px;color:#7A7568;font-variant-numeric:tabular-nums">{{ r.id }} · {{ r.woreda }}</div>
+                        </div>
+                        <span style="flex:none;font-size:13px;font-weight:700;color:{{ r.waitFg }};background:{{ r.waitBg }};border-radius:6px;padding:4px 9px;white-space:nowrap">{{ r.wait }}</span>
+                      </div>
+                      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+                        <button onClick="{{ r.confirm }}" style="flex:1;min-width:150px;min-height:48px;padding:0 14px;border:0;border-radius:8px;background:#0F4F3C;color:#fff;font-size:14px;font-weight:600">{{ L.confirmed }}</button>
+                        <button onClick="{{ r.decline }}" style="flex:1;min-width:150px;min-height:48px;padding:0 14px;border:1px solid #DCA6A2;border-radius:8px;background:#fff;color:#8C1D18;font-size:14px;font-weight:600">{{ L.declined }}</button>
+                        <button onClick="{{ r.withdraw }}" style="flex:1;min-width:150px;min-height:48px;padding:0 14px;border:1px solid #E3DED2;border-radius:8px;background:#fff;color:#4E4A42;font-size:14px;font-weight:600">{{ L.withdraw }}</button>
+                      </div>
+                    </article>
+                  </sc-for>
+                </div>
+              </section>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isAlerts }}">
+        <div>
+          <h1 style="margin:0 0 4px;font-size:24px;font-weight:700">Alerts</h1>
+          <div style="font-size:13px;color:#4E4A42;margin-bottom:16px">Tap a counter to filter. 65 open across 3 woredas.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:20px">
+            <sc-for list="{{ alertKinds }}" as="k" hint-placeholder-count="6">
+              <button onClick="{{ k.pick }}" style="text-align:left;background:#fff;border:1px solid {{ k.outline }};border-radius:12px;padding:12px;min-height:48px">
+                <div style="font-size:32px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:{{ k.fg }}">{{ k.n }}</div>
+                <div style="font-size:13px;font-weight:600;margin-top:6px;line-height:1.3">{{ k.label }}</div>
+                <div style="font-size:11px;color:#7A7568;margin-top:2px">{{ k.why }}</div>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ alertsEmpty }}">
+            <div style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:40px 24px;text-align:center;position:relative;overflow:hidden">
+              <div style="position:absolute;inset:0;opacity:.12;background:repeating-linear-gradient(90deg,#0F4F3C 0 6px,transparent 6px 12px),repeating-linear-gradient(0deg,#C98A15 0 2px,transparent 2px 18px);pointer-events:none"></div>
+              <div style="position:relative">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#0F4F3C" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 13l5 5L20 7"></path></svg>
+                <div style="font-size:18px;font-weight:600;margin-top:10px">No alerts of this type</div>
+                <div style="font-size:14px;color:#4E4A42;margin-top:4px;max-width:340px;margin-left:auto;margin-right:auto;text-wrap:pretty">Every case in this filter has activity within the last 30 days. Nothing needs chasing.</div>
+                <button onClick="{{ nav.4.go }}" style="margin-top:16px;min-height:48px;padding:0 18px;border:1px solid #E3DED2;border-radius:8px;background:#fff;color:#0F4F3C;font-size:14px;font-weight:600">Show all alerts</button>
+              </div>
+            </div>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ alerts }}" as="a" hint-placeholder-count="6">
+              <button onClick="{{ a.open }}" style="text-align:left;width:100%;background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:12px 14px;min-height:48px">
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:baseline">
+                  <div style="flex:1;min-width:200px">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:{{ a.fg }}">{{ a.kind }}</div>
+                    <div style="font-size:16px;font-weight:600;margin-top:2px">{{ a.youthLabel }}</div>
+                    <div style="font-size:12px;color:#7A7568">{{ a.meta }}</div>
+                  </div>
+                  <span style="flex:none;font-size:13px;font-weight:700;color:{{ a.fg }};background:{{ a.bg }};border-radius:6px;padding:4px 9px">{{ a.age }}</span>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isRegistry }}">
+        <div>
+          <h1 style="margin:0 0 4px;font-size:24px;font-weight:700">Youth registry</h1>
+          <div style="font-size:13px;color:#4E4A42;margin-bottom:16px">4,812 registered · 3,940 with an open case. Phone numbers hidden by default.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">
+            <sc-for list="{{ registry }}" as="r" hint-placeholder-count="8">
+              <div style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:12px 14px">
+                <div style="display:flex;gap:8px;align-items:baseline">
+                  <div style="flex:1;font-size:16px;font-weight:600">{{ r.name }}</div>
+                  <span style="flex:none;font-size:11px;font-weight:700;color:{{ r.caseFg }};background:{{ r.caseBg }};border-radius:999px;padding:3px 9px">{{ r.caseLabel }}</span>
+                </div>
+                <div style="font-size:12px;color:#7A7568;margin-top:2px;font-variant-numeric:tabular-nums">{{ r.id }} · {{ r.age }} · {{ r.sex }} · {{ r.woredaLabel }} {{ r.kebele }}</div>
+                <div style="font-size:13px;color:#4E4A42;margin-top:8px;padding-top:8px;border-top:1px solid #F4F1EA;font-variant-numeric:tabular-nums">{{ L.phone }}: {{ r.phoneMask }}</div>
+                <div style="font-size:13px;color:#4E4A42">{{ L.consent }}: {{ r.consent }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isPartners }}">
+        <div>
+          <h1 style="margin:0 0 4px;font-size:24px;font-weight:700">Partners and providers</h1>
+          <div style="font-size:13px;color:#4E4A42;margin-bottom:16px">5 organisations · 50 live referrals</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ partners }}" as="p" hint-placeholder-count="5">
+              <article style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:14px 16px">
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:baseline">
+                  <div style="flex:1;min-width:220px">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#7A7568">{{ p.type }}</div>
+                    <div style="font-size:17px;font-weight:600;margin-top:2px">{{ p.name }}</div>
+                  </div>
+                  <span style="flex:none;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;color:{{ p.mouFg }};background:{{ p.mouBg }};border:1px solid {{ p.mouBd }}">MOU: {{ p.mou }}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 16px;margin-top:10px;font-size:13px;color:#4E4A42">
+                  <div><span style="color:#7A7568">Coverage:</span> {{ p.woredas }}</div>
+                  <div><span style="color:#7A7568">Contact:</span> {{ p.contact }}</div>
+                  <div><span style="color:#7A7568">Live referrals:</span> {{ p.live }}</div>
+                  <div style="font-weight:600;color:{{ p.accFg }}">{{ p.accMark }} {{ p.acc }}</div>
+                </div>
+              </article>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isUsers }}">
+        <div>
+          <h1 style="margin:0 0 4px;font-size:24px;font-weight:700">Users</h1>
+          <div style="font-size:13px;color:#4E4A42;margin-bottom:16px">7 accounts · Oromia region</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ users }}" as="u" hint-placeholder-count="7">
+              <div style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:baseline">
+                <div style="flex:1;min-width:200px">
+                  <div style="font-size:16px;font-weight:600">{{ u.name }}</div>
+                  <div style="font-size:13px;color:#4E4A42">{{ u.role }}</div>
+                  <div style="font-size:12px;color:#7A7568">{{ u.scope }}</div>
+                </div>
+                <div style="text-align:right;min-width:120px">
+                  <div style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">{{ u.load }}</div>
+                  <div style="font-size:12px;color:#7A7568">{{ u.last }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isDash }}">
+        <div>
+          <h1 style="margin:0 0 4px;font-size:24px;font-weight:700">Programme dashboard</h1>
+          <div style="font-size:13px;color:#4E4A42;margin-bottom:18px">Q3 2026 · Oromia · Adama, Bishoftu, Lume</div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px">
+            <div style="background:#0A3A2C;color:#fff;border-radius:12px;padding:16px">
+              <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#E9C877;font-weight:700">Placements this quarter</div>
+              <div style="font-size:44px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;margin-top:6px">148</div>
+              <div style="font-size:13px;opacity:.8">of 180 target · 82%</div>
+              <div style="margin-top:10px;height:6px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden"><div style="width:82%;height:100%;background:#E9C877"></div></div>
+            </div>
+            <div style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px">
+              <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Retained at 6 months</div>
+              <div style="font-size:44px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;margin-top:6px;color:#0F4F3C">742</div>
+              <div style="font-size:13px;color:#4E4A42">58% of those placed a year ago</div>
+            </div>
+            <div style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px">
+              <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Gender split of placements</div>
+              <div style="display:flex;height:34px;border-radius:8px;overflow:hidden;margin-top:10px">
+                <div style="width:46%;background:#C98A15;color:#1A1915;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">46% women</div>
+                <div style="width:54%;background:#0F4F3C;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">54% men</div>
+              </div>
+              <div style="font-size:12px;color:#7A7568;margin-top:8px">Target parity by Q1 2027. Registration is 51% women.</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">
+            <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px">
+              <h2 style="margin:0 0 12px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Registration to placement</h2>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <sc-for list="{{ funnel }}" as="f" hint-placeholder-count="6">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span style="color:#4E4A42">{{ f.label }}</span><span style="font-weight:700;font-variant-numeric:tabular-nums">{{ f.n }}</span></div>
+                    <div style="height:16px;border-radius:4px;background:#F1EEE7;overflow:hidden"><div style="width:{{ f.w }};height:100%;background:{{ f.c }}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+
+            <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px">
+              <h2 style="margin:0 0 4px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Confirmation lag by partner</h2>
+              <div style="font-size:12px;color:#7A7568;margin-bottom:12px">Days from referral sent to partner decision. Programme standard is 14.</div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ lag }}" as="l" hint-placeholder-count="5">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span style="color:#4E4A42">{{ l.p }}</span><span style="font-weight:700;font-variant-numeric:tabular-nums">{{ l.d }}</span></div>
+                    <div style="height:12px;border-radius:4px;background:#F1EEE7;overflow:hidden"><div style="width:{{ l.w }};height:100%;background:#C98A15"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+
+            <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px">
+              <h2 style="margin:0 0 12px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Woreda comparison</h2>
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <sc-for list="{{ woredas }}" as="w" hint-placeholder-count="3">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>{{ w.w }}</span><span style="font-variant-numeric:tabular-nums">{{ w.rate }} placed</span></div>
+                    <div style="height:20px;border-radius:4px;background:#F1EEE7;overflow:hidden;margin:4px 0"><div style="width:{{ w.bar }};height:100%;background:#1C7A5B"></div></div>
+                    <div style="font-size:12px;color:#7A7568;font-variant-numeric:tabular-nums">{{ w.reg }} registered · {{ w.placed }} placed</div>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isTokens }}">
+        <div>
+          <h1 style="margin:0 0 4px;font-size:24px;font-weight:700">Design tokens and component specs</h1>
+          <div style="font-size:13px;color:#4E4A42;margin-bottom:20px">Contrast measured against #FFFFFF surface or #1A1915 ink as noted. Body text targets AAA, chips AA.</div>
+
+          <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:24px">
+            <sc-for list="{{ tokens }}" as="g" hint-placeholder-count="5">
+              <section>
+                <h2 style="margin:0 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">{{ g.g }}</h2>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px">
+                  <sc-for list="{{ g.s }}" as="t" hint-placeholder-count="4">
+                    <div style="border:1px solid #E3DED2;border-radius:10px;overflow:hidden;background:#fff">
+                      <div style="height:56px;background:{{ t.1 }};color:{{ t.3 }};display:flex;align-items:flex-end;padding:6px 10px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">{{ t.1 }}</div>
+                      <div style="padding:8px 10px">
+                        <div style="font-size:12px;font-weight:700">{{ t.0 }}</div>
+                        <div style="font-size:11px;color:#7A7568">{{ t.2 }}</div>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </section>
+            </sc-for>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:24px">
+            <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px">
+              <h2 style="margin:0 0 10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Type scale — Archivo + Noto Sans Ethiopic</h2>
+              <div style="font-size:28px;font-weight:700;line-height:1.2">28 / 34 Display — ጌታቸው ቶሌራ</div>
+              <div style="font-size:24px;font-weight:700;line-height:1.25">24 / 30 Screen title</div>
+              <div style="font-size:17px;font-weight:600;line-height:1.35">17 / 23 Card title — አዳማ ፖሊቴክኒክ</div>
+              <div style="font-size:15px;line-height:1.5">15 / 22 Body. Latin line-height 1.5, Ge'ez 1.75 — taller glyphs need the room.</div>
+              <div style="font-size:13px;color:#4E4A42;line-height:1.45">13 / 19 Table and meta</div>
+              <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">11 / 14 Label caps</div>
+              <div style="margin-top:10px;font-size:12px;color:#4E4A42">Noto Sans Ethiopic covers Ge'ez at all weights used here; Archivo covers Latin for English and Afaan Oromo. Numerals are tabular in every table and metric.</div>
+            </section>
+
+            <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px">
+              <h2 style="margin:0 0 10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Spacing, radii, elevation</h2>
+              <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:12px">
+                <div style="width:4px;height:20px;background:#0F4F3C"></div><div style="width:8px;height:26px;background:#0F4F3C"></div><div style="width:12px;height:32px;background:#0F4F3C"></div><div style="width:16px;height:38px;background:#0F4F3C"></div><div style="width:24px;height:44px;background:#0F4F3C"></div><div style="width:32px;height:50px;background:#0F4F3C"></div>
+                <span style="font-size:12px;color:#7A7568;margin-left:6px">4 · 8 · 12 · 16 · 24 · 32</span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+                <div style="width:44px;height:34px;background:#E4EFE9;border:1px solid #9CC4B4;border-radius:6px"></div>
+                <div style="width:44px;height:34px;background:#E4EFE9;border:1px solid #9CC4B4;border-radius:10px"></div>
+                <div style="width:44px;height:34px;background:#E4EFE9;border:1px solid #9CC4B4;border-radius:12px"></div>
+                <div style="width:44px;height:34px;background:#E4EFE9;border:1px solid #9CC4B4;border-radius:999px"></div>
+                <span style="font-size:12px;color:#7A7568">6 control · 10 chip group · 12 card · 999 chip</span>
+              </div>
+              <div style="display:flex;gap:12px;align-items:center">
+                <div style="width:64px;height:36px;background:#fff;border:1px solid #E3DED2;border-radius:10px"></div>
+                <div style="width:64px;height:36px;background:#fff;border-radius:10px;box-shadow:0 1px 2px rgba(26,25,21,.08),0 2px 6px rgba(26,25,21,.06)"></div>
+                <div style="width:64px;height:36px;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(26,25,21,.16)"></div>
+                <span style="font-size:12px;color:#7A7568">flat · raised · overlay</span>
+              </div>
+            </section>
+          </div>
+
+          <section style="margin-bottom:24px">
+            <h2 style="margin:0 0 10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Component specs</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px">
+              <sc-for list="{{ specs }}" as="c" hint-placeholder-count="12">
+                <div style="background:#fff;border:1px solid #E3DED2;border-radius:10px;padding:12px 14px">
+                  <div style="font-size:14px;font-weight:700">{{ c.0 }}</div>
+                  <div style="font-size:13px;color:#4E4A42;margin-top:3px;text-wrap:pretty">{{ c.1 }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+
+          <section style="background:#fff;border:1px solid #E3DED2;border-radius:12px;padding:16px;max-width:760px">
+            <h2 style="margin:0 0 10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#7A7568;font-weight:700">Rationale</h2>
+            <p style="margin:0 0 10px;font-size:15px;color:#1A1915;text-wrap:pretty">The primary is a deep programme green at 10.6:1 on white, dark enough to stay readable on a cheap LCD at half brightness outdoors. Gold carries waiting and due states because it reads as time passing rather than danger, and it never carries text below 7.6:1 — the bright gold is a fill only. Terracotta, taken from highland building clay, carries stalled cases: it signals intervention without borrowing the alarm of red. Red is reserved for referrals that actually failed, so a failed placement still stands out on a screen that has other colour on it.</p>
+            <p style="margin:0 0 10px;font-size:15px;color:#1A1915;text-wrap:pretty">Archivo pairs with Noto Sans Ethiopic because the two share a wide, low-contrast skeleton, so a bilingual table does not change weight when the language changes. Ge'ez runs at 1.75 line-height against Latin's 1.5.</p>
+            <p style="margin:0 0 10px;font-size:15px;color:#1A1915;text-wrap:pretty">Rejected: a blue primary, which reads as generic government software and clashes with the gold; the Ethiopian flag palette used literally, which makes a case management tool look like a state banner; woven pattern behind content, kept instead to the empty state and to nothing that sits under data; and any status signalled by colour alone — every chip carries a mark and a word, so the design survives a monochrome screen and a colour-blind reader.</p>
+            <p style="margin:0;font-size:15px;color:#1A1915;text-wrap:pretty">Personal data is masked by default. Phone numbers show only the last four digits until a case manager taps Reveal, which is the shared-office case: a supervisor can read a caseload over someone's shoulder without collecting numbers.</p>
+          </section>
+        </div>
+        </sc-if>
+
+      </div>
+
+      <sc-if value="{{ phone }}">
+        <div style="position:sticky;bottom:0;display:flex;background:#0F4F3C;border-top:1px solid #0A3A2C;z-index:6">
+          <sc-for list="{{ nav }}" as="n" hint-placeholder-count="9">
+            <button onClick="{{ n.go }}" style="flex:1;min-height:56px;border:0;background:{{ n.bg }};color:{{ n.fg }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9px;font-weight:600;padding:4px 2px">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ n.d }}"></path></svg>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+    </main>
+  </div>
+
+  <sc-if value="{{ hasToast }}">
+    <div style="position:sticky;bottom:76px;align-self:center;width:fit-content;max-width:90%;margin-top:-20px;background:#1A1915;color:#fff;padding:12px 18px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(26,25,21,.28);z-index:20;animation:rise .18s ease-out;text-align:center">{{ toast }}</div>
+  </sc-if>
+
+  <sc-if value="{{ hasModal }}">
+    <div style="position:fixed;inset:0;background:rgba(10,58,44,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:30">
+      <div style="background:#fff;border-radius:14px;padding:20px;max-width:420px;width:100%;box-shadow:0 8px 24px rgba(26,25,21,.28)">
+        <h3 style="margin:0 0 8px;font-size:19px;font-weight:700">Record partner decline?</h3>
+        <p style="margin:0 0 16px;font-size:15px;color:#4E4A42;text-wrap:pretty">{{ modalId }} closes as Failed, the slot frees up, and a Replacement Referral Prompt is created for this youth. The partner is notified.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onClick="{{ confirmDecline }}" style="flex:1;min-width:130px;min-height:48px;border:0;border-radius:8px;background:#8C1D18;color:#fff;font-size:15px;font-weight:600">Record decline</button>
+          <button onClick="{{ closeModal }}" style="flex:1;min-width:130px;min-height:48px;border:1px solid #E3DED2;border-radius:8px;background:#fff;color:#4E4A42;font-size:15px;font-weight:600">Keep waiting</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;comfortable&quot;,&quot;compact&quot;],&quot;default&quot;:&quot;comfortable&quot;,&quot;tsType&quot;:&quot;'comfortable' | 'compact'&quot;,&quot;section&quot;:&quot;Field conditions&quot;},&quot;parallelLimit&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:2,&quot;min&quot;:1,&quot;max&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Programme rules&quot;},&quot;showSyncBanner&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Field conditions&quot;}}">
+const NAV = [
+  ['dash','Dashboard','ዳሽቦርድ','M3 13h6V3H3v10zm8 8h6V9h-6v12zM3 21h6v-6H3v6zm8-14h6V3h-6v4z'],
+  ['cases','Cases','ጉዳዮች','M4 4h10l2 3h4v13H4V4z'],
+  ['case','Case detail','የጉዳይ ዝርዝር','M6 3h9l4 4v14H6V3z'],
+  ['queue','Referrals','ሪፈራሎች','M4 6h11l3 3-3 3H4V6zm0 8h8l3 3-3 3H4v-6z'],
+  ['alerts','Alerts','ማስጠንቀቂያዎች','M12 3a6 6 0 016 6v4l2 3H4l2-3V9a6 6 0 016-6z'],
+  ['registry','Youth registry','የወጣቶች መዝገብ','M5 3h11l3 3v15H5V3zM8 8h8M8 12h8M8 16h5'],
+  ['partners','Partners','አጋሮች','M3 20V9l5-4 5 4v11M13 20V12h8v8'],
+  ['users','Users','ተጠቃሚዎች','M8 11a3 3 0 100-6 3 3 0 000 6zm8 0a3 3 0 100-6 3 3 0 000 6zM2 20c0-3 3-5 6-5s6 2 6 5m2-5c3 0 6 2 6 5'],
+  ['tokens','Design tokens','ዲዛይን ቶክኖች','M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z']
+];
+
+const CHIP = {
+  'Active':          {am:'ንቁ',                 fg:'#0B4A38', bg:'#E4EFE9', bd:'#9CC4B4', mark:'\u25CF'},
+  'Referral Pending':{am:'ሪፈራል በመጠባበቅ',       fg:'#7A5308', bg:'#FBF1DC', bd:'#E0BC72', mark:'\u25D4'},
+  'Stalled':         {am:'ቆሟል',                fg:'#8A3A1E', bg:'#F7E7DF', bd:'#DBA98F', mark:'\u25B2'},
+  'Placed':          {am:'ተቀጥሯል',              fg:'#FFFFFF', bg:'#0F4F3C', bd:'#0F4F3C', mark:'\u2713'},
+  'Closed':          {am:'ተዘግቷል',              fg:'#4E4A42', bg:'#EDEAE1', bd:'#D2CCBE', mark:'\u25A0'}
+};
+
+const RSTATE = {
+  'Pending confirmation':{am:'ማረጋገጫ በመጠባበቅ', fg:'#7A5308', bg:'#FBF1DC', bd:'#E0BC72', bar:'#C98A15', ink:'#7A5308', mark:'\u25D4'},
+  'Active':              {am:'ንቁ',            fg:'#0B4A38', bg:'#E4EFE9', bd:'#9CC4B4', bar:'#1C7A5B', ink:'#0B4A38', mark:'\u25CF'},
+  'Completed':           {am:'ተጠናቅቋል',        fg:'#FFFFFF', bg:'#0F4F3C', bd:'#0F4F3C', bar:'#0F4F3C', ink:'#0F4F3C', mark:'\u2713'},
+  'Failed':              {am:'አልተሳካም',        fg:'#8C1D18', bg:'#FAE6E4', bd:'#DCA6A2', bar:'#B3261E', ink:'#8C1D18', mark:'\u2715'},
+  'Replaced':            {am:'ተተክቷል',         fg:'#8A3A1E', bg:'#F7E7DF', bd:'#DBA98F', bar:'#A84B2A', ink:'#8A3A1E', mark:'\u21BB'},
+  'Cancelled':           {am:'ተሰርዟል',         fg:'#4E4A42', bg:'#EDEAE1', bd:'#D2CCBE', bar:'#9B9587', ink:'#4E4A42', mark:'\u2298'}
+};
+
+const YOUTH = [
+  ['YE-OR-AD-04821','Getachew Tolera Wakjira','ጌታቸው ቶሌራ ዋቅጅራ',23,'M','Adama','04','+251 911 45 22 07','Chaltu Tadesse','ጫልቱ ታደሰ','Referral Pending','2 days ago','Chase Bishoftu Automotive confirmation','Wage employment'],
+  ['YE-OR-AD-04822','Hanna Girma','ሃና ግርማ',21,'F','Adama','07','+251 912 08 71 33','Chaltu Tadesse','ጫልቱ ታደሰ','Placed','5 days ago','Retention check due 14 Sep','Wage employment'],
+  ['YE-OR-BI-03190','Abdi Bekele Roba','አብዲ በቀለ ሮባ',26,'M','Bishoftu','02','+251 913 55 90 18','Dawit Kebede','ዳዊት ከበደ','Stalled','41 days ago','Open replacement referral','Self-employment'],
+  ['YE-OR-LU-01044','Bontu Negasa','ቦንቱ ነጋሳ',19,'F','Lume','05','+251 914 22 63 40','Meseret Alemu','መሰረት ዓለሙ','Active','today','Confirm TVET enrolment','TVET'],
+  ['YE-OR-AD-04799','Firomsa Gutema','ፍሮምሳ ጉተማ',24,'M','Adama','11','+251 911 90 04 77','Chaltu Tadesse','ጫልቱ ታደሰ','Active','1 day ago','Profiling review','Wage employment'],
+  ['YE-OR-BI-03212','Tigist Bekele','ትዕግስት በቀለ',22,'F','Bishoftu','06','+251 915 71 28 05','Dawit Kebede','ዳዊት ከበደ','Referral Pending','9 days ago','Referral overdue 9 days','Self-employment'],
+  ['YE-OR-LU-01061','Lelisa Dinka','ለሊሳ ዲንቃ',20,'M','Lume','01','+251 916 33 12 89','Meseret Alemu','መሰረት ዓለሙ','Stalled','33 days ago','No activity — call youth','TVET'],
+  ['YE-OR-AD-04760','Kalkidan Mulatu','ካልኪዳን ሙላቱ',25,'F','Adama','04','+251 911 05 66 21','Yonas Assefa','ዮናስ አሰፋ','Placed','12 days ago','Retention check due 2 Oct','Wage employment'],
+  ['YE-OR-BI-03177','Yonas Tesfaye','ዮናስ ተስፋዬ',27,'M','Bishoftu','09','+251 917 84 39 52','Dawit Kebede','ዳዊት ከበደ','Active','3 days ago','Finance appraisal follow-up','Self-employment'],
+  ['YE-OR-LU-01088','Meseret Wolde','መሰረት ወልዴ',18,'F','Lume','03','+251 918 60 41 16','Meseret Alemu','መሰረት ዓለሙ','Active','4 days ago','Collect TVET consent form','TVET'],
+  ['YE-OR-AD-04833','Solomon Girmay','ሰለሞን ግርማይ',24,'M','Adama','08','+251 911 27 15 60','Yonas Assefa','ዮናስ አሰፋ','Referral Pending','16 days ago','Referral overdue 16 days','Wage employment'],
+  ['YE-OR-BI-03241','Aster Haile','አስቴር ኃይሌ',23,'F','Bishoftu','04','+251 919 12 77 34','Dawit Kebede','ዳዊት ከበደ','Placed','21 days ago','Retention check passed','Self-employment']
+];
+
+const REFERRALS = [
+  {id:'RF-8841', kind:'TVET', kindAm:'ቲቬቲ', partner:'Adama Polytechnic College', state:'Completed', slot:'Slot 1', period:'12 Jan 2026 – 30 Apr 2026', detail:'Level II Automotive Servicing. Certificate issued 30 Apr.', waiting:''},
+  {id:'RF-9127', kind:'Wage employment', kindAm:'የደመወዝ ሥራ', partner:'Bishoftu Automotive Plc', state:'Pending confirmation', slot:'Slot 1', period:'Sent 25 Jul 2026', detail:'Junior service technician, 3-month probation. Contact: Ato Girma Bekele.', waiting:'waiting 22 days'},
+  {id:'RF-9155', kind:'Finance', kindAm:'ብድር', partner:'Oromia Credit & Saving S.C.', state:'Active', slot:'Slot 2', period:'Confirmed 4 Aug 2026', detail:'Tool-kit loan appraisal, ETB 40,000. Appraisal visit booked 19 Aug.', waiting:''},
+  {id:'RF-9098', kind:'Complementary service', kindAm:'ተጨማሪ አገልግሎት', partner:'Adama Health Centre 03', state:'Active', slot:'Exempt', period:'Confirmed 2 Jun 2026', detail:'Occupational health screening before workshop placement.', waiting:''}
+];
+
+const CLOSED = [
+  {id:'RF-8712', kind:'Wage employment', kindAm:'የደመወዝ ሥራ', partner:'Lume Agro Processing', state:'Failed', slot:'Slot 1', period:'3 Mar 2026 – 19 Mar 2026', detail:'Youth withdrew after 2 weeks — night shift, no transport from kebele 04.', waiting:''},
+  {id:'RF-8798', kind:'Wage employment', kindAm:'የደመወዝ ሥራ', partner:'Adama Metal Works', state:'Replaced', slot:'Slot 1', period:'Replaced 25 Jul 2026', detail:'Replaced by RF-9127 after partner froze hiring.', waiting:''},
+  {id:'RF-8650', kind:'Finance', kindAm:'ብድር', partner:'Adama Saving & Credit Union', state:'Cancelled', slot:'Slot 2', period:'Cancelled 8 Feb 2026', detail:'Cancelled by case manager — duplicate of RF-9155.', waiting:''}
+];
+
+const TRACKS = [
+  {label:'Slot 1', am:'ቦታ 1', items:[
+    {name:'TVET · Adama Polytechnic College', state:'Completed', left:'2%', w:'26%', span:'Jan – Apr'},
+    {name:'Employment · Bishoftu Automotive Plc', state:'Pending confirmation', left:'56%', w:'14%', span:'sent 25 Jul'}
+  ]},
+  {label:'Slot 2', am:'ቦታ 2', items:[
+    {name:'Finance · Oromia Credit & Saving S.C.', state:'Active', left:'60%', w:'28%', span:'since 4 Aug'}
+  ]},
+  {label:'Exempt', am:'ነፃ', items:[
+    {name:'Complementary · Adama Health Centre 03', state:'Active', left:'40%', w:'48%', span:'since 2 Jun'}
+  ]}
+];
+
+const AM_NEXT = ['ቢሾፍቱ አውቶሞቲቭን ማረጋገጫ መጠየቅ','የቆይታ ማረጋገጫ በ14 መስከረም','ተኪ ሪፈራል መክፈት','የቲቬቲ ምዝገባ ማረጋገጥ','የመረጃ ግምገማ','ሪፈራል 9 ቀን አልፎታል','እንቅስቃሴ የለም — ወጣቱን መደወል','የቆይታ ማረጋገጫ በ2 ጥቅምት','የብድር ግምገማ ክትትል','የቲቬቲ ስምምነት ቅጽ መሰብሰብ','ሪፈራል 16 ቀን አልፎታል','የቆይታ ማረጋገጫ አልፏል'];
+const AM_LAST = ['ከ2 ቀን በፊት','ከ5 ቀን በፊት','ከ41 ቀን በፊት','ዛሬ','ከ1 ቀን በፊት','ከ9 ቀን በፊት','ከ33 ቀን በፊት','ከ12 ቀን በፊት','ከ3 ቀን በፊት','ከ4 ቀን በፊት','ከ16 ቀን በፊት','ከ21 ቀን በፊት'];
+
+const QUEUE = [
+  {group:'Needs a decision', am:'ውሳኔ ይፈልጋል', rows:[
+    {id:'RF-9127', youth:'Getachew Tolera Wakjira', youthAm:'ጌታቸው ቶሌራ ዋቅጅራ', partner:'Bishoftu Automotive Plc', kind:'Wage employment', woreda:'Adama', wait:'waiting 22 days', level:'over'},
+    {id:'RF-9061', youth:'Solomon Girmay', youthAm:'ሰለሞን ግርማይ', partner:'Adama Polytechnic College', kind:'TVET', woreda:'Adama', wait:'waiting 16 days', level:'over'}
+  ]},
+  {group:'Awaiting confirmation', am:'ማረጋገጫ በመጠባበቅ', rows:[
+    {id:'RF-9140', youth:'Tigist Bekele', youthAm:'ትዕግስት በቀለ', partner:'Lume Enterprise Development Agency', kind:'Enterprise', woreda:'Bishoftu', wait:'waiting 9 days', level:'warn'},
+    {id:'RF-9168', youth:'Bontu Negasa', youthAm:'ቦንቱ ነጋሳ', partner:'Adama Polytechnic College', kind:'TVET', woreda:'Lume', wait:'waiting 3 days', level:'ok'},
+    {id:'RF-9171', youth:'Meseret Wolde', youthAm:'መሰረት ወልዴ', partner:'Adama Polytechnic College', kind:'TVET', woreda:'Lume', wait:'waiting 1 day', level:'ok'}
+  ]},
+  {group:'Active', am:'ንቁ', rows:[
+    {id:'RF-9155', youth:'Getachew Tolera Wakjira', youthAm:'ጌታቸው ቶሌራ ዋቅጅራ', partner:'Oromia Credit & Saving S.C.', kind:'Finance', woreda:'Adama', wait:'day 12 of 30', level:'ok'},
+    {id:'RF-9102', youth:'Yonas Tesfaye', youthAm:'ዮናስ ተስፋዬ', partner:'Oromia Credit & Saving S.C.', kind:'Finance', woreda:'Bishoftu', wait:'day 26 of 30', level:'warn'}
+  ]}
+];
+
+const ALERTKINDS = [
+  {name:'Stall Alert', am:'የመቆም ማስጠንቀቂያ', n:14, tone:'terra', why:'No activity for 30 days'},
+  {name:'Referral Confirmation Overdue', am:'ማረጋገጫ አልፎታል', n:9, tone:'gold', why:'Partner silent past 14 days'},
+  {name:'Follow-Up Due', am:'ክትትል ደርሷል', n:22, tone:'green', why:'Scheduled check-in reached'},
+  {name:'Onward Referral Prompt', am:'ቀጣይ ሪፈራል', n:6, tone:'green', why:'Referral completed, slot free'},
+  {name:'Replacement Referral Prompt', am:'ተኪ ሪፈራል', n:3, tone:'terra', why:'Referral failed, youth unplaced'},
+  {name:'Retention Check Due', am:'የቆይታ ማረጋገጫ', n:11, tone:'gold', why:'6 months since placement'}
+];
+
+const ALERTLIST = [
+  {kind:'Referral Confirmation Overdue', youth:'Getachew Tolera Wakjira', youthAm:'ጌታቸው ቶሌራ ዋቅጅራ', meta:'RF-9127 · Bishoftu Automotive Plc · Adama', age:'22 days', tone:'gold'},
+  {kind:'Stall Alert', youth:'Abdi Bekele Roba', youthAm:'አብዲ በቀለ ሮባ', meta:'Case YE-OR-BI-03190 · Bishoftu · Dawit Kebede', age:'41 days', tone:'terra'},
+  {kind:'Replacement Referral Prompt', youth:'Abdi Bekele Roba', youthAm:'አብዲ በቀለ ሮባ', meta:'RF-8712 failed · Lume Agro Processing', age:'11 days', tone:'terra'},
+  {kind:'Retention Check Due', youth:'Hanna Girma', youthAm:'ሃና ግርማ', meta:'Placed 14 Mar 2026 · Bishoftu Automotive Plc', age:'due 14 Sep', tone:'gold'},
+  {kind:'Follow-Up Due', youth:'Bontu Negasa', youthAm:'ቦንቱ ነጋሳ', meta:'TVET enrolment week 2 · Adama Polytechnic', age:'today', tone:'green'},
+  {kind:'Stall Alert', youth:'Lelisa Dinka', youthAm:'ለሊሳ ዲንቃ', meta:'Case YE-OR-LU-01061 · Lume · Meseret Alemu', age:'33 days', tone:'terra'}
+];
+
+const PARTNERS = [
+  {name:'Adama Polytechnic College', type:'TVET institution', woredas:'Adama, Lume', contact:'W/ro Almaz Tesfaye · +251 221 11 04 55', mou:'Signed', accepting:true, live:18},
+  {name:'Bishoftu Automotive Plc', type:'Employer', woredas:'Bishoftu, Adama', contact:'Ato Girma Bekele · +251 114 33 90 21', mou:'Signed', accepting:true, live:7},
+  {name:'Oromia Credit & Saving S.C.', type:'Finance institution', woredas:'Adama, Bishoftu, Lume', contact:'Ato Fikru Hailu · +251 221 12 88 30', mou:'Draft', accepting:false, live:12},
+  {name:'Adama Health Centre 03', type:'Health centre', woredas:'Adama', contact:'Sr. Bezawit Alemu · +251 221 10 22 74', mou:'No MOU', accepting:true, live:4},
+  {name:'Lume Enterprise Development Agency', type:'Enterprise agency', woredas:'Lume', contact:'Ato Tolera Wako · +251 221 40 17 09', mou:'Signed', accepting:false, live:9}
+];
+
+const USERS = [
+  {name:'Chaltu Tadesse', role:'Youth case manager', scope:'Adama woreda · kebeles 04, 07, 11', load:'132 cases', last:'active now'},
+  {name:'Dawit Kebede', role:'Youth case manager', scope:'Bishoftu woreda · all kebeles', load:'187 cases', last:'2 h ago'},
+  {name:'Meseret Alemu', role:'Youth case manager', scope:'Lume woreda · kebeles 01–05', load:'94 cases', last:'yesterday'},
+  {name:'Yonas Assefa', role:'Outreach worker', scope:'Adama woreda · kebeles 04, 08', load:'41 registrations', last:'offline · 6 queued'},
+  {name:'Tsehay Bogale', role:'Woreda supervisor', scope:'Adama, Bishoftu, Lume', load:'3 woredas', last:'active now'},
+  {name:'Girma Bekele', role:'Partner staff', scope:'Bishoftu Automotive Plc', load:'7 referrals', last:'4 d ago'},
+  {name:'Nardos Aklilu', role:'System administrator', scope:'Oromia region', load:'—', last:'active now'}
+];
+
+const FUNNEL = [
+  {label:'Registered', am:'ተመዝግቧል', n:'4,812', w:'100%', c:'#0A3A2C'},
+  {label:'Case opened', am:'ጉዳይ ተከፍቷል', n:'3,940', w:'82%', c:'#0F4F3C'},
+  {label:'Referred', am:'ሪፈር ተደርጓል', n:'3,102', w:'64%', c:'#1C7A5B'},
+  {label:'Partner confirmed', am:'አጋር አረጋግጧል', n:'2,455', w:'51%', c:'#3D9276'},
+  {label:'Placed or completed', am:'ተቀጥሯል/ተጠናቅቋል', n:'1,286', w:'27%', c:'#C98A15'},
+  {label:'Retained at 6 months', am:'በ6 ወር ቆይቷል', n:'742', w:'15%', c:'#B07A10'}
+];
+
+const LAG = [
+  {p:'Adama Health Centre 03', d:'2 days', w:'13%'},
+  {p:'Adama Polytechnic College', d:'4 days', w:'27%'},
+  {p:'Lume Enterprise Dev. Agency', d:'6 days', w:'40%'},
+  {p:'Bishoftu Automotive Plc', d:'11 days', w:'73%'},
+  {p:'Oromia Credit & Saving S.C.', d:'15 days', w:'100%'}
+];
+
+const WOREDAS = [
+  {w:'Adama', am:'አዳማ', reg:'2,140', placed:'612', rate:'29%', bar:'29%'},
+  {w:'Bishoftu', am:'ቢሾፍቱ', reg:'1,642', placed:'451', rate:'27%', bar:'27%'},
+  {w:'Lume', am:'ሉሜ', reg:'1,030', placed:'223', rate:'22%', bar:'22%'}
+];
+
+const TOKENS = [
+  {g:'Programme green — primary actions, confirmed progress', s:[
+    ['--green-900','#0A3A2C','15.4:1 on white','#fff'],
+    ['--green-700','#0F4F3C','10.6:1 on white','#fff'],
+    ['--green-500','#1C7A5B','4.9:1 on white','#fff'],
+    ['--green-100','#E4EFE9','12.9:1 with ink','#1A1915']
+  ]},
+  {g:'Harvest gold — waiting, due, in-progress', s:[
+    ['--gold-700','#7A5308','7.6:1 on white','#fff'],
+    ['--gold-500','#C98A15','2.6:1 — never on text','#1A1915'],
+    ['--gold-100','#FBF1DC','13.9:1 with ink','#1A1915']
+  ]},
+  {g:'Rift terracotta — stalled, needs intervention', s:[
+    ['--terra-700','#8A3A1E','7.9:1 on white','#fff'],
+    ['--terra-500','#A84B2A','5.6:1 on white','#fff'],
+    ['--terra-100','#F7E7DF','13.1:1 with ink','#1A1915']
+  ]},
+  {g:'Failure red — genuine failure only, never brand', s:[
+    ['--red-700','#8C1D18','9.2:1 on white','#fff'],
+    ['--red-500','#B3261E','6.3:1 on white','#fff'],
+    ['--red-100','#FAE6E4','13.7:1 with ink','#1A1915']
+  ]},
+  {g:'Warm neutrals — surfaces and text', s:[
+    ['--ink-900','#1A1915','15.9:1 on paper','#fff'],
+    ['--ink-600','#4E4A42','8.7:1 on paper','#fff'],
+    ['--ink-400','#7A7568','4.6:1 on paper','#fff'],
+    ['--line','#E3DED2','border only','#1A1915'],
+    ['--paper','#F7F4EE','app background','#1A1915'],
+    ['--surface','#FFFFFF','card','#1A1915']
+  ]}
+];
+
+const SPECS = [
+  ['Status chip','Colour + label + geometric mark. Never colour alone. 24px tall, 999px radius, 1px border at 40% of the fill hue.'],
+  ['Case row','48px min height on phone, 44px on laptop. Name is the only link target on phone; whole row on laptop.'],
+  ['Referral card','Flat 1px line border, no accent rail. State reads from the chip top-right, slot badge and waiting time below.'],
+  ['Timeline','Three fixed tracks: Slot 1, Slot 2, Exempt. Horizontal scroll under 720px, never compressed.'],
+  ['Alert counter','Count at 32px in the tone colour, name at 13px, plain line border. Tap filters the list below; the active card borders green-700.'],
+  ['Filter bar','Sticky, 56px, chips not dropdowns on phone. Active filter count always visible.'],
+  ['Empty state','Habesha border motif at 12% opacity, one sentence, one action. Never an illustration of a person.'],
+  ['Data table','Laptop only. 13px, tabular numerals, 1px row rules, no zebra striping.'],
+  ['Form field','48px control, label above, 16px input text to stop iOS zoom, error below in red-700.'],
+  ['Button hierarchy','Primary green-700 fill · Secondary white with line border · Destructive red-700 text on white · Ghost text only.'],
+  ['Toast','Bottom, above the tab bar, 4s, one line, always paired with a state change already visible on screen.'],
+  ['Modal','Confirmation only, 2 actions max, states the consequence in the body, not the title.']
+];
+
+class Component extends DCLogic {
+  state = {screen:'case', lang:'en', forced:null, device:'laptop', woreda:'All', status:'All', q:'',
+           reveal:false, closed:false, toast:null, modal:null, queued:3, sync:'queued', alertFilter:'All', navOpen:false};
+
+  componentDidMount(){
+    this._r = () => this.setState({device: window.innerWidth < 780 ? 'phone' : 'laptop'});
+    this._r();
+    window.addEventListener('resize', this._r);
+  }
+  componentWillUnmount(){ window.removeEventListener('resize', this._r); clearTimeout(this._t); }
+
+  dev(){ return this.state.forced || this.state.device; }
+  am(){ return this.state.lang === 'am'; }
+
+  say(msg){
+    this.setState({toast:msg});
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({toast:null}), 3200);
+  }
+
+  go(screen){ this.setState({screen, navOpen:false}); }
+
+  renderVals(){
+    const am = this.am(), s = this.state, dev = this.dev();
+    const phone = dev === 'phone';
+    const compact = (this.props.density ?? 'comfortable') === 'compact';
+    const limit = this.props.parallelLimit ?? 2;
+
+    const L = am ? {
+      search:'በስም፣ ስልክ ወይም መለያ ፈልግ', woreda:'ወረዳ', status:'ሁኔታ', all:'ሁሉም', caseload:'ጉዳዮች',
+      name:'ስም', age:'ዕድሜ', sex:'ጾታ', phone:'ስልክ', kebele:'ቀበሌ', cm:'የጉዳይ አስተዳዳሪ',
+      last:'የመጨረሻ እንቅስቃሴ', next:'ቀጣይ ተግባር', open:'ክፈት', filters:'አጣሪዎች', results:'ውጤቶች',
+      goal:'ግብ፦ በ6 ወር የሚቆይ የሚከፈልበት ሥራ', consent:'ስምምነት', pathway:'መንገድ', reveal:'አሳይ', hide:'ደብቅ',
+      identity:'የወጣቱ መረጃ', slots:'ትይዩ የሪፈራል ቦታዎች', history:'የሪፈራል ታሪክ', closed:'የተዘጉ ሪፈራሎች',
+      confirmed:'አጋር አረጋግጧል', declined:'አጋር አልተቀበለም', withdraw:'ሪፈራል ተመልሷል', queued:'ለመላክ ተቀምጧል'
+    } : {
+      search:'Search by name, phone or ID', woreda:'Woreda', status:'Status', all:'All', caseload:'Caseload',
+      name:'Name', age:'Age', sex:'Sex', phone:'Phone', kebele:'Kebele', cm:'Case manager',
+      last:'Last activity', next:'Next action', open:'Open', filters:'Filters', results:'results',
+      goal:'Goal: paid work retained at 6 months', consent:'Consent', pathway:'Pathway', reveal:'Reveal', hide:'Hide',
+      identity:'Youth identity', slots:'Parallel referral slots', history:'Referral history', closed:'Closed referrals',
+      confirmed:'Partner confirmed', declined:'Partner declined', withdraw:'Withdraw referral', queued:'Queued to send'
+    };
+
+    const nav = NAV.map(([id,en,amv,d]) => ({
+      id, label: am ? amv : en, d, active: s.screen === id,
+      go: () => this.go(id),
+      fg: s.screen === id ? '#FFFFFF' : '#D8E4DE',
+      bg: s.screen === id ? '#1C7A5B' : 'transparent'
+    }));
+
+    const chip = (st) => {
+      const c = CHIP[st] || CHIP.Closed;
+      return {label: am ? c.am : st, fg:c.fg, bg:c.bg, bd:c.bd, mark:c.mark};
+    };
+
+    const rowsAll = YOUTH.map((y, yi) => {
+      const c = chip(y[10]);
+      return {
+        id:y[0], name: am ? y[2] : y[1], age:y[3], sex:y[4], woreda:y[5],
+        woredaLabel: am ? ({Adama:'አዳማ',Bishoftu:'ቢሾፍቱ',Lume:'ሉሜ'})[y[5]] : y[5],
+        kebele:y[6], phone:y[7], phoneMask:'+251 9•• •• •• ••',
+        cm: am ? y[9] : y[8], status:y[10], chip:c,
+        last: am ? AM_LAST[yi] : y[11], next: am ? AM_NEXT[yi] : y[12], pathway:y[13],
+        open: () => this.go('case')
+      };
+    });
+
+    const q = s.q.trim().toLowerCase();
+    const rows = rowsAll.filter(r =>
+      (s.woreda === 'All' || r.woreda === s.woreda) &&
+      (s.status === 'All' || r.status === s.status) &&
+      (!q || r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q) || r.phone.includes(q))
+    );
+
+    const wFilters = ['All','Adama','Bishoftu','Lume'].map(w => ({
+      label: w === 'All' ? L.all : (am ? ({Adama:'አዳማ',Bishoftu:'ቢሾፍቱ',Lume:'ሉሜ'})[w] : w),
+      on: s.woreda === w, pick: () => this.setState({woreda:w}),
+      fg: s.woreda === w ? '#FFFFFF' : '#4E4A42', bg: s.woreda === w ? '#0F4F3C' : '#FFFFFF',
+      bd: s.woreda === w ? '#0F4F3C' : '#E3DED2'
+    }));
+    const sFilters = ['All','Active','Referral Pending','Stalled','Placed'].map(st => ({
+      label: st === 'All' ? L.all : chip(st).label,
+      mark: st === 'All' ? '' : chip(st).mark,
+      on: s.status === st, pick: () => this.setState({status:st}),
+      fg: s.status === st ? '#FFFFFF' : '#4E4A42', bg: s.status === st ? '#0F4F3C' : '#FFFFFF',
+      bd: s.status === st ? '#0F4F3C' : '#E3DED2'
+    }));
+
+    const rstate = (st) => { const c = RSTATE[st]; return {label: am ? c.am : st, ...c}; };
+
+    const mkRef = (r) => {
+      const c = rstate(r.state);
+      return {...r, kindLabel: am ? r.kindAm : r.kind, stateLabel:c.label, fg:c.fg, bg:c.bg, bd:c.bd, bar:c.bar, mark:c.mark,
+        exempt: r.slot === 'Exempt',
+        slotLabel: r.slot === 'Exempt' ? (am ? 'ቦታ አይይዝም' : 'No slot used') : (am ? 'ቦታ ' + r.slot.slice(-1) : r.slot),
+        overdue: !!r.waiting,
+        confirm: () => this.say(am ? 'RF-9127 ተረጋግጧል' : r.id + ' marked confirmed'),
+        decline: () => this.setState({modal:r.id})
+      };
+    };
+
+    const refs = REFERRALS.map(mkRef);
+    const closedRefs = CLOSED.map(mkRef);
+
+    const tracks = TRACKS.map(t => ({
+      label: am ? t.am : t.label,
+      exempt: t.label === 'Exempt',
+      items: t.items.map(i => ({...i, ...rstate(i.state), text: RSTATE[i.state].ink}))
+    }));
+
+    const used = REFERRALS.filter(r => r.slot !== 'Exempt').length;
+    const slotPills = [];
+    for (let i = 0; i < limit; i++) {
+      const r = REFERRALS.filter(x => x.slot !== 'Exempt')[i];
+      slotPills.push(r
+        ? {n:'Slot ' + (i+1), label: r.partner, tone: rstate(r.state).bar, filled:true, sub: rstate(r.state).label}
+        : {n:'Slot ' + (i+1), label: am ? 'ነፃ' : 'Free', tone:'#C9C3B4', filled:false, sub: am ? 'ሪፈር ማድረግ ይችላሉ' : 'Can refer'});
+    }
+
+    const queue = QUEUE.map(g => ({
+      title: am ? g.am : g.group,
+      n: g.rows.length,
+      decide: g.group === 'Needs a decision',
+      rows: g.rows.map(r => ({
+        ...r, youthLabel: am ? r.youthAm : r.youth,
+        waitFg: r.level === 'over' ? '#8C1D18' : r.level === 'warn' ? '#7A5308' : '#4E4A42',
+        waitBg: r.level === 'over' ? '#FAE6E4' : r.level === 'warn' ? '#FBF1DC' : '#F1EEE7',
+        confirm: () => this.say(r.id + (am ? ' ተረጋግጧል' : ' — partner confirmed')),
+        decline: () => this.setState({modal:r.id}),
+        withdraw: () => this.say(r.id + (am ? ' ተመልሷል' : ' — referral withdrawn')),
+        open: () => this.go('case')
+      }))
+    }));
+
+    const tone = (t) => t === 'terra' ? {rail:'#A84B2A', fg:'#8A3A1E', bg:'#F7E7DF'}
+                     : t === 'gold'  ? {rail:'#C98A15', fg:'#7A5308', bg:'#FBF1DC'}
+                     :                 {rail:'#1C7A5B', fg:'#0B4A38', bg:'#E4EFE9'};
+
+    const alertKinds = ALERTKINDS.map(k => ({
+      ...k, label: am ? k.am : k.name, ...tone(k.tone),
+      on: s.alertFilter === k.name,
+      pick: () => this.setState({alertFilter: s.alertFilter === k.name ? 'All' : k.name}),
+      outline: s.alertFilter === k.name ? '#0F4F3C' : '#E3DED2'
+    }));
+    const alerts = ALERTLIST
+      .filter(a => s.alertFilter === 'All' || a.kind === s.alertFilter)
+      .map(a => ({...a, youthLabel: am ? a.youthAm : a.youth, ...tone(a.tone), open: () => this.go('case')}));
+    const alertsEmpty = alerts.length === 0;
+
+    const partners = PARTNERS.map(p => ({
+      ...p,
+      mouFg: p.mou === 'Signed' ? '#0B4A38' : p.mou === 'Draft' ? '#7A5308' : '#8A3A1E',
+      mouBg: p.mou === 'Signed' ? '#E4EFE9' : p.mou === 'Draft' ? '#FBF1DC' : '#F7E7DF',
+      mouBd: p.mou === 'Signed' ? '#9CC4B4' : p.mou === 'Draft' ? '#E0BC72' : '#DBA98F',
+      acc: p.accepting ? (am ? 'ሪፈራል ይቀበላል' : 'Accepting referrals') : (am ? 'ለጊዜው አይቀበልም' : 'Paused'),
+      accFg: p.accepting ? '#0B4A38' : '#7A7568',
+      accMark: p.accepting ? '\u25CF' : '\u25CB'
+    }));
+
+    const registry = rowsAll.map((r,i) => ({
+      ...r, consent: ['14 Jan 2026','2 Feb 2026','9 Nov 2025','21 Mar 2026','5 Jan 2026','17 Feb 2026',
+                      '30 Oct 2025','8 Dec 2025','12 Jan 2026','2 Apr 2026','19 Feb 2026','26 Mar 2026'][i],
+      hasCase: i !== 4 && i !== 9,
+      caseLabel: (i !== 4 && i !== 9) ? (am ? 'ክፍት ጉዳይ' : 'Open case') : (am ? 'ጉዳይ የለም' : 'No case'),
+      caseFg: (i !== 4 && i !== 9) ? '#0B4A38' : '#7A7568',
+      caseBg: (i !== 4 && i !== 9) ? '#E4EFE9' : '#F1EEE7'
+    }));
+
+    const syncTone = s.sync === 'failed' ? {bg:'#FAE6E4', bd:'#DCA6A2', fg:'#8C1D18'}
+                   : s.sync === 'syncing' ? {bg:'#E4EFE9', bd:'#9CC4B4', fg:'#0B4A38'}
+                   : {bg:'#FBF1DC', bd:'#E0BC72', fg:'#7A5308'};
+    const syncLabel = s.sync === 'failed'
+        ? (am ? '2 ለውጦች መላክ አልተሳካም — በድጋሜ ይሞክሩ' : '2 changes failed to sync — retry')
+        : s.sync === 'syncing'
+        ? (am ? 'በመላክ ላይ… 3 ለውጦች' : 'Syncing 3 changes…')
+        : (am ? '3 ለውጦች ተቀምጠዋል — ኢንተርኔት ሲገኝ ይላካሉ' : '3 changes queued — will send when online');
+    const cycleSync = () => this.setState({sync: s.sync === 'queued' ? 'syncing' : s.sync === 'syncing' ? 'failed' : 'queued'});
+
+    return {
+      L, nav, rows, refs, closedRefs, tracks, slotPills, queue, alertKinds, alerts, alertsEmpty,
+      partners, registry, users:USERS, funnel:FUNNEL, lag:LAG, woredas:WOREDAS, tokens:TOKENS, specs:SPECS,
+      am, phone, laptop: !phone,
+      font: am ? "'Noto Sans Ethiopic','Archivo',sans-serif" : "'Archivo','Noto Sans Ethiopic',sans-serif",
+      lh: am ? '1.75' : '1.5',
+      shellW: this.state.forced === 'phone' ? '390px' : '100%',
+      shellShadow: this.state.forced === 'phone' ? '0 24px 60px rgba(26,25,21,.28)' : 'none',
+      rowPad: compact ? '8px 12px' : '14px 12px',
+      pad: phone ? '14px' : '28px 32px',
+      count: rows.length,
+      limitLabel: am ? ('ከ' + limit + ' ትይዩ ሪፈራሎች ' + used + ' ተይዘዋል') : (used + ' of ' + limit + ' parallel referrals in use'),
+      slotsFull: used >= limit,
+      slotsNote: am ? 'ተጨማሪ አገልግሎት ሪፈራሎች ቦታ አይይዙም።' : 'Complementary Service referrals are exempt — they never use a slot.',
+      isDash: s.screen === 'dash', isCases: s.screen === 'cases', isCase: s.screen === 'case',
+      isQueue: s.screen === 'queue', isAlerts: s.screen === 'alerts', isRegistry: s.screen === 'registry',
+      isPartners: s.screen === 'partners', isUsers: s.screen === 'users', isTokens: s.screen === 'tokens',
+      screenTitle: (NAV.find(n => n[0] === s.screen) || NAV[1])[am ? 2 : 1],
+      wFilters, sFilters,
+      q: s.q, setQ: (e) => this.setState({q:e.target.value}),
+      reveal: s.reveal, toggleReveal: () => this.setState({reveal: !s.reveal}),
+      phoneShown: s.reveal ? '+251 911 45 22 07' : '+251 9•• •• 22 07',
+      revealLabel: s.reveal ? L.hide : L.reveal,
+      closedOpen: s.closed, toggleClosed: () => this.setState({closed: !s.closed}),
+      closedLabel: (s.closed ? (am ? 'ደብቅ' : 'Hide') : (am ? 'አሳይ' : 'Show')) + ' 3 ' + L.closed.toLowerCase(),
+      langEn: () => this.setState({lang:'en'}), langAm: () => this.setState({lang:'am'}),
+      enBg: am ? '#FFFFFF' : '#0F4F3C', enFg: am ? '#4E4A42' : '#FFFFFF',
+      amBg: am ? '#0F4F3C' : '#FFFFFF', amFg: am ? '#FFFFFF' : '#4E4A42',
+      setPhone: () => this.setState({forced:'phone'}), setLaptop: () => this.setState({forced:'laptop'}), setAuto: () => this.setState({forced:null}),
+      dvPhoneBg: s.forced === 'phone' ? '#0F4F3C' : '#FFFFFF', dvPhoneFg: s.forced === 'phone' ? '#FFFFFF' : '#4E4A42',
+      dvLapBg: s.forced === 'laptop' ? '#0F4F3C' : '#FFFFFF', dvLapFg: s.forced === 'laptop' ? '#FFFFFF' : '#4E4A42',
+      syncBg: syncTone.bg, syncBd: syncTone.bd, syncFg: syncTone.fg, syncLabel, cycleSync,
+      showSync: (this.props.showSyncBanner ?? true),
+      toast: s.toast, hasToast: !!s.toast,
+      modalId: s.modal, hasModal: !!s.modal,
+      closeModal: () => this.setState({modal:null}),
+      confirmDecline: () => { const id = s.modal; this.setState({modal:null}); this.say(id + (am ? ' — አጋር አልተቀበለም' : ' — partner declined, replacement prompt created')); },
+      newReferral: () => this.say(am ? 'ትይዩ ገደብ ተሞልቷል — መጀመሪያ አንዱን ይዝጉ' : 'Parallel limit reached — close or withdraw a referral first'),
+      chaseAction: () => this.say(am ? 'ለቢሾፍቱ አውቶሞቲቭ ማስታወሻ ተልኳል' : 'Reminder sent to Bishoftu Automotive Plc')
+    };
+  }
+}
+</script>
+</body>
+</html>

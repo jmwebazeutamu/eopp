@@ -1,0 +1,416 @@
+/*
+ * Base layer for the design handoff.
+ *
+ * The 780px breakpoint is the only one: below it the phone layout (cards and a
+ * bottom tab bar), at or above the laptop layout (nav rail and tables).
+ */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink-900);
+  font-family: var(--font-body);
+  line-height: var(--leading);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Metrics and table figures must not jitter as digits change. */
+table,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Field staff share laptops and use keyboards; every interactive element needs
+   a ring that is visible in sunlight. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--green-500);
+  outline-offset: 2px;
+  border-radius: var(--r-control);
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+/* -- Type roles ---------------------------------------------------------- */
+
+.t-display {
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.t-title {
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.t-metric {
+  font-size: 44px;
+  line-height: 1.05;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-metric-sm {
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-card-title {
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.t-body-strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.t-meta {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-400);
+}
+
+.t-caps {
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+
+/* -- Page shell ---------------------------------------------------------- */
+
+.page {
+  padding: 14px;
+  max-width: 1180px;
+}
+
+@media (min-width: 780px) {
+  .page {
+    padding: 28px 32px;
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+/* -- Card ---------------------------------------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 14px 16px;
+}
+
+.card--muted {
+  background: var(--surface-alt);
+}
+
+.card--interactive {
+  cursor: pointer;
+}
+
+.card--interactive:hover {
+  background: var(--surface-alt);
+}
+
+.card__rule {
+  height: 1px;
+  background: var(--line-soft);
+  margin: 10px -16px;
+}
+
+/* -- Buttons ------------------------------------------------------------- */
+
+.btn {
+  min-height: var(--touch);
+  padding: 0 16px;
+  border-radius: var(--r-button);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-900);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-alt);
+}
+
+.btn--primary {
+  background: var(--green-700);
+  border-color: var(--green-700);
+  color: var(--on-dark);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--green-900);
+  border-color: var(--green-900);
+}
+
+.btn--destructive {
+  background: var(--red-700);
+  border-color: var(--red-700);
+  color: var(--on-dark);
+}
+
+/* Secondary destructive: the decline action sits beside a primary confirm, so
+   it carries red in its text and border rather than as a fill. */
+.btn--destructive-soft {
+  color: var(--red-700);
+  border-color: var(--red-border);
+  background: var(--surface);
+}
+
+.btn--destructive-soft:hover:not(:disabled) {
+  background: var(--red-100);
+}
+
+.btn--blocked,
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn--sm {
+  min-height: 34px;
+  font-size: 13px;
+  padding: 0 12px;
+}
+
+/* -- Chips --------------------------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--r-chip);
+  border: 1px solid transparent;
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip__mark {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Filter chips: a horizontally scrolling row, not a dropdown, on phone. */
+.chip-row {
+  display: flex;
+  gap: var(--s2);
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-filter {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--r-chip);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-900);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.chip-filter[aria-pressed="true"] {
+  background: var(--green-700);
+  border-color: var(--green-700);
+  color: var(--on-dark);
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--r-chip);
+  background: var(--fill-muted-2);
+  color: var(--ink-600);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* -- Tables -------------------------------------------------------------- */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  background: var(--surface-alt);
+  text-align: left;
+  font-weight: 700;
+  color: var(--ink-600);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* No zebra striping — at 200 rows it fights the status chips for attention. */
+.table td {
+  padding: 14px;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+
+.table tbody tr {
+  cursor: pointer;
+}
+
+.table tbody tr:hover {
+  background: var(--surface-alt);
+}
+
+.table--compact td {
+  padding: 8px 14px;
+}
+
+/* -- Inputs -------------------------------------------------------------- */
+
+.input {
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  color: var(--ink-900);
+  /* 16px stops iOS zooming the page on focus. */
+  font-size: 16px;
+  font-family: var(--font-body);
+}
+
+.input::placeholder {
+  color: var(--ink-400);
+}
+
+/* -- Banners and bars ---------------------------------------------------- */
+
+.banner {
+  border-radius: var(--r-group);
+  padding: 14px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s4);
+}
+
+.banner--next-action {
+  background: var(--gold-100);
+  border: 1px solid var(--gold-border);
+}
+
+.track {
+  background: var(--fill-muted);
+  border-radius: var(--r-chip);
+  overflow: hidden;
+}
+
+.track__fill {
+  height: 100%;
+  border-radius: var(--r-chip);
+}
+
+/* -- Grids --------------------------------------------------------------- */
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--s4);
+}
+
+.grid-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s3);
+}
+
+.grid-counters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--s3);
+}
+
+.grid-pairs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--s3) var(--s4);
+}
+
+/* -- Visibility helpers --------------------------------------------------
+ *
+ * These own their `display` outright, including the phone list's stacking.
+ * An inline `display` on the element would win over the media query below and
+ * render both layouts at once — which is exactly what happened when the card
+ * lists carried their flex layout as a style prop.
+ */
+
+.only-laptop {
+  display: none;
+}
+
+.only-phone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+@media (min-width: 780px) {
+  .only-laptop {
+    display: block;
+  }
+
+  .only-phone {
+    display: none;
+  }
+}

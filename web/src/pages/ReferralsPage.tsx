@@ -1,418 +1,295 @@
-import {
-  App,
-  Badge,
-  Button,
-  Card,
-  Descriptions,
-  Empty,
-  Input,
-  Radio,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-} from "antd";
-import type { ColumnsType } from "antd/es/table";
-import dayjs from "dayjs";
+import { App } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
-import {
-  REFERRAL_STATUS_COLOURS,
-  type Paginated,
-  type Partner,
-  type Referral,
-  type ReferralPrompts,
-} from "../api/types";
+import type { Paginated, ProgrammeRules, Referral, ReferralPrompts } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import ReferralActionModal, {
-  ACTION_LABELS,
-  actionsFor,
-  useReferralTaxonomy,
-  type ReferralAction,
-} from "../components/ReferralActions";
+import ReferralActionModal, { ACTION_LABELS, actionsFor, type ReferralAction } from "../components/ReferralActions";
+import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import { referralRef } from "../components/ReferralPanel";
+import { Button, CapsLabel, Card, CountBadge, PageHeader, ReferralStatusChip, WaitBadge } from "../components/ui";
+import { REFERRAL_TONE, waitLevel } from "../design/status";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
- * The cross-case referral queue — spec §4.6, §6.
+ * The referrals queue — the handoff's decision inbox.
  *
- * The case screen shows one case's stack (§6.4). This screen is the other half:
- * every referral the user can see, as a work queue. It matters most for the
- * roles §7 scopes to LINKED records — referral partner staff above all, whose
- * scoping resolves through `receiving_partner` and gives them no case access at
- * all, so the case screen is unreachable and this is where their work lives.
+ * Three groups in a fixed order: what needs a decision now, what is waiting on
+ * a partner, and what is running. The order is the point — this screen exists
+ * to be cleared in batches, so the rows that can be acted on come first and
+ * each carries its actions inline rather than behind a row click.
  *
- * Rows are scoped by the API, never here.
+ * The waiting-time badge escalates in tone as well as wording, because a queue
+ * of thirty rows is scanned, not read.
  */
 
-const PAGE_SIZE = 25;
+/** Counters take their colour from the status they filter to. */
+const REFERRAL_COUNTER_TONES = Object.fromEntries(
+  Object.entries(REFERRAL_TONE).map(([status, tone]) => [status, { fg: tone.ink }]),
+);
 
-/** Quick views over the queue. `prompts` is served by its own endpoint. */
-type View = "pending" | "active" | "prompts" | "all";
-
-const VIEW_STATUS: Record<Exclude<View, "prompts" | "all">, string> = {
-  pending: "PENDING_CONFIRMATION",
-  active: "ACTIVE",
-};
+interface Group {
+  key: string;
+  titleKey: "queue.needsDecision" | "queue.awaiting" | "queue.active";
+  rows: Referral[];
+}
 
 export default function ReferralsPage() {
   const { user } = useAuth();
   const { message } = App.useApp();
+  const { t } = useLang();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
 
-  const [rows, setRows] = useState<Referral[]>([]);
+  const [pending, setPending] = useState<Referral[]>([]);
+  const [active, setActive] = useState<Referral[]>([]);
   const [prompts, setPrompts] = useState<ReferralPrompts>({ onward: [], replacement: [] });
-  const [partners, setPartners] = useState<Partner[]>([]);
-  const [count, setCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [view, setView] = useState<View>("pending");
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<string | undefined>();
-  const [partner, setPartner] = useState<string | undefined>();
+  const [rules, setRules] = useState<ProgrammeRules | null>(null);
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<ReferralAction | null>(null);
 
-  const { categories } = useReferralTaxonomy();
   const canWrite = user?.access.referral_write ?? false;
-
-  // §7 scopes case records separately from referrals, and the two do not line
-  // up: a LINKED-scope role (partner staff, trainers, employer liaison) sees
-  // referrals but no case rows, so a link to the case screen would 404. See the
-  // §7 questions raised for Phase 1 sign-off.
+  // §7 scopes case records separately from referrals: a LINKED-scope role sees
+  // referrals but no case rows, so a link to the case screen would 404.
   const canOpenCases = user ? !["NONE", "LINKED"].includes(user.access.case_scope) : false;
-
-  const promptIds = useMemo(
-    () => new Set([...prompts.onward, ...prompts.replacement].map((r) => r.id)),
-    [prompts],
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // The prompt conditions are querysets on the server (§6.2); asking for
-      // them rather than recomputing "completed with no child" here keeps one
-      // definition, the same one the Sprint 4 alert jobs materialise.
-      const promptsRequest = api.get<ReferralPrompts>("/referrals/prompts/");
-
-      if (view === "prompts") {
-        const response = await promptsRequest;
-        setPrompts(response.data);
-        setRows([...response.data.onward, ...response.data.replacement]);
-        setCount(response.data.onward.length + response.data.replacement.length);
-      } else {
-        const [list, promptsResponse] = await Promise.all([
-          api.get<Paginated<Referral>>("/referrals/", {
-            params: {
-              page,
-              status: view === "all" ? undefined : VIEW_STATUS[view],
-              referral_category: category,
-              receiving_partner: partner,
-              search: search || undefined,
-            },
-          }),
-          promptsRequest,
-        ]);
-        setRows(list.data.results);
-        setCount(list.data.count);
-        setPrompts(promptsResponse.data);
-      }
+      // The counters filter by status, so a chosen status narrows both lists
+      // to it and empties the other — which is what "show me only the failed
+      // ones" should do to a queue grouped by urgency.
+      const status = params.get("status");
+      const search = params.get("q") || undefined;
+      const [pendingResponse, activeResponse, promptsResponse, rulesResponse] = await Promise.all([
+        status && status !== "PENDING_CONFIRMATION"
+          ? Promise.resolve({ data: { results: [] as Referral[] } })
+          : api.get<Paginated<Referral>>("/referrals/", {
+              params: { status: "PENDING_CONFIRMATION", page_size: 100, search },
+            }),
+        status && status !== "ACTIVE"
+          ? Promise.resolve({ data: { results: [] as Referral[] } })
+          : api.get<Paginated<Referral>>("/referrals/", { params: { status: "ACTIVE", page_size: 100, search } }),
+        // The prompt conditions are querysets on the server (§6.2); asking for
+        // them rather than recomputing "completed with no child" here keeps one
+        // definition, the same one the Sprint 4 alert jobs materialise.
+        api.get<ReferralPrompts>("/referrals/prompts/"),
+        api.get<ProgrammeRules>("/referrals/rules/"),
+      ]);
+      setPending(pendingResponse.data.results);
+      setActive(activeResponse.data.results);
+      setPrompts(promptsResponse.data);
+      setRules(rulesResponse.data);
     } catch (error) {
       message.error(errorMessage(error, "Could not load referrals."));
     } finally {
       setLoading(false);
     }
-  }, [view, page, category, partner, search, message]);
+  }, [params, message]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  // The partner filter lists every partner, not just those covering one woreda:
-  // this queue spans cases, so narrowing by coverage would hide rows that exist.
-  useEffect(() => {
-    void (async () => {
-      try {
-        const response = await api.get<Paginated<Partner>>("/partners/", { params: { page_size: 500 } });
-        setPartners(response.data.results);
-      } catch {
-        // The filter stays empty; everything else on the screen still works.
-      }
-    })();
-  }, []);
+  const overdueDays = rules?.referral_confirmation_overdue_days ?? 7;
 
-  const promptCount = prompts.onward.length + prompts.replacement.length;
+  const groups: Group[] = useMemo(() => {
+    const promptRows = [...prompts.onward, ...prompts.replacement];
+    const promptIds = new Set(promptRows.map((row) => row.id));
 
-  const columns: ColumnsType<Referral> = [
-    {
-      title: "Youth",
-      key: "youth",
-      width: 180,
-      render: (_, row) =>
-        canOpenCases ? (
-          <Button type="link" style={{ padding: 0, height: "auto" }} onClick={() => navigate(`/cases/${row.case}`)}>
-            {row.youth_name}
-          </Button>
-        ) : (
-          <Typography.Text>{row.youth_name}</Typography.Text>
-        ),
-    },
-    {
-      title: "Referral",
-      key: "referral",
-      render: (_, row) => (
-        <Space direction="vertical" size={2}>
-          <Space wrap size={4}>
-            <Typography.Text strong>{row.referral_category_label}</Typography.Text>
-            {row.referral_trigger !== "MANUAL" && <Tag>{row.trigger_display}</Tag>}
-            {row.is_parallel && (
-              <Tooltip title="Running concurrently with another referral on this case (spec §6.3)">
-                <Tag color="cyan">Parallel</Tag>
-              </Tooltip>
-            )}
-            {!row.counts_toward_parallel_cap && (
-              <Tooltip title="Complementary Service runs outside the two-referral cap">
-                <Tag color="geekblue">Outside cap</Tag>
-              </Tooltip>
-            )}
-          </Space>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {row.receiving_partner_detail.partner_name} · {row.woreda}
-          </Typography.Text>
-        </Space>
-      ),
-    },
-    {
-      title: "Status",
-      key: "status",
-      width: 190,
-      render: (_, row) => (
-        <Space direction="vertical" size={2}>
-          <Tag color={REFERRAL_STATUS_COLOURS[row.status]}>{row.status_display}</Tag>
-          {promptIds.has(row.id) && (
-            <Tooltip
-              title={
-                row.status === "COMPLETED"
-                  ? "Completed with nothing following it — §6.2 prompts for an onward referral"
-                  : "Failed and not yet replaced — §6.2 prompts for a replacement"
-              }
-            >
-              <Tag color={row.status === "COMPLETED" ? "green" : "volcano"}>Needs a decision</Tag>
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: "Initiated",
-      key: "initiated",
-      width: 150,
-      render: (_, row) => {
-        const days = dayjs().diff(dayjs(row.initiated_date), "day");
-        return (
-          <Space direction="vertical" size={0}>
-            <span>{row.initiated_date}</span>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {/* Days waiting, not a verdict: whether a confirmation is overdue
-                  is judged by the §4.13 detection job against its configured
-                  threshold, and surfaced on the alert inbox. */}
-              {row.status === "PENDING_CONFIRMATION"
-                ? days === 0
-                  ? "sent today"
-                  : `waiting ${days} day${days === 1 ? "" : "s"}`
-                : `by ${row.initiated_by_name}`}
-            </Typography.Text>
-          </Space>
-        );
+    // "Needs a decision" is anything the case manager owns a next move on: a
+    // referral past the confirmation threshold, and every open prompt.
+    const overdue = pending.filter((row) => daysSince(row.initiated_date) >= overdueDays);
+    const overdueIds = new Set(overdue.map((row) => row.id));
+
+    return [
+      { key: "decide", titleKey: "queue.needsDecision", rows: [...overdue, ...promptRows] },
+      {
+        key: "awaiting",
+        titleKey: "queue.awaiting",
+        rows: pending.filter((row) => !overdueIds.has(row.id)),
       },
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 240,
-      render: (_, row) => {
-        const kinds = actionsFor(row, canWrite);
-        if (!kinds.length) return <Typography.Text type="secondary">—</Typography.Text>;
-        return (
-          <Space wrap size={4}>
-            {kinds.map((kind) => (
-              <Button
-                key={kind}
-                size="small"
-                danger={kind === "decline" || kind === "fail"}
-                type={promptIds.has(row.id) && (kind === "onward" || kind === "replace") ? "primary" : "default"}
-                onClick={() => setAction({ kind, referral: row })}
-              >
-                {ACTION_LABELS[kind]}
-              </Button>
-            ))}
-          </Space>
-        );
-      },
-    },
-  ];
+      { key: "active", titleKey: "queue.active", rows: active.filter((row) => !promptIds.has(row.id)) },
+    ];
+  }, [pending, active, prompts, overdueDays]);
+
+  const total = groups.reduce((sum, group) => sum + group.rows.length, 0);
 
   return (
-    <Card
-      title="Referrals"
-      extra={
-        <Space wrap>
-          <Radio.Group
-            size="small"
-            optionType="button"
-            value={view}
-            onChange={(e) => {
-              setView(e.target.value);
-              setPage(1);
-            }}
-          >
-            <Radio.Button value="pending">Awaiting confirmation</Radio.Button>
-            <Radio.Button value="active">Active</Radio.Button>
-            <Radio.Button value="prompts">
-              <Space size={6}>
-                Needs a decision
-                {promptCount > 0 && <Badge count={promptCount} size="small" />}
-              </Space>
-            </Radio.Button>
-            <Radio.Button value="all">All</Radio.Button>
-          </Radio.Group>
-          <Typography.Text type="secondary">
-            {user?.partner_name
-              ? user.partner_name
-              : user?.access.referral_scope === "OWN_CASELOAD"
-                ? "Your caseload"
-                : user?.access.referral_scope === "OWN_WOREDA"
-                  ? `Woredas: ${user.woreda_assignment.join(", ")}`
-                  : "All woredas"}
-          </Typography.Text>
-        </Space>
-      }
-    >
-      {view === "prompts" ? (
-        <Typography.Paragraph type="secondary">
-          Referrals that reached an end state and prompt for a next step (spec §6.2). Nothing is created until
-          someone confirms — the detection jobs raise the prompt and stop there.
-        </Typography.Paragraph>
-      ) : (
-        <Space style={{ marginBottom: 16 }} wrap>
-          <Input.Search
-            placeholder="Youth or partner name"
-            allowClear
-            style={{ width: 260 }}
-            onSearch={(value) => {
-              setSearch(value);
-              setPage(1);
-            }}
-          />
-          <Select
-            placeholder="All categories"
-            allowClear
-            style={{ width: 220 }}
-            value={category}
-            onChange={(value) => {
-              setCategory(value);
-              setPage(1);
-            }}
-            options={categories.map((c) => ({ value: c.code, label: c.label }))}
-          />
-          <Select
-            placeholder="All partners"
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            style={{ width: 240 }}
-            value={partner}
-            onChange={(value) => {
-              setPartner(value);
-              setPage(1);
-            }}
-            options={partners.map((p) => ({ value: p.id, label: p.partner_name }))}
-          />
-        </Space>
+    <div className="page stack">
+      <PageHeader
+        title={t("queue.title")}
+        subtitle={t("queue.subtitle", { woredas: user?.woreda_assignment?.join(", ") || "—" })}
+      />
+
+      <SearchBox placeholder="Search by youth or partner" />
+
+      <MiniDashboard resource="/referrals" tones={REFERRAL_COUNTER_TONES} />
+
+      {loading && <div className="t-meta">{t("common.loading")}</div>}
+
+      {!loading && total === 0 && (
+        <Card>
+          <div className="t-meta">{t("queue.empty")}</div>
+        </Card>
       )}
 
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={rows}
-        loading={loading}
-        expandable={{
-          expandedRowRender: (row) => (
-            <Descriptions
-              size="small"
-              column={{ xs: 1, sm: 2, lg: 3 }}
-              style={{ maxWidth: 1100 }}
-              items={[
-                { key: "by", label: "Initiated by", children: row.initiated_by_name },
-                { key: "contact", label: "Contact at partner", children: row.receiving_contact_name || "—" },
-                {
-                  key: "confirmation",
-                  label: "Confirmation",
-                  children: [row.confirmation_status_display, row.confirmed_by, row.confirmed_date]
-                    .filter(Boolean)
-                    .join(" · "),
-                },
-                ...(row.outcome_type_label
-                  ? [
-                      {
-                        key: "outcome",
-                        label: "Outcome",
-                        children: `${row.outcome_type_label} on ${row.outcome_date}`,
-                      },
-                    ]
-                  : []),
-                ...(row.outcome_verification_method
-                  ? [{ key: "verified", label: "Verified by", children: row.outcome_verification_method }]
-                  : []),
-                ...(row.failure_reason_label
-                  ? [
-                      {
-                        key: "failure",
-                        label: "Failure reason",
-                        children: `${row.failure_reason_label} on ${row.failure_date}`,
-                      },
-                    ]
-                  : []),
-                ...(row.notes ? [{ key: "notes", label: "Notes", span: 3, children: row.notes }] : []),
-              ]}
-            />
-          ),
-        }}
-        pagination={
-          view === "prompts"
-            ? false
-            : {
-                current: page,
-                pageSize: PAGE_SIZE,
-                total: count,
-                showSizeChanger: false,
-                onChange: setPage,
-                showTotal: (total) => `${total} referral${total === 1 ? "" : "s"}`,
-              }
-        }
-        locale={{
-          emptyText: (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                view === "prompts"
-                  ? "Nothing waiting on a decision."
-                  : view === "pending"
-                    ? "No referrals are waiting for a partner to confirm."
-                    : "No referrals match this view."
-              }
-            />
-          ),
-        }}
-      />
+      {groups
+        .filter((group) => group.rows.length > 0)
+        .map((group) => (
+          <section key={group.key} className="stack" style={{ gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <CapsLabel>{t(group.titleKey)}</CapsLabel>
+              <CountBadge>{group.rows.length}</CountBadge>
+            </div>
+
+            {/* Laptop: a table, same shape as the caseload. Phone: cards —
+                a six-column table on a 360px screen is unreadable. */}
+            <div className="only-laptop">
+              <Card style={{ padding: 0, overflow: "hidden" }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>{t("queue.col.youth")}</th>
+                      <th>{t("queue.col.referral")}</th>
+                      <th>{t("cases.col.woreda")}</th>
+                      <th>{t("cases.col.status")}</th>
+                      <th>{t("queue.col.waiting")}</th>
+                      <th>{t("queue.col.decision")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.rows.map((referral) => {
+                      const waiting = daysSince(referral.initiated_date);
+                      return (
+                        <tr
+                          key={referral.id}
+                          onClick={canOpenCases ? () => navigate(`/cases/${referral.case}`) : undefined}
+                          style={{ cursor: canOpenCases ? "pointer" : "default" }}
+                        >
+                          <td>
+                            <div style={{ fontSize: 14, fontWeight: 600 }}>{referral.youth_name}</div>
+                            <div style={{ color: "var(--ink-400)" }}>{referralRef(referral.id)}</div>
+                          </td>
+                          <td>
+                            <div>{referral.referral_category_label}</div>
+                            <div style={{ color: "var(--ink-400)" }}>
+                              → {referral.receiving_partner_detail.partner_name}
+                            </div>
+                          </td>
+                          <td>{referral.woreda}</td>
+                          <td>
+                            <ReferralStatusChip status={referral.status} label={referral.status_display} />
+                          </td>
+                          <td>
+                            {referral.status === "PENDING_CONFIRMATION" ? (
+                              <WaitBadge level={waitLevel(waiting, overdueDays)}>
+                                {t("case.waiting", { days: waiting })}
+                              </WaitBadge>
+                            ) : (
+                              <span style={{ color: "var(--ink-400)" }}>—</span>
+                            )}
+                          </td>
+                          {/* The actions stay on the row: this screen exists to
+                              be cleared in batches, and a decision behind a
+                              click-through is a decision not taken today. */}
+                          <td onClick={(event) => event.stopPropagation()}>
+                            <Actions referral={referral} canWrite={canWrite} onAction={setAction} compact />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </Card>
+            </div>
+
+            <div className="only-phone">
+              {group.rows.map((referral) => {
+                const waiting = daysSince(referral.initiated_date);
+                return (
+                  <Card key={referral.id}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          className="t-body-strong"
+                          style={{ cursor: canOpenCases ? "pointer" : "default" }}
+                          onClick={canOpenCases ? () => navigate(`/cases/${referral.case}`) : undefined}
+                        >
+                          {referral.youth_name}
+                        </div>
+                        <div style={{ fontSize: 14 }}>
+                          {referral.referral_category_label} → {referral.receiving_partner_detail.partner_name}
+                        </div>
+                        <div className="t-meta">
+                          {referralRef(referral.id)} · {referral.woreda}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                        <ReferralStatusChip status={referral.status} label={referral.status_display} />
+                        {referral.status === "PENDING_CONFIRMATION" && (
+                          <WaitBadge level={waitLevel(waiting, overdueDays)}>
+                            {t("case.waiting", { days: waiting })}
+                          </WaitBadge>
+                        )}
+                      </div>
+                    </div>
+
+                    <Actions referral={referral} canWrite={canWrite} onAction={setAction} />
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
+        ))}
 
       <ReferralActionModal
         action={action}
-        woreda={action?.referral?.woreda}
+        caseId={action?.referral?.case ?? ""}
+        woreda={action?.referral?.woreda ?? ""}
         onClose={() => setAction(null)}
-        onDone={load}
+        onDone={() => void load()}
       />
-    </Card>
+    </div>
   );
+}
+
+/** The §6.2 moves this row offers, laid out the same way in both breakpoints. */
+function Actions({
+  referral,
+  canWrite,
+  onAction,
+  compact,
+}: {
+  referral: Referral;
+  canWrite: boolean;
+  onAction: (action: ReferralAction) => void;
+  compact?: boolean;
+}) {
+  const kinds = actionsFor(referral, canWrite);
+  if (!kinds.length) return null;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: compact ? 0 : 12 }}>
+      {kinds.map((kind) => (
+        <Button
+          key={kind}
+          size={compact ? "sm" : "md"}
+          style={compact ? undefined : { flex: "1 1 180px" }}
+          variant={
+            kind === "confirm" ? "primary" : kind === "decline" || kind === "fail" ? "destructive-soft" : "secondary"
+          }
+          onClick={() => onAction({ kind, referral })}
+        >
+          {ACTION_LABELS[kind]}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function daysSince(date: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000));
 }

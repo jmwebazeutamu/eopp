@@ -175,6 +175,8 @@ export interface ManagedUser {
   partner: string | null;
   partner_name: string | null;
   account_status: "ACTIVE" | "SUSPENDED" | "INACTIVE";
+  /** Open cases this account manages — annotated by the viewset. */
+  caseload_count: number;
   last_login: string | null;
   date_joined: string;
 }
@@ -370,6 +372,11 @@ export interface Youth extends YouthSummary {
   registering_worker: string;
   registering_worker_name: string;
   is_age_eligible: boolean;
+  /** Annotated by the viewset — drives the registry's open-case pill. */
+  has_open_case: boolean;
+  /** The case that pill opens; null when there is no open one. */
+  open_case_id: string | null;
+  sex_display?: string;
   /** Present only on the create response — §11's age band is unconfirmed, so
    *  an out-of-band registration warns rather than blocks. */
   age_band_warning?: string | null;
@@ -416,3 +423,25 @@ export const ACCOUNT_STATUS_OPTIONS = [
   { value: "SUSPENDED", label: "Suspended" },
   { value: "INACTIVE", label: "Inactive" },
 ];
+
+/** Programme rules the UI must state rather than assume — served by /referrals/rules/. */
+export interface ProgrammeRules {
+  parallel_limit: number;
+  stall_alert_threshold_days: number;
+  referral_confirmation_overdue_days: number;
+  complementary_service_exempt: boolean;
+}
+
+/** A counter on a screen's mini dashboard: a count that is also its own filter. */
+export interface SummaryCounter {
+  /** The query parameter clicking this counter sets. */
+  param: string;
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface Summary {
+  total: number;
+  counters: SummaryCounter[];
+}

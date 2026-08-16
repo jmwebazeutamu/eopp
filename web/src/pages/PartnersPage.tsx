@@ -1,184 +1,163 @@
-import { EditOutlined, PlusOutlined } from "@ant-design/icons";
-import { App, Button, Card, Input, Select, Space, Table, Tag, Typography } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { App } from "antd";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
-import { PARTNER_TYPE_OPTIONS, type MouStatus, type Paginated, type Partner } from "../api/types";
+import type { Paginated, Partner } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import PartnerDetailModal, { MOU_TONE } from "../components/PartnerDetailModal";
 import PartnerFormModal from "../components/PartnerFormModal";
-
-const MOU_COLOURS: Record<MouStatus, string> = {
-  NONE: "default",
-  DRAFT: "orange",
-  SIGNED: "green",
-  EXPIRED: "red",
-  TERMINATED: "red",
-};
+import { Button, CapsLabel, Card, Field, MutedChip, PageHeader } from "../components/ui";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
- * Partner directory — spec §4.11.
+ * Partners and providers — stacked cards, per the handoff.
  *
- * Every operational user reads it (a case manager choosing a referral
- * destination needs to). Writing is limited to the roles that own partner
- * relationships. Deletion is not offered at all: referral history and the §8
- * partner performance dashboards depend on the record, so a partner that stops
- * taking referrals is deactivated instead.
+ * The MOU chip is the thing supervisors look for, so it sits top-right on every
+ * card rather than in a column someone has to scroll to. Its tone follows the
+ * status system: signed is green, a draft is gold (waiting), and no MOU is
+ * terracotta — a gap to close, not a failure.
  */
+
+
 export default function PartnersPage() {
-  const { message } = App.useApp();
   const { user } = useAuth();
+  const { message } = App.useApp();
+  const { t } = useLang();
+
+  const [params] = useSearchParams();
+  const [rows, setRows] = useState<Partner[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewing, setViewing] = useState<Partner | null>(null);
   const [editing, setEditing] = useState<Partner | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  // §7 does not cover Partner, which is organisational reference data rather
-  // than case content. Writes are limited to the roles that own partner
-  // relationships; the API enforces the same set independently.
-  const canWrite = user?.role === "SYSTEM_ADMIN" || user?.role === "PROGRAMME_MANAGER";
-  const [rows, setRows] = useState<Partner[]>([]);
-  const [count, setCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [type, setType] = useState<string | undefined>();
-  const [loading, setLoading] = useState(true);
+
+  // §7 gives partner records to the system administrator; everyone else reads.
+  const canWrite = user?.role === "SYSTEM_ADMIN";
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const response = await api.get<Paginated<Partner>>("/partners/", {
-        params: { page, search: search || undefined, partner_type: type },
+        params: {
+          page_size: 200,
+          search: params.get("q") || undefined,
+          active_status: params.get("active_status") ?? undefined,
+          mou_status: params.get("mou_status") ?? undefined,
+        },
       });
       setRows(response.data.results);
-      setCount(response.data.count);
     } catch (error) {
       message.error(errorMessage(error, "Could not load partners."));
     } finally {
       setLoading(false);
     }
-  }, [page, search, type, message]);
+  }, [params, message]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const columns: ColumnsType<Partner> = [
-    {
-      title: "Organisation",
-      key: "name",
-      render: (_, row) => (
-        <Space direction="vertical" size={0}>
-          <Typography.Text strong>{row.partner_name}</Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {row.partner_type_display}
-          </Typography.Text>
-        </Space>
-      ),
-    },
-    {
-      title: "Coverage",
-      dataIndex: "woreda_coverage",
-      render: (values: string[]) => values.map((w) => <Tag key={w}>{w}</Tag>),
-    },
-    {
-      title: "Contact",
-      key: "contact",
-      render: (_, row) => (
-        <Space direction="vertical" size={0}>
-          <span>{row.contact_name}</span>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {row.phone}
-          </Typography.Text>
-        </Space>
-      ),
-    },
-    {
-      title: "MOU",
-      dataIndex: "mou_status",
-      width: 140,
-      render: (value: MouStatus, row) => (
-        <Space direction="vertical" size={0}>
-          <Tag color={MOU_COLOURS[value]}>{row.mou_status_display}</Tag>
-          {row.mou_date && (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {row.mou_date}
-            </Typography.Text>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: "Referrals",
-      dataIndex: "can_receive_referrals",
-      width: 130,
-      render: (value: boolean) =>
-        value ? <Tag color="green">Accepting</Tag> : <Tag color="default">Inactive</Tag>,
-    },
-    ...(canWrite
-      ? [
-          {
-            title: "",
-            key: "actions",
-            width: 90,
-            render: (_: unknown, row: Partner) => (
-              <Button type="link" icon={<EditOutlined />} onClick={() => openForm(row)}>
-                Edit
-              </Button>
-            ),
-          },
-        ]
-      : []),
-  ];
-
-  function openForm(partner: Partner | null) {
-    setEditing(partner);
-    setFormOpen(true);
-  }
-
   return (
-    <Card
-      title="Partners and providers"
-      extra={
-        canWrite && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => openForm(null)}>
-            New partner
-          </Button>
-        )
-      }
-    >
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Input.Search
-          placeholder="Name, contact, or email"
-          allowClear
-          style={{ width: 280 }}
-          onSearch={(value) => {
-            setSearch(value);
-            setPage(1);
-          }}
-        />
-        <Select
-          placeholder="All types"
-          allowClear
-          style={{ width: 260 }}
-          value={type}
-          onChange={(value) => {
-            setType(value);
-            setPage(1);
-          }}
-          options={PARTNER_TYPE_OPTIONS}
-        />
-      </Space>
+    <div className="page stack">
+      <PageHeader
+        title={t("partners.title")}
+        subtitle={`${rows.length} partners`}
+        action={
+          canWrite ? (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
+              }}
+            >
+              {t("partners.add")}
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={rows}
-        loading={loading}
-        pagination={{
-          current: page,
-          pageSize: 25,
-          total: count,
-          showSizeChanger: false,
-          onChange: setPage,
-          showTotal: (total) => `${total} partner${total === 1 ? "" : "s"}`,
+      <SearchBox placeholder="Search by name, contact or email" />
+
+      <MiniDashboard resource="/partners" />
+
+      {loading && <div className="t-meta">{t("common.loading")}</div>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {rows.map((partner) => {
+          const tone = MOU_TONE[partner.mou_status];
+          return (
+            /* Any role may open the record; only some may then edit it. */
+            <Card key={partner.id} onClick={() => setViewing(partner)}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <CapsLabel>{partner.partner_type_display}</CapsLabel>
+                  <div className="t-card-title">{partner.partner_name}</div>
+                </div>
+                <span
+                  className="chip"
+                  style={{ color: tone.fg, background: tone.bg, borderColor: tone.bd }}
+                  title={partner.mou_date ? `MOU dated ${partner.mou_date}` : undefined}
+                >
+                  {partner.mou_status_display}
+                </span>
+              </div>
+
+              <div className="card__rule" />
+
+              <div className="grid-pairs">
+                <Field label={t("partners.coverage")}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {partner.woreda_coverage.length ? (
+                      partner.woreda_coverage.map((woreda) => (
+                        <MutedChip key={woreda} style={{ fontSize: 12 }}>
+                          {woreda}
+                        </MutedChip>
+                      ))
+                    ) : (
+                      <span className="t-meta">{t("common.none")}</span>
+                    )}
+                  </div>
+                </Field>
+
+                <Field label={t("partners.contact")}>
+                  <div style={{ fontSize: 14 }}>{partner.contact_name || t("common.none")}</div>
+                  <div className="t-meta tabular">{partner.phone}</div>
+                </Field>
+
+                <Field label="Status">
+                  <span
+                    style={{
+                      color: partner.can_receive_referrals ? "var(--green-ink)" : "var(--ink-400)",
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    {partner.can_receive_referrals ? `● ${t("partners.accepting")}` : `○ ${t("partners.paused")}`}
+                  </span>
+                </Field>
+              </div>
+
+              {partner.performance_notes && (
+                <div className="t-meta" style={{ marginTop: 8 }}>
+                  {partner.performance_notes}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+
+      <PartnerDetailModal
+        partner={viewing}
+        canEdit={canWrite}
+        onClose={() => setViewing(null)}
+        onEdit={(partner) => {
+          setViewing(null);
+          setEditing(partner);
+          setFormOpen(true);
         }}
       />
 
@@ -186,8 +165,11 @@ export default function PartnersPage() {
         open={formOpen}
         partner={editing}
         onClose={() => setFormOpen(false)}
-        onSaved={load}
+        onSaved={() => {
+          setFormOpen(false);
+          void load();
+        }}
       />
-    </Card>
+    </div>
   );
 }

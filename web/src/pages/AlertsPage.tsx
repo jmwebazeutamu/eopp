@@ -1,74 +1,67 @@
-import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
-import { App, Button, Card, Col, Empty, Input, Modal, Radio, Row, Space, Statistic, Table, Tag, Tooltip, Typography } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { App, Input, Modal } from "antd";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
-import {
-  ALERT_TYPES_PENDING_ENTITIES,
-  ALERT_TYPE_COLOURS,
-  type Alert,
-  type AlertSummary,
-  type AlertTypeCode,
-  type Paginated,
-} from "../api/types";
+import type { Alert, AlertSummary, AlertTypeCode, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-
-type Scope = "mine" | "all";
+import { Button, CapsLabel, Card, PageHeader } from "../components/ui";
+import { ALERT_REASON, ALERT_TONE } from "../design/status";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
- * Alert inbox — spec §4.13, §10 Sprint 4.
+ * Alerts — the handoff's counter grid over a filtered list.
  *
- * Alerts are raised by the detection jobs, never created here, so this screen
- * only reads and resolves. Resolution is deliberately two-valued: §4.13
- * separates Actioned from Dismissed so reporting can distinguish "we did
- * something" from "this did not warrant anything".
+ * Each counter is a filter: tapping one narrows the list, tapping it again
+ * clears it, and the choice lives in the URL so it survives a back button. The
+ * counters carry a one-line reason because "Stall Alert · 14" says nothing
+ * about why the system raised them.
  */
+
 export default function AlertsPage() {
   const { user } = useAuth();
   const { message } = App.useApp();
+  const { t } = useLang();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
 
   const [rows, setRows] = useState<Alert[]>([]);
   const [summary, setSummary] = useState<AlertSummary | null>(null);
-  const [count, setCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [scope, setScope] = useState<Scope>("mine");
-  const [showResolved, setShowResolved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState<{ alert: Alert; kind: "action" | "dismiss" } | null>(null);
   const [note, setNote] = useState("");
 
-  const canResolve = user?.access.case_write ?? false;
+  const filter = (params.get("type") ?? "") as AlertTypeCode | "";
+  const canWrite = user?.access.case_write ?? false;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const listUrl = scope === "mine" && !showResolved ? "/alerts/my-inbox/" : "/alerts/";
-      const [list, counts] = await Promise.all([
-        api.get<Paginated<Alert>>(listUrl, {
-          params: {
-            page,
-            // my-inbox is already open-and-mine; the general list needs filtering.
-            ...(listUrl === "/alerts/" ? { status: showResolved ? undefined : "OPEN" } : {}),
-          },
+      const [list, summaryResponse] = await Promise.all([
+        api.get<Paginated<Alert>>("/alerts/", {
+          params: { status: "OPEN", alert_type: filter || undefined, page_size: 100 },
         }),
         api.get<AlertSummary>("/alerts/summary/"),
       ]);
       setRows(list.data.results);
-      setCount(list.data.count);
-      setSummary(counts.data);
+      setSummary(summaryResponse.data);
     } catch (error) {
       message.error(errorMessage(error, "Could not load alerts."));
     } finally {
       setLoading(false);
     }
-  }, [page, scope, showResolved, message]);
+  }, [filter, message]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  function toggleFilter(type: AlertTypeCode) {
+    const next = new URLSearchParams(params);
+    if (filter === type) next.delete("type");
+    else next.set("type", type);
+    setParams(next, { replace: true });
+  }
 
   async function resolve() {
     if (!resolving) return;
@@ -79,210 +72,144 @@ export default function AlertsPage() {
       setNote("");
       void load();
     } catch (error) {
-      message.error(errorMessage(error, "Could not resolve the alert."));
+      message.error(errorMessage(error, "Could not update the alert."));
     }
   }
 
-  const columns: ColumnsType<Alert> = [
-    {
-      title: "Alert",
-      key: "alert",
-      render: (_, row) => (
-        <Space direction="vertical" size={0}>
-          <Tag color={ALERT_TYPE_COLOURS[row.alert_type]}>{row.alert_type_display}</Tag>
-          <Typography.Text style={{ fontSize: 12 }}>{row.summary}</Typography.Text>
-        </Space>
-      ),
-    },
-    {
-      title: "Youth",
-      key: "youth",
-      width: 190,
-      render: (_, row) => (
-        <Button type="link" style={{ padding: 0 }} onClick={() => navigate(`/cases/${row.case}`)}>
-          {row.youth_name}
-        </Button>
-      ),
-    },
-    { title: "Woreda", dataIndex: "woreda", width: 120 },
-    {
-      title: "Raised",
-      key: "raised",
-      width: 150,
-      render: (_, row) => (
-        <Space direction="vertical" size={0}>
-          <span>{row.triggered_date}</span>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {row.age_days === 0 ? "today" : `${row.age_days} days ago`}
-          </Typography.Text>
-        </Space>
-      ),
-    },
-    { title: "Assigned to", dataIndex: "assigned_to_name", width: 160 },
-    {
-      title: "Status",
-      key: "status",
-      width: 220,
-      render: (_, row) => {
-        if (row.status !== "OPEN") {
-          return (
-            <Space direction="vertical" size={0}>
-              <Tag color={row.status === "ACTIONED" ? "green" : "default"}>{row.status_display}</Tag>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {/* No actor means the resolution sweep closed it because the
-                    underlying condition cleared on its own. */}
-                {row.actioned_by_name ?? "auto-resolved"} · {row.actioned_date}
-              </Typography.Text>
-            </Space>
-          );
-        }
-        if (!canResolve) return <Tag color="gold">Open</Tag>;
-        return (
-          <Space>
-            <Button
-              size="small"
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => {
-                setNote("");
-                setResolving({ alert: row, kind: "action" });
-              }}
-            >
-              Action
-            </Button>
-            <Button
-              size="small"
-              icon={<CloseOutlined />}
-              onClick={() => {
-                setNote("");
-                setResolving({ alert: row, kind: "dismiss" });
-              }}
-            >
-              Dismiss
-            </Button>
-          </Space>
-        );
-      },
-    },
-  ];
-
   return (
-    <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-      <Row gutter={[16, 16]}>
-        <Col xs={12} md={6}>
-          <Card size="small">
-            <Statistic title="Open alerts in scope" value={summary?.open_total ?? 0} />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card size="small">
-            <Statistic title="Assigned to me" value={summary?.assigned_to_me ?? 0} />
-          </Card>
-        </Col>
-        <Col xs={24} md={12}>
-          <Card size="small" title="By type">
-            <Space wrap size={[8, 8]}>
-              {summary?.by_type.map((row) => (
-                <Tooltip
-                  key={row.alert_type}
-                  title={
-                    ALERT_TYPES_PENDING_ENTITIES.includes(row.alert_type as AlertTypeCode)
-                      ? "Detection for this type arrives with its entity in a later sprint"
-                      : undefined
-                  }
-                >
-                  <Tag
-                    color={row.count ? ALERT_TYPE_COLOURS[row.alert_type] : "default"}
-                    style={{
-                      opacity: ALERT_TYPES_PENDING_ENTITIES.includes(row.alert_type as AlertTypeCode) ? 0.5 : 1,
-                    }}
-                  >
-                    {row.label}: {row.count}
-                  </Tag>
-                </Tooltip>
-              ))}
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+    <div className="page stack">
+      <PageHeader
+        title={t("alerts.title")}
+        subtitle={t("alerts.subtitle", {
+          count: summary?.open_total ?? 0,
+          woredas: user?.woreda_assignment?.length ?? 0,
+        })}
+      />
 
-      <Card
-        title="Alerts"
-        extra={
-          <Space>
-            <Radio.Group
-              size="small"
-              value={scope}
-              onChange={(e) => {
-                setScope(e.target.value);
-                setPage(1);
-              }}
-              options={[
-                { value: "mine", label: "Mine" },
-                { value: "all", label: "All in scope" },
-              ]}
-              optionType="button"
-            />
-            <Radio.Group
-              size="small"
-              value={showResolved}
-              onChange={(e) => {
-                setShowResolved(e.target.value);
-                setPage(1);
-              }}
-              options={[
-                { value: false, label: "Open" },
-                { value: true, label: "Include resolved" },
-              ]}
-              optionType="button"
-            />
-          </Space>
-        }
-      >
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
-          loading={loading}
-          pagination={{
-            current: page,
-            pageSize: 25,
-            total: count,
-            showSizeChanger: false,
-            onChange: setPage,
-            showTotal: (total) => `${total} alert${total === 1 ? "" : "s"}`,
-          }}
-          locale={{
-            emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="Nothing outstanding. Alerts appear here when the detection jobs find a case that needs attention."
-              />
-            ),
-          }}
-        />
-      </Card>
+      <div className="grid-counters">
+        {(summary?.by_type ?? []).map((entry) => {
+          const tone = ALERT_TONE[entry.alert_type] ?? { fg: "var(--ink-600)", bg: "var(--fill-muted)" };
+          const active = filter === entry.alert_type;
+          return (
+            <Card
+              key={entry.alert_type}
+              onClick={() => toggleFilter(entry.alert_type)}
+              style={active ? { borderColor: "var(--green-700)", borderWidth: 2 } : undefined}
+            >
+              <div className="t-metric-sm" style={{ color: tone.fg }}>
+                {entry.count}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{entry.label}</div>
+              <div className="t-meta" style={{ fontSize: 11 }}>
+                {ALERT_REASON[entry.alert_type] ?? ""}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {loading && <div className="t-meta">{t("common.loading")}</div>}
+
+      {!loading && rows.length === 0 && <EmptyState onClear={() => setParams({}, { replace: true })} />}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {rows.map((alert) => {
+          const tone = ALERT_TONE[alert.alert_type] ?? { fg: "var(--ink-600)", bg: "var(--fill-muted)" };
+          return (
+            <Card key={alert.id}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <CapsLabel style={{ color: tone.fg }}>{alert.alert_type_display}</CapsLabel>
+                  <div
+                    className="t-body-strong"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => navigate(`/cases/${alert.case}`)}
+                  >
+                    {alert.youth_name}
+                  </div>
+                  <div className="t-meta">
+                    {alert.summary} · {alert.woreda}
+                  </div>
+                </div>
+
+                <span
+                  className="chip"
+                  style={{ color: tone.fg, background: tone.bg, borderColor: "transparent", fontSize: 12 }}
+                >
+                  {alert.age_days === 0 ? t("alerts.today") : t("alerts.days", { days: alert.age_days })}
+                </span>
+              </div>
+
+              {canWrite && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                  <Button variant="primary" onClick={() => setResolving({ alert, kind: "action" })}>
+                    {t("alerts.action")}
+                  </Button>
+                  <Button onClick={() => setResolving({ alert, kind: "dismiss" })}>{t("alerts.dismiss")}</Button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
 
       <Modal
-        open={!!resolving}
-        title={resolving?.kind === "action" ? "Action this alert" : "Dismiss this alert"}
-        onCancel={() => setResolving(null)}
-        onOk={resolve}
+        open={Boolean(resolving)}
+        title={resolving?.kind === "action" ? "Mark this alert actioned?" : "Dismiss this alert?"}
         okText={resolving?.kind === "action" ? "Mark actioned" : "Dismiss"}
+        onOk={resolve}
+        onCancel={() => {
+          setResolving(null);
+          setNote("");
+        }}
+        destroyOnHidden
       >
-        <Typography.Paragraph type="secondary">
+        {/* §9 wants the rationale on the record, not only the fact of the click. */}
+        <p style={{ marginBottom: 8 }}>
           {resolving?.kind === "action"
-            ? "Use this when the underlying situation has been dealt with."
-            : "Use this when the alert did not warrant action. Kept separate from Actioned so reporting can tell them apart."}
-        </Typography.Paragraph>
-        <Typography.Paragraph strong>{resolving?.alert.summary}</Typography.Paragraph>
-        <Input.TextArea
-          rows={3}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="What was done, or why no action was needed"
-        />
+            ? "Recorded against the alert with your name and the date."
+            : "Dismissing closes the alert without recording an action on the case."}
+        </p>
+        <Input.TextArea rows={3} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Note" />
       </Modal>
-    </Space>
+    </div>
+  );
+}
+
+/**
+ * The empty state.
+ *
+ * The habesha-border-derived pattern appears here and nowhere else — at 12%
+ * opacity behind an empty card it reads as a considered pause, and behind data
+ * it would just be noise competing with the status colours.
+ */
+function EmptyState({ onClear }: { onClear: () => void }) {
+  const { t } = useLang();
+  return (
+    <Card style={{ position: "relative", overflow: "hidden", textAlign: "center", padding: "32px 16px" }}>
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          opacity: 0.12,
+          pointerEvents: "none",
+          backgroundImage:
+            "repeating-linear-gradient(45deg, var(--green-700) 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, var(--gold-500) 0 6px, transparent 6px 12px)",
+        }}
+      />
+      <div style={{ position: "relative" }}>
+        <svg width={44} height={44} viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth={1.6} strokeLinecap="round" aria-hidden>
+          <path d="M4 13l5 5L20 7" />
+        </svg>
+        <div className="t-card-title" style={{ marginTop: 8 }}>
+          {t("alerts.emptyTitle")}
+        </div>
+        <p className="t-meta" style={{ maxWidth: 420, margin: "6px auto 14px" }}>
+          {t("alerts.emptyBody")}
+        </p>
+        <Button onClick={onClear}>{t("alerts.showAll")}</Button>
+      </div>
+    </Card>
   );
 }

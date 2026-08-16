@@ -34,13 +34,13 @@ export default function LoginPage() {
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
-        background: "#f0f2f5",
+        background: "var(--paper)",
         padding: 24,
       }}
     >
       <Card style={{ width: "100%", maxWidth: 400 }}>
         <Typography.Title level={4} style={{ marginBottom: 4 }}>
-          Youth Employment Platform
+          PSNP Youth Employment and Referral Platform
         </Typography.Title>
         <Typography.Paragraph type="secondary">Case management and referral</Typography.Paragraph>
 

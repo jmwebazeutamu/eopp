@@ -1,32 +1,42 @@
-import { Empty, Tooltip, Typography } from "antd";
-import { scaleTime } from "d3-scale";
+import { Tooltip } from "antd";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import type { Referral, ReferralStatusCode } from "../../api/types";
-import { buildTimelineLayout, type DependencyArrow, type TimelineBar } from "./timelineLayout";
+import type { Referral } from "../../api/types";
+import { REFERRAL_TONE } from "../../design/status";
+import {
+  buildTimelineLayout,
+  durationDays,
+  periodLabel,
+  type DependencyLink,
+  type TimelineBar,
+} from "./timelineLayout";
 
 /**
- * The referral stack as a timeline — spec §6.4, and the live version of the
- * Concept Note's Figure 4.
+ * The referral stack as a timeline — spec §6.4.
  *
- * One lane per referral on a real time axis. Two deliberate departures from that
- * mockup, both from `docs/REFERRAL_STACK_TIMELINE_COMPONENT_PROMPT.md`:
+ * Three fixed tracks (Slot 1, Slot 2, Exempt) drawn against a real time axis:
+ * every bar is positioned and sized by its own dates, so a referral that ran
+ * for a day and one that has been open three weeks cannot look alike. Colour
+ * encodes status and nothing else — concurrency is structural, shown by the
+ * slot a referral occupies, which is why the Concept Note's legend needed
+ * correcting in the first place.
  *
- * 1. Colour encodes `status` and nothing else. The mockup's legend spent two of
- *    its five colours on "parallel", which is not a status but a structural fact
- *    (`parallel_group_id`) that is independent of it — a Complementary Service
- *    referral can be parallel *and* failed, which that scheme cannot draw.
- *    Concurrency is shown here as a bracket down the left edge instead.
- * 2. The x-axis is real time scaled to the case, not "Month 1..6" bands.
+ * Rules that are easy to lose in a refactor:
  *
- * Read-only by design: clicking a bar reports the id and nothing else, so the
- * §6.2 actions stay in ReferralActions where the state machine rules live.
+ *  - **Never colour alone.** Every state is a colour, a word and a mark, so the
+ *    picture survives monochrome and colour-blind readers.
+ *  - **A short bar still has to be visible and clickable.** Bars have a pixel
+ *    floor, and the label moves outside the bar when it will not fit inside.
+ *  - **An open referral has no right edge.** It fades into an arrow rather than
+ *    being closed off at today, which would read as an outcome.
+ *
+ * Read-only: clicking a bar reports the id and nothing else, so the §6.2
+ * actions stay in ReferralActions where the state machine rules live.
  */
 
 interface Props {
   referrals: Referral[];
   onReferralClick?: (referralId: string) => void;
-  /** Drawn with a focus ring, so a selection made elsewhere is findable here. */
   selectedReferralId?: string | null;
   /** Injectable for tests; production reads the clock. */
   today?: Date;
@@ -34,109 +44,20 @@ interface Props {
   width?: number;
 }
 
-/**
- * Status colours for the timeline.
- *
- * Deliberately not `REFERRAL_STATUS_COLOURS`: those are Ant Design tag palette
- * names for the list and detail views, and SVG needs real values. The mapping
- * also differs on purpose — the prompt's table reads the bars as a lifecycle
- * (amber in flight, green ended well, red ended badly) rather than as six
- * unrelated categories.
- */
-const STATUS_FILL: Record<ReferralStatusCode, string> = {
-  PENDING_CONFIRMATION: "#e6f0fa",
-  ACTIVE: "#fa8c16",
-  COMPLETED: "#52c41a",
-  FAILED: "#ff4d4f",
-  REPLACED: "#ff4d4f",
-  CANCELLED: "#bfbfbf",
-};
-
-const STATUS_STROKE: Record<ReferralStatusCode, string> = {
-  PENDING_CONFIRMATION: "#7ba7d7",
-  ACTIVE: "#d46b08",
-  COMPLETED: "#389e0d",
-  FAILED: "#cf1322",
-  REPLACED: "#cf1322",
-  CANCELLED: "#8c8c8c",
-};
-
-/** Five distinct fills for six statuses: Replaced reuses Failed and adds a mark. */
-const LEGEND: { label: string; status: ReferralStatusCode; note?: string }[] = [
-  { label: "Completed", status: "COMPLETED" },
-  { label: "Active", status: "ACTIVE" },
-  { label: "Failed", status: "FAILED" },
-  { label: "Pending confirmation", status: "PENDING_CONFIRMATION" },
-  { label: "Cancelled", status: "CANCELLED" },
-  { label: "Replaced", status: "REPLACED", note: "Failed, with a replacement raised" },
-];
-
-const GUTTER = 200;
-const RIGHT_PAD = 28;
-const AXIS_HEIGHT = 26;
-const LANE_HEIGHT = 34;
-const BAR_HEIGHT = 18;
-const BRACKET_X = GUTTER - 12;
-const MIN_CHART_WIDTH = 320;
-const MIN_BAR_WIDTH = 3;
-
-function laneY(lane: number): number {
-  return AXIS_HEIGHT + lane * LANE_HEIGHT;
-}
-
-function barY(lane: number): number {
-  return laneY(lane) + (LANE_HEIGHT - BAR_HEIGHT) / 2;
-}
-
-function barMidY(lane: number): number {
-  return laneY(lane) + LANE_HEIGHT / 2;
-}
-
-function truncate(value: string, max: number): string {
-  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
-}
-
-/** Full detail on hover, per bar — what the truncated lane label leaves out. */
-function tooltipFor(bar: TimelineBar) {
-  const r = bar.referral;
-  const rows: [string, string][] = [
-    ["Category", r.referral_category_label],
-    ["Partner", r.receiving_partner_detail.partner_name],
-    ["Trigger", r.trigger_display],
-    ["Initiated", r.initiated_date],
-  ];
-  if (r.outcome_date) rows.push(["Outcome recorded", r.outcome_date]);
-  if (r.outcome_type_label) rows.push(["Outcome", r.outcome_type_label]);
-  if (r.failure_date) rows.push(["Failed", r.failure_date]);
-  if (r.failure_reason_label) rows.push(["Reason", r.failure_reason_label]);
-  if (bar.isOpenEnded) rows.push(["Still running", "no outcome recorded yet"]);
-
-  return (
-    <div>
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>{r.status_display}</div>
-      {rows.map(([label, value]) => (
-        <div key={label} style={{ fontSize: 12 }}>
-          {label}: {value}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/**
- * Elbow path from the parent bar's close to the child bar's start.
- *
- * Drawn as three segments rather than a straight line so an arrow spanning
- * several lanes does not cut across the bars between them.
- */
-function arrowPath(fromX: number, fromLane: number, toX: number, toLane: number): string {
-  const y1 = barMidY(fromLane);
-  const y2 = barMidY(toLane);
-  // Step out past the parent's end, but never past the child's start, so the
-  // path stays inside the span it describes even when the two nearly touch.
-  const elbowX = Math.max(fromX + 8, Math.min(fromX + 18, toX - 8));
-  return `M ${fromX} ${y1} H ${elbowX} V ${y2} H ${toX}`;
-}
+const GUTTER = 74; // track-label column
+const RIGHT_PAD = 16;
+const AXIS_HEIGHT = 30;
+const ROW_HEIGHT = 30;
+const BAR_HEIGHT = 20;
+const TRACK_GAP = 10;
+const MIN_BAR_PX = 10;
+const MIN_CHART_PX = 560;
+/** Rough advance width of the 11px label face; good enough to decide fit. */
+const CHAR_PX = 5.9;
+/** Below this a truncated label is all ellipsis and no information. */
+const MIN_LABEL_CHARS = 6;
+/** Room a tick label needs before the next one may also be drawn. */
+const MIN_TICK_LABEL_PX = 46;
 
 export default function ReferralStackTimeline({
   referrals,
@@ -146,12 +67,11 @@ export default function ReferralStackTimeline({
   width: widthProp,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [measured, setMeasured] = useState(widthProp ?? 960);
-  const [hoveredGroup, setHoveredGroup] = useState<string | null>(null);
+  const [measured, setMeasured] = useState(widthProp ?? 900);
   const markerId = useId();
 
-  // Measure rather than assume: the case screen puts this in a responsive grid
-  // column, so the available width is not known until it is laid out.
+  // Measured rather than assumed: the case screen puts this in a responsive
+  // card, so the available width is not known until it is laid out.
   useLayoutEffect(() => {
     if (widthProp !== undefined) return;
     const node = containerRef.current;
@@ -167,224 +87,368 @@ export default function ReferralStackTimeline({
 
   const layout = useMemo(() => buildTimelineLayout(referrals, { today }), [referrals, today]);
 
-  const chartWidth = Math.max(measured - GUTTER - RIGHT_PAD, MIN_CHART_WIDTH);
-  const scale = useMemo(
-    () => scaleTime().domain(layout.domain).range([GUTTER, GUTTER + chartWidth]),
-    [layout.domain, chartWidth],
-  );
-
-  if (!referrals.length) {
-    return <Empty description="No referrals yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
-  }
-
-  const height = AXIS_HEIGHT + layout.laneCount * LANE_HEIGHT + 8;
+  const chartWidth = Math.max(measured - GUTTER - RIGHT_PAD, MIN_CHART_PX);
   const svgWidth = GUTTER + chartWidth + RIGHT_PAD;
 
-  function renderBar(bar: TimelineBar) {
-    const r = bar.referral;
-    const x = scale(bar.start);
-    const width = Math.max(scale(bar.end) - x, MIN_BAR_WIDTH);
-    const inHoveredGroup = hoveredGroup !== null && r.parallel_group_id === hoveredGroup;
-    const isSelected = selectedReferralId === r.id;
+  const geometry = useMemo(() => {
+    // Each track starts below the last, tall enough for however many rows its
+    // bars needed.
+    let y = AXIS_HEIGHT;
+    const trackTop = new Map<string, number>();
+    layout.tracks.forEach((track) => {
+      trackTop.set(track.id, y);
+      y += track.rowCount * ROW_HEIGHT + TRACK_GAP;
+    });
+    return { trackTop, height: y };
+  }, [layout]);
 
-    return (
-      <Tooltip key={r.id} title={tooltipFor(bar)} mouseEnterDelay={0.15}>
-        <g
-          role="button"
-          tabIndex={0}
-          aria-label={`${r.referral_category_label} referral to ${r.receiving_partner_detail.partner_name}, ${r.status_display}`}
-          style={{ cursor: onReferralClick ? "pointer" : "default", outline: "none" }}
-          onClick={() => onReferralClick?.(r.id)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onReferralClick?.(r.id);
-            }
-          }}
-          onMouseEnter={() => setHoveredGroup(r.parallel_group_id)}
-          onMouseLeave={() => setHoveredGroup(null)}
-        >
-          {/* Full-width hit area: a three-pixel bar is not a clickable target. */}
-          <rect x={GUTTER} y={laneY(bar.lane)} width={chartWidth} height={LANE_HEIGHT} fill="transparent" />
-          <rect
-            data-testid={`bar-${r.id}`}
-            x={x}
-            y={barY(bar.lane)}
-            width={width}
-            height={BAR_HEIGHT}
-            rx={3}
-            fill={STATUS_FILL[r.status]}
-            stroke={isSelected || inHoveredGroup ? "#1668dc" : STATUS_STROKE[r.status]}
-            strokeWidth={isSelected || inHoveredGroup ? 2 : 1}
-            strokeDasharray={r.status === "PENDING_CONFIRMATION" ? "4 3" : undefined}
-            opacity={r.status === "CANCELLED" ? 0.55 : 1}
-          />
-          {/* Replaced shares the Failed colour, so it needs a mark of its own. */}
-          {r.status === "REPLACED" && (
-            <text
-              x={x + width / 2}
-              y={barY(bar.lane) + BAR_HEIGHT - 5}
-              textAnchor="middle"
-              fontSize={11}
-              fill="#fff"
-              aria-hidden
-            >
-              ⟳
-            </text>
-          )}
-          {/* An open-ended bar gets no right edge — nothing has closed it yet. */}
-          {bar.isOpenEnded && (
-            <path
-              d={`M ${x + width} ${barY(bar.lane)} l 6 ${BAR_HEIGHT / 2} l -6 ${BAR_HEIGHT / 2} z`}
-              fill={STATUS_FILL[r.status]}
-              opacity={0.65}
-            />
-          )}
-        </g>
-      </Tooltip>
-    );
-  }
+  if (layout.isEmpty) return null;
 
-  function renderArrow(arrow: DependencyArrow) {
-    const fromX = scale(arrow.fromDate);
-    const toX = scale(arrow.toDate);
-    const path = arrowPath(fromX, arrow.fromLane, toX, arrow.toLane);
-    const labelX = Math.max(fromX + 10, Math.min(fromX + 20, toX - 6));
+  const x = (offset: number) => GUTTER + offset * chartWidth;
+  const barY = (bar: TimelineBar) =>
+    (geometry.trackTop.get(bar.track) ?? AXIS_HEIGHT) + bar.row * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2;
 
-    return (
-      <g key={`${arrow.fromId}-${arrow.toId}`} aria-hidden>
-        <path d={path} fill="none" stroke="#8c8c8c" strokeWidth={1.25} markerEnd={`url(#${markerId})`} />
-        <text
-          x={labelX + 4}
-          y={(barMidY(arrow.fromLane) + barMidY(arrow.toLane)) / 2}
-          fontSize={10}
-          fill="#595959"
-          // Halo so the label stays readable where it crosses a bar.
-          stroke="#fff"
-          strokeWidth={3}
-          paintOrder="stroke"
-        >
-          {arrow.kind}
-        </text>
-      </g>
-    );
-  }
+  const bars = layout.tracks.flatMap((track) => track.bars);
+  const barById = new Map(bars.map((bar) => [bar.referral.id, bar]));
+
+  // How far a label may run before it hits the next bar sharing its row.
+  // Without this a wide bar's overflowing label draws straight across the bar
+  // beside it and over that bar's own label.
+  // Gridlines stay on every interval, but labels are thinned to whatever the
+  // width can hold: twenty-one day labels on a narrow chart would overprint each
+  // other, which is the same collision the bar labels had.
+  const tickSpacing = chartWidth / Math.max(layout.ticks.length, 1);
+  const labelEvery = Math.max(1, Math.ceil(MIN_TICK_LABEL_PX / tickSpacing));
+
+  const rightEdge = GUTTER + chartWidth;
+  const roomAfter = new Map<string, number>();
+  layout.tracks.forEach((track) => {
+    const rows = new Map<number, TimelineBar[]>();
+    track.bars.forEach((bar) => rows.set(bar.row, [...(rows.get(bar.row) ?? []), bar]));
+    rows.forEach((rowBars) => {
+      const sorted = [...rowBars].sort((a, b) => a.offset - b.offset);
+      sorted.forEach((bar, index) => {
+        const next = sorted[index + 1];
+        const barRight = x(bar.offset) + Math.max(bar.width * chartWidth, MIN_BAR_PX);
+        const limit = next ? x(next.offset) : rightEdge;
+        roomAfter.set(bar.referral.id, limit - barRight);
+      });
+    });
+  });
 
   return (
     <div ref={containerRef} style={{ width: "100%" }}>
-      <svg
-        width={svgWidth}
-        height={height}
-        role="img"
-        aria-label={`Referral timeline, ${layout.laneCount} referrals`}
-        style={{ maxWidth: "100%", overflow: "visible" }}
-      >
-        <defs>
-          <marker id={markerId} viewBox="0 0 8 8" refX={7} refY={4} markerWidth={7} markerHeight={7} orient="auto">
-            <path d="M 0 0 L 8 4 L 0 8 z" fill="#8c8c8c" />
-          </marker>
-        </defs>
+      <div className="t-caps" style={{ marginBottom: 8 }}>
+        Referral timeline {layout.yearLabel}
+      </div>
 
-        {/* Axis */}
-        {layout.ticks.map((tick) => {
-          const x = scale(tick.date);
-          return (
+      {/* Sideways scroll rather than compression: below ~560px the axis would
+          be unreadable squeezed to fit, and scrolling is expected here. */}
+      <div style={{ overflowX: "auto" }}>
+        <svg
+          width={svgWidth}
+          height={geometry.height}
+          role="img"
+          aria-label={`Referral timeline, ${bars.length} referrals`}
+        >
+          <defs>
+            <marker id={markerId} viewBox="0 0 8 8" refX={7} refY={4} markerWidth={6} markerHeight={6} orient="auto">
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--ink-400)" />
+            </marker>
+          </defs>
+
+          {/* Axis: a gridline per interval, a label per interval the width allows. */}
+          {layout.ticks.map((tick, index) => (
             <g key={tick.date.toISOString()}>
-              <line x1={x} y1={AXIS_HEIGHT - 6} x2={x} y2={height} stroke="#f0f0f0" strokeWidth={1} />
-              <text x={x} y={AXIS_HEIGHT - 12} fontSize={11} fill="#8c8c8c" textAnchor="middle">
-                {tick.label}
-              </text>
-            </g>
-          );
-        })}
-        <line x1={GUTTER} y1={AXIS_HEIGHT - 6} x2={GUTTER + chartWidth} y2={AXIS_HEIGHT - 6} stroke="#d9d9d9" />
-
-        {/* Lane labels: category and partner, truncated — the bar's tooltip has the rest. */}
-        {layout.bars.map((bar) => (
-          <text
-            key={`label-${bar.referral.id}`}
-            x={0}
-            y={barMidY(bar.lane) + 4}
-            fontSize={12}
-            fill={selectedReferralId === bar.referral.id ? "#1668dc" : "#262626"}
-            fontWeight={selectedReferralId === bar.referral.id ? 600 : 400}
-          >
-            {truncate(
-              `${bar.referral.referral_category_label} · ${bar.referral.receiving_partner_detail.partner_name}`,
-              30,
-            )}
-          </text>
-        ))}
-
-        {/* Parallel groups: a bracket, not a colour. */}
-        {layout.brackets.map((bracket) => {
-          const top = laneY(bracket.firstLane) + 6;
-          const bottom = laneY(bracket.lastLane) + LANE_HEIGHT - 6;
-          const active = hoveredGroup === bracket.groupId;
-          return (
-            <g key={bracket.groupId} data-testid={`bracket-${bracket.groupId}`} aria-hidden>
-              <path
-                d={`M ${BRACKET_X + 5} ${top} H ${BRACKET_X} V ${bottom} H ${BRACKET_X + 5}`}
-                fill="none"
-                stroke={active ? "#1668dc" : "#13c2c2"}
-                strokeWidth={active ? 2 : 1.5}
+              <line
+                x1={x(tick.offset)}
+                y1={AXIS_HEIGHT - 8}
+                x2={x(tick.offset)}
+                y2={geometry.height}
+                stroke="var(--line-soft)"
               />
-              <text
-                x={BRACKET_X - 3}
-                y={(top + bottom) / 2 + 3}
-                fontSize={9}
-                fill={active ? "#1668dc" : "#13c2c2"}
-                textAnchor="end"
-              >
-                parallel
-              </text>
+              {index % labelEvery === 0 && (
+                <text
+                  x={x(tick.offset)}
+                  y={AXIS_HEIGHT - 14}
+                  fontSize={10}
+                  fill="var(--ink-400)"
+                  textAnchor="middle"
+                  fontWeight={600}
+                >
+                  {tick.label}
+                </text>
+              )}
             </g>
-          );
-        })}
+          ))}
+          <line
+            x1={GUTTER}
+            y1={AXIS_HEIGHT - 8}
+            x2={GUTTER + chartWidth}
+            y2={AXIS_HEIGHT - 8}
+            stroke="var(--line)"
+          />
 
-        {layout.arrows.map(renderArrow)}
-        {layout.bars.map(renderBar)}
-      </svg>
+          {/* Track labels and their baselines. */}
+          {layout.tracks.map((track) => {
+            const top = geometry.trackTop.get(track.id) ?? 0;
+            return (
+              <g key={track.id}>
+                <text x={0} y={top + ROW_HEIGHT / 2 + 3} className="t-caps" fontSize={10} fill="var(--ink-400)">
+                  {track.label.toUpperCase()}
+                </text>
+                {track.bars.length === 0 && (
+                  <text x={GUTTER + 4} y={top + ROW_HEIGHT / 2 + 4} fontSize={11} fill="var(--ink-400)">
+                    Never used
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Dependency arrows sit under the bars so a connector never covers one. */}
+          {layout.links.map((link) => (
+            <Connector
+              key={`${link.fromId}-${link.toId}`}
+              link={link}
+              from={barById.get(link.fromId)}
+              to={barById.get(link.toId)}
+              x={x}
+              barY={barY}
+              chartWidth={chartWidth}
+              markerId={markerId}
+            />
+          ))}
+
+          {bars.map((bar) => (
+            <Bar
+              key={bar.referral.id}
+              bar={bar}
+              x={x}
+              y={barY(bar)}
+              chartWidth={chartWidth}
+              roomAfter={roomAfter.get(bar.referral.id) ?? 0}
+              selected={selectedReferralId === bar.referral.id}
+              onClick={onReferralClick}
+            />
+          ))}
+        </svg>
+      </div>
 
       <Legend />
     </div>
   );
 }
 
+function Bar({
+  bar,
+  x,
+  y,
+  chartWidth,
+  roomAfter,
+  selected,
+  onClick,
+}: {
+  bar: TimelineBar;
+  x: (offset: number) => number;
+  y: number;
+  chartWidth: number;
+  /** Pixels before the next bar on this row — the label may not cross it. */
+  roomAfter: number;
+  selected: boolean;
+  onClick?: (id: string) => void;
+}) {
+  const r = bar.referral;
+  const tone = REFERRAL_TONE[r.status];
+
+  const left = x(bar.offset);
+  // The pixel floor lives here rather than in the layout: a same-day referral is
+  // a real zero-width interval, and only the renderer knows how wide a pixel is.
+  const width = Math.max(bar.width * chartWidth, MIN_BAR_PX);
+
+  const label = `${tone.mark} ${r.referral_category_label} · ${r.receiving_partner_detail.partner_name}`;
+
+  // Where the label goes, in order of preference:
+  //  1. inside the bar, truncated to fit — the label then moves with the bar
+  //     and can never run over its neighbour;
+  //  2. beside it, but only as far as the next bar on this row allows;
+  //  3. nowhere, leaving the tooltip to carry it. A label that overlaps the bar
+  //     next to it is worse than no label at all.
+  const insideChars = Math.floor((width - 14) / CHAR_PX);
+  const outsideChars = Math.floor((roomAfter - (bar.isOpenEnded ? 16 : 9)) / CHAR_PX);
+  const placeInside = insideChars >= MIN_LABEL_CHARS;
+  const shownLabel = placeInside
+    ? truncate(label, insideChars)
+    : outsideChars >= MIN_LABEL_CHARS
+      ? truncate(label, outsideChars)
+      : "";
+
+  const tooltip = (
+    <div>
+      <div style={{ fontWeight: 600 }}>
+        {tone.mark} {r.status_display}
+      </div>
+      <div style={{ fontSize: 12 }}>{label}</div>
+      <div style={{ fontSize: 12 }}>{periodLabel(bar)}</div>
+      <div style={{ fontSize: 12 }}>
+        {durationDays(bar)} day{durationDays(bar) === 1 ? "" : "s"}
+        {bar.isOpenEnded ? " so far" : ""}
+      </div>
+    </div>
+  );
+
+  return (
+    <Tooltip title={tooltip} mouseEnterDelay={0.1}>
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label={`${label}, ${r.status_display}, ${periodLabel(bar)}`}
+        data-testid={`bar-${r.id}`}
+        style={{ cursor: onClick ? "pointer" : "default" }}
+        onClick={() => onClick?.(r.id)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onClick?.(r.id);
+          }
+        }}
+      >
+        <rect
+          x={left}
+          y={y}
+          width={width}
+          height={BAR_HEIGHT}
+          rx={4}
+          fill={tone.bar}
+          stroke={selected ? "var(--ink-900)" : "transparent"}
+          strokeWidth={selected ? 2 : 0}
+        />
+
+        {/* An open referral has no closing edge: it runs into an arrow rather
+            than being squared off at today, which would read as an outcome. */}
+        {bar.isOpenEnded && (
+          <path
+            d={`M ${left + width} ${y} l 7 ${BAR_HEIGHT / 2} l -7 ${BAR_HEIGHT / 2} z`}
+            fill={tone.bar}
+            opacity={0.7}
+          />
+        )}
+
+        {shownLabel && (
+          <text
+            x={placeInside ? left + 7 : left + width + (bar.isOpenEnded ? 14 : 7)}
+            y={y + BAR_HEIGHT / 2 + 4}
+            fontSize={11}
+            fontWeight={600}
+            fill={placeInside ? onDark(r.status) : tone.ink}
+          >
+            {shownLabel}
+          </text>
+        )}
+      </g>
+    </Tooltip>
+  );
+}
+
+/**
+ * The connector from a referral to the one it produced.
+ *
+ * Drawn as an elbow — out of the parent's right edge, down (or up) to the
+ * child's row, then into the child's left edge — so a link spanning tracks does
+ * not cut across the bars between them.
+ */
+function Connector({
+  link,
+  from,
+  to,
+  x,
+  barY,
+  chartWidth,
+  markerId,
+}: {
+  link: DependencyLink;
+  from?: TimelineBar;
+  to?: TimelineBar;
+  x: (offset: number) => number;
+  barY: (bar: TimelineBar) => number;
+  chartWidth: number;
+  markerId: string;
+}) {
+  if (!from || !to) return null;
+
+  const fromX = x(from.offset) + Math.max(from.width * chartWidth, MIN_BAR_PX);
+  const toX = x(to.offset);
+  const fromY = barY(from) + BAR_HEIGHT / 2;
+  const toY = barY(to) + BAR_HEIGHT / 2;
+
+  // Step out past the parent's close but never past the child's start, so the
+  // path stays inside the gap it describes even when the two nearly touch.
+  const elbow = Math.max(fromX + 6, Math.min(fromX + 16, toX - 6));
+
+  return (
+    <g aria-hidden>
+      <path
+        d={`M ${fromX} ${fromY} H ${elbow} V ${toY} H ${toX}`}
+        fill="none"
+        stroke="var(--ink-400)"
+        strokeWidth={1.25}
+        markerEnd={`url(#${markerId})`}
+      />
+      <text
+        x={elbow + 3}
+        y={(fromY + toY) / 2 - 2}
+        fontSize={9}
+        fill="var(--ink-600)"
+        // Halo, so the label stays readable where it crosses a gridline.
+        stroke="var(--surface)"
+        strokeWidth={3}
+        paintOrder="stroke"
+      >
+        {link.kind}
+      </text>
+    </g>
+  );
+}
+
+/** Text colour for a label sitting on a filled bar. */
+function onDark(status: Referral["status"]): string {
+  // Pending Confirmation is the one pale fill; everything else takes white.
+  return status === "PENDING_CONFIRMATION" ? "var(--gold-700)" : "#ffffff";
+}
+
+function truncate(value: string, max: number): string {
+  if (max <= 0) return "";
+  return value.length <= max ? value : `${value.slice(0, Math.max(1, max - 1))}…`;
+}
+
+const LEGEND_ORDER = ["PENDING_CONFIRMATION", "ACTIVE", "COMPLETED", "FAILED", "REPLACED", "CANCELLED"] as const;
+
+const LEGEND_LABEL: Record<(typeof LEGEND_ORDER)[number], string> = {
+  PENDING_CONFIRMATION: "Pending confirmation",
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
+  FAILED: "Failed",
+  REPLACED: "Replaced",
+  CANCELLED: "Cancelled",
+};
+
 function Legend() {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 8, paddingLeft: 4 }}>
-      {LEGEND.map((entry) => (
-        <Tooltip key={entry.label} title={entry.note}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <svg width={16} height={12} aria-hidden>
-              <rect
-                x={0}
-                y={0}
-                width={16}
-                height={12}
-                rx={2}
-                fill={STATUS_FILL[entry.status]}
-                stroke={STATUS_STROKE[entry.status]}
-                strokeDasharray={entry.status === "PENDING_CONFIRMATION" ? "3 2" : undefined}
-                opacity={entry.status === "CANCELLED" ? 0.55 : 1}
-              />
-              {entry.status === "REPLACED" && (
-                <text x={8} y={10} textAnchor="middle" fontSize={9} fill="#fff">
-                  ⟳
-                </text>
-              )}
-            </svg>
-            <Typography.Text style={{ fontSize: 12 }}>{entry.label}</Typography.Text>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginTop: 10 }}>
+      {LEGEND_ORDER.map((status) => {
+        const tone = REFERRAL_TONE[status];
+        return (
+          <span key={status} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+            <span
+              aria-hidden
+              style={{ width: 14, height: 10, borderRadius: 3, background: tone.bar, display: "inline-block" }}
+            />
+            <span style={{ color: tone.ink, fontWeight: 600 }}>
+              {tone.mark} {LEGEND_LABEL[status]}
+            </span>
           </span>
-        </Tooltip>
-      ))}
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-        <svg width={16} height={12} aria-hidden>
-          <path d="M 6 1 H 1 V 11 H 6" fill="none" stroke="#13c2c2" strokeWidth={1.5} />
-        </svg>
-        <Typography.Text style={{ fontSize: 12 }}>Parallel (ran concurrently)</Typography.Text>
-      </span>
+        );
+      })}
     </div>
   );
 }
