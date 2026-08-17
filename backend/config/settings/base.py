@@ -68,6 +68,7 @@ LOCAL_APPS = [
     "apps.cases",  # Spec §4.2 Case, §4.3 Profiling, §4.4 Pathway — Sprints 1-2
     "apps.referrals",  # Spec §4.6 Referral, §5 taxonomy, §6 state machine — Sprint 3
     "apps.alerts",  # Spec §4.13 Alert / Task, §6 system actions — Sprint 4
+    "apps.dashboard",  # Programme dashboard aggregation — no models of its own
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -291,6 +292,13 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 STALL_ALERT_THRESHOLD_DAYS = config("STALL_ALERT_THRESHOLD_DAYS", default=30, cast=int)
 REFERRAL_CONFIRMATION_OVERDUE_DAYS = config("REFERRAL_CONFIRMATION_OVERDUE_DAYS", default=7, cast=int)
 CASELOAD_CEILING = config("CASELOAD_CEILING", default=50, cast=int)
+
+# TODO(open-question): the dashboard's headline card reads "N of TARGET this
+# quarter". The handoff's mockup shows 180, which is mockup data — the real
+# quarterly placement target is a programme commitment nobody has stated to us.
+# Set to 0 to hide the target and show the count alone rather than measure the
+# programme against a number we invented.
+PLACEMENT_TARGET_PER_QUARTER = config("PLACEMENT_TARGET_PER_QUARTER", default=0, cast=int)
 
 # §4.13 alert thresholds whose source entities arrive in later sprints. Declared
 # now so `threshold_for()` has one configuration point for all six alert types.

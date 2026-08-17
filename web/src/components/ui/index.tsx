@@ -1,7 +1,15 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 
 import type { CaseStatus, ReferralStatusCode } from "../../api/types";
-import { CASE_TONE, REFERRAL_TONE, WAIT_TONE, type StatusTone, type WaitLevel } from "../../design/status";
+import {
+  CASE_TONE,
+  IMPORT_TONE,
+  REFERRAL_TONE,
+  WAIT_TONE,
+  type ImportOutcome,
+  type StatusTone,
+  type WaitLevel,
+} from "../../design/status";
 
 /**
  * The handoff's primitives.
@@ -33,6 +41,10 @@ export function CaseStatusChip({ status, label }: { status: CaseStatus; label: s
 
 export function ReferralStatusChip({ status, label }: { status: ReferralStatusCode; label: string }) {
   return <Chip tone={REFERRAL_TONE[status]}>{label}</Chip>;
+}
+
+export function ImportOutcomeChip({ outcome, label }: { outcome: ImportOutcome; label: string }) {
+  return <Chip tone={IMPORT_TONE[outcome]}>{label}</Chip>;
 }
 
 /** A neutral chip for counts, slots and coverage. */
@@ -189,6 +201,7 @@ export function ProgressTrack({
 // ---------------------------------------------------------------------------
 
 export const ICON_PATHS = {
+  dashboard: "M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z",
   cases: "M4 4h10l2 3h4v13H4V4z",
   case: "M6 3h9l4 4v14H6V3z",
   queue: "M4 6h11l3 3-3 3H4V6zm0 8h8l3 3-3 3H4v-6z",

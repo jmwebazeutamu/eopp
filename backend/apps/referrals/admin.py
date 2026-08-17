@@ -56,7 +56,19 @@ class OutcomeTypeAdmin(_TaxonomyAdmin):
                 "description": "Leave 'applies to' empty to allow this outcome for any referral category (spec §5.3).",
             },
         ),
+        (
+            "Reporting",
+            {
+                "fields": ("counts_as_placement",),
+                "description": (
+                    "Drives the placement figures on the programme dashboard. Tick it for outcomes that put a "
+                    "young person into paid work or their own enterprise — not for a completed course."
+                ),
+            },
+        ),
     )
+    list_display = ["label", "code", "counts_as_placement", "is_active", "sort_order"]
+    list_filter = ["is_active", "counts_as_placement"]
 
 
 @admin.register(FailureReasonCode)

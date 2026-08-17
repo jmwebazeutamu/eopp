@@ -8,6 +8,7 @@ import { useAuth } from "../auth/AuthContext";
 import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
 import YouthDetailModal from "../components/YouthDetailModal";
 import YouthFormModal from "../components/YouthFormModal";
+import YouthImportModal from "../components/YouthImportModal";
 import { Button, Card, MutedChip, PageHeader, maskPhone } from "../components/ui";
 import { useLang } from "../i18n/LanguageContext";
 
@@ -36,6 +37,7 @@ export default function YouthListPage() {
   const [viewing, setViewing] = useState<Youth | null>(null);
   const [editing, setEditing] = useState<Youth | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const query = params.get("q") ?? "";
   const page = Number(params.get("page") ?? 1);
@@ -100,15 +102,20 @@ export default function YouthListPage() {
         subtitle={t("registry.subtitle", { registered: count, withCase })}
         action={
           canWrite ? (
-            <Button
-              variant="primary"
-              onClick={() => {
-                setEditing(null);
-                setFormOpen(true);
-              }}
-            >
-              {t("registry.register")}
-            </Button>
+            // Import is secondary to registering one youth: the single form is
+            // the daily path, and a register arrives a few times a season.
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Button onClick={() => setImportOpen(true)}>{t("registry.import")}</Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setEditing(null);
+                  setFormOpen(true);
+                }}
+              >
+                {t("registry.register")}
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -216,6 +223,8 @@ export default function YouthListPage() {
           void load();
         }}
       />
+
+      <YouthImportModal open={importOpen} onClose={() => setImportOpen(false)} onImported={() => void load()} />
     </div>
   );
 }

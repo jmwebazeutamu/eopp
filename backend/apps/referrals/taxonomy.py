@@ -104,6 +104,18 @@ class OutcomeType(TaxonomyTerm):
     )
     requires_note = models.BooleanField(_("requires a note"), default=False)
 
+    # The programme dashboard's placement count keys off this flag rather than a
+    # list of codes, for the same reason `exempt_from_parallel_cap` does: §9
+    # makes this table configuration the system administrator owns, so a new
+    # outcome that means "the youth is in work" must be countable without a
+    # deploy. Training Completion is deliberately not one — it completes a
+    # referral without putting anyone in a job.
+    counts_as_placement = models.BooleanField(
+        _("counts as a placement"),
+        default=False,
+        help_text=_("Include referrals closed with this outcome in the programme dashboard's placement figures."),
+    )
+
     history = HistoricalRecords()
 
     class Meta(TaxonomyTerm.Meta):

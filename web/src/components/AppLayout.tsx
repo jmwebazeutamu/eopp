@@ -75,7 +75,15 @@ export default function AppLayout() {
 
   // Nav follows the access matrix, not the role: the API is the authority, and
   // hiding an item only avoids a screen that would 403 or come back empty.
+  // The programme dashboard totals a case population, so it is offered to the
+  // scopes that have one. A LINKED role — partner staff, trainers — has none,
+  // and the API refuses it rather than serving a screen of zeroes.
+  const hasCasePopulation = ["ALL", "OWN_WOREDA", "OWN_CASELOAD"].includes(user.access.case_scope);
+
   const nav: NavEntry[] = [
+    ...(hasCasePopulation
+      ? [{ path: "/dashboard", labelKey: "nav.dashboard" as const, icon: ICON_PATHS.dashboard }]
+      : []),
     ...(user.access.case_scope === "NONE" ? [] : [{ path: "/cases", labelKey: "nav.cases" as const, icon: ICON_PATHS.cases }]),
     ...(user.access.referral_scope === "NONE"
       ? []

@@ -162,6 +162,8 @@ resolve these silently — they need Phase 1 sign-off:
   (`COMPLEMENTARY_SERVICE_EXEMPT_FROM_PARALLEL_CAP = True`, spec §6.3).
 - `STALL_ALERT_THRESHOLD_DAYS = 30`, `REFERRAL_CONFIRMATION_OVERDUE_DAYS = 7`,
   `CASELOAD_CEILING = 50` — placeholders, not agreed values.
+- `PLACEMENT_TARGET_PER_QUARTER = 0` — the dashboard's quarterly placement
+  target. 0 means nobody has stated one, and the card shows the count alone.
 - `vulnerability_index_score` methodology undefined (spec §4.3).
 - `failure_reason_code` list is a starter, pending frontline validation (§5.4).
 - Offline conflict resolution rules undecided (§9, blocks Sprint 9).
@@ -196,8 +198,16 @@ These need validation, but they are not on the §11 list.
 - **Design handoff applied.** Every web screen rebuilt on the token layer; see
   the design system section below. Added `/referrals/rules/` (the §6.3 cap as a
   server rule), `Youth.has_open_case` and `User.caseload_count`.
+- **Bulk youth intake.** `apps/youth/imports.py` plus `POST /youth/import/` and
+  `GET /youth/import/template/`, with the Import from Excel button on the
+  registry screen. See the bulk intake section below.
+- **Programme dashboard.** The handoff's screen 8, built on the entities that
+  exist; see the dashboard section below. Adds `apps/dashboard`,
+  `GET /dashboard/`, `OutcomeType.counts_as_placement`, and
+  `permissions.scope_queryset`.
 - **Sprint 5 — next.** Training Enrolment (§4.5) and Placement (§4.7) with the
   30/60/90-day retention checkpoints, plus trainer and employer-liaison screens.
+  Landing it also fills the dashboard's two absent figures.
 
 Later sprints: 6 enterprise/follow-up/grievance · 7 dashboards ·
 8–9 mobile · 10 hardening.
@@ -236,6 +246,87 @@ The core of the platform. Read §6 before touching `apps/referrals`.
   be Failed. Concurrency is a bracket, not a colour. Do not reintroduce it as one.
   Layout arithmetic lives in `timelineLayout.ts`, apart from the component and
   free of pixels, because that is the part worth unit testing.
+
+## The programme dashboard (`apps/dashboard`, `web/src/pages/DashboardPage.tsx`)
+
+The handoff's screen 8, for supervisors and the donor. **This is not the Sprint 7
+Metabase work** — §2 puts "supervisor and programme manager dashboards" on the
+React frontend, and §8's nine analytical dashboards are a separate Metabase
+deliverable against a read-only Postgres role. Building one does not discharge
+the other.
+
+- **A figure with no source entity is absent, not zero.** Retention at six months
+  needs Placement and its 30/60/90-day checkpoints (§4.7, Sprint 5), so both the
+  retention card and the funnel's last row report `available: false` with a
+  reason. A donor-facing 0% that means "not built yet" is a lie, and an invented
+  plausible number is a worse one. `Maybe<T>` in `api/types.ts` makes the screen
+  handle it — there is no way to read `.value` off an absent figure.
+- **The quarterly target is `PLACEMENT_TARGET_PER_QUARTER`, defaulting to 0.**
+  The mockup's 180 is mockup data. 0 means "no target agreed" and the card shows
+  the count alone rather than a percentage of a number we chose.
+  `TODO(open-question)`.
+- **What counts as a placement is an admin flag**, `OutcomeType.counts_as_placement`,
+  not a list of codes — same reasoning as `exempt_from_parallel_cap`. Seeded true
+  for Job Placement, Apprenticeship Start and Enterprise Enrolment. Training
+  Completion is deliberately false: a finished course closes a referral without
+  putting anyone in work, and counting it inflates the headline.
+- **Every figure is scoped before it is counted.** An aggregate is a disclosure:
+  "4,812 registered" told to someone entitled to see 300 is still a leak. All
+  three base querysets go through `permissions.scope_queryset` — extracted from
+  `ScopedQuerySetMixin` so the decision to fail closed lives in one place — and
+  the subtitle states the scope so a woreda total cannot be read as the
+  programme's. A LINKED scope has no case population and gets 403, not zeroes.
+- **The funnel counts youth, not events.** A youth referred three times is one
+  youth referred; counting referrals would let a later stage exceed an earlier
+  one, which reads as a broken programme rather than a broken query.
+- **A partner that never replied is absent from the lag panel, not fast.** A null
+  lag is not a short lag, and averaging it in rewards silence.
+- **Bars are hand-built divs; no chart library** (the brief's 3G constraint).
+  Arithmetic lives in `dashboardLayout.ts`, pure and unit-tested, per the
+  `timelineLayout.ts` pattern: a non-zero value always gets a visible sliver
+  (`MIN_VISIBLE_PERCENT`), a true zero draws nothing, and `lagScale` keeps the
+  14-day standard inside the range so its reference mark is always drawable.
+- **The panels use `auto-fit` grids, not `.only-phone` / `.only-laptop`.** They
+  have no separate phone layout — they simply stop sitting side by side — so
+  there is no second variant that could render at the same time.
+- **`--gold-500` carries `--ink-900` text in the gender bar.** The token is
+  documented fill-only because it is 2.6:1 *as text on paper*; ink on gold is
+  5.9:1 and is what the handoff's own mockup shows. Do not "fix" it to white.
+- **The failure-path test lives in its own file** (`DashboardPage.error.test.tsx`).
+  A rejecting fetch shares badly with the success-path tests around it — vitest
+  attributes the rejection to whichever test is running when it settles.
+
+## Bulk youth intake (`apps/youth/imports.py`)
+
+Woreda registers arrive as .xlsx, so `POST /youth/import/` takes one.
+`GET /youth/import/template/` serves the blank register, built from the same
+`COLUMNS` list the parser reads — the template cannot describe a column the
+importer does not accept.
+
+- **Every row goes through `YouthIntakeSerializer`.** The §9 consent rule, the
+  location vocabulary and zone-chain checks and the §11 age-band warning are not
+  restated here. A second copy would drift from the form's copy, and consent is
+  the one thing that must not. This module owns only the spreadsheet: which cell
+  is which field, and what an Excel value means.
+- **Two uploads, one file.** The first has no `commit` and writes nothing; the
+  UI shows that report and the user approves it. The second replays it with
+  `?commit=true`. The report is identical either way.
+- **All or nothing.** One invalid row refuses the whole file, inside a single
+  transaction. A half-imported register leaves nobody able to say which half.
+- **A row already on file is skipped, not refused** — matched on
+  `national_or_kebele_id`, or on name plus date of birth where the register
+  carries no ID. Registers get re-sent with more names appended, so re-importing
+  must not double the registry. Keys are claimed as the file is read, so a name
+  repeated inside one file is caught too. Test presence in `seen`, never truth:
+  an in-file claim is stored with an empty id.
+- **Excel types are not Python types.** A digit-only ID or phone comes back as a
+  float (`912345678.0`), a date comes back as `datetime` or as text depending on
+  the cell's format, and choice cells carry the label or the code. `_clean`,
+  `_coerce_date` and `_coerce_choice` absorb all three.
+- **The importer is the `registering_worker`** (§4.1 accountability), and an
+  outreach worker or supervisor cannot import outside `woreda_assignment`. Note
+  that `POST /youth/` makes no such check — flagged `TODO(open-question)` in
+  `_check_scope`, for Phase 1.
 
 ## Alerts (spec §4.13)
 
@@ -301,10 +392,10 @@ faults that have already shipped here once.
   a subquery on the primary keys: grouping a viewset's own queryset picks up its
   annotations in the GROUP BY and silently splits or inflates every count.
 
-Screens not built, and why: the **programme dashboard** is Sprint 7 and its
-funnel needs Placement (Sprint 5), so there is nothing truthful to plot; the
-**offline/sync strip** is Sprint 8; the **design-tokens screen** is documentation
-the handoff itself marks optional.
+Screens not built, and why: the **offline/sync strip** is Sprint 8; the
+**design-tokens screen** is documentation the handoff itself marks optional. The
+**programme dashboard** is built — see its section above — with the two figures
+that need Placement (Sprint 5) reported as absent rather than plotted.
 
 ## Definition of Done (spec §10.1)
 

@@ -382,6 +382,95 @@ export interface Youth extends YouthSummary {
   age_band_warning?: string | null;
 }
 
+/**
+ * One row of a spreadsheet import, as `POST /youth/import/` reports it.
+ *
+ * `row` is the sheet row number, not an index — the user reads it next to Excel.
+ */
+export interface YouthImportRow {
+  row: number;
+  status: "new" | "duplicate" | "error";
+  full_name: string;
+  /** DRF field errors, keyed by the Youth field the column fills. */
+  errors: Record<string, string[]>;
+  /** The §11 age-band warning, present only on rows actually written. */
+  warning: string;
+  /** Id of the youth this row already exists as; null for a repeat within the file. */
+  duplicate_of: string | null;
+}
+
+export interface YouthImportReport {
+  /** False for a preview, and false for a commit refused because a row failed. */
+  committed: boolean;
+  counts: { total: number; new: number; duplicate: number; error: number };
+  rows: YouthImportRow[];
+}
+
+// ---------------------------------------------------------------------------
+// Programme dashboard — GET /dashboard/
+// ---------------------------------------------------------------------------
+
+/**
+ * A figure whose source entity exists yet, or does not.
+ *
+ * Retention needs Placement (§4.7, Sprint 5), so the API reports it absent with
+ * a reason rather than as a zero. The discriminated union makes the screen state
+ * that case explicitly — there is no way to read `.value` off an absent figure.
+ */
+export type Maybe<T> = ({ available: true } & T) | { available: false; reason: string };
+
+export interface PlacementMetric {
+  value: number;
+  /** Null when no quarterly target has been agreed (spec §11). */
+  target: number | null;
+  percent: number | null;
+}
+
+export interface GenderSplit {
+  placed_total: number;
+  female: number;
+  male: number;
+  /** The baseline a placement split only means something against. */
+  registration_female_percent: number;
+}
+
+export interface FunnelStage {
+  key: string;
+  label: string;
+  count: number | null;
+  percent: number | null;
+  available: boolean;
+  reason: string;
+}
+
+export interface PartnerLag {
+  partner: string;
+  days: number;
+  referrals: number;
+}
+
+export interface WoredaRow {
+  woreda: string;
+  registered: number;
+  placed: number;
+  rate: number;
+}
+
+export interface ProgrammeDashboard {
+  period: { label: string; start: string; end: string };
+  /** What the reader should understand these numbers to cover, per §7 scope. */
+  scope_label: string;
+  metrics: {
+    placements_this_quarter: Maybe<PlacementMetric>;
+    retained_six_months: Maybe<Record<string, never>>;
+    gender_split: Maybe<GenderSplit>;
+  };
+  funnel: FunnelStage[];
+  confirmation_lag: { standard_days: number; partners: PartnerLag[] };
+  woredas: WoredaRow[];
+  alerts: { open_total: number; by_type: { type: string; count: number }[]; stalled_cases: number };
+}
+
 /** Name and woredas only — what an assignment picker needs (§7). */
 export interface AssignableUser {
   id: string;

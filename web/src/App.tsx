@@ -7,6 +7,7 @@ import { LanguageProvider } from "./i18n/LanguageContext";
 import AlertsPage from "./pages/AlertsPage";
 import CaseDetailPage from "./pages/CaseDetailPage";
 import CaseListPage from "./pages/CaseListPage";
+import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import PartnersPage from "./pages/PartnersPage";
 import ReferralsPage from "./pages/ReferralsPage";
@@ -29,6 +30,10 @@ function Home() {
   // Nothing at all: not the system administrator since the 2026-08-16
   // deviation, but still any role the matrix does not cover.
   if (user.access.case_scope === "NONE") return <Navigate to="/users" replace />;
+  // A role that reads case records widely but writes none of them is a
+  // supervisory one, and the handoff designs the dashboard for exactly them.
+  // Case-facing roles keep landing on their caseload, which is their work.
+  if (!user.access.case_write) return <Navigate to="/dashboard" replace />;
   return <Navigate to="/cases" replace />;
 }
 
@@ -77,6 +82,7 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route element={<AppLayout />}>
                 <Route index element={<Home />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/cases" element={<CaseListPage />} />
                 <Route path="/cases/:caseId" element={<CaseDetailPage />} />
                 <Route path="/referrals" element={<ReferralsPage />} />

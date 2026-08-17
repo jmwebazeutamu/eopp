@@ -84,6 +84,72 @@ class CanAccessReferrals(_MatrixPermission):
     write_attr = "can_write_referrals"
 
 
+def linked_scope(queryset, user, partner_field):
+    """Rows linked to this user's own organisation or activity.
+
+    Partner staff are scoped to their own institution's referrals (§7). A
+    partner-staff account with no `partner` set sees nothing — User.clean
+    refuses to create one, so this is a backstop against rows written before
+    that rule existed, or by a direct database edit.
+    """
+    if user.role == Role.PARTNER_STAFF:
+        if not (user.partner_id and partner_field):
+            return queryset.none()
+        return queryset.filter(**{partner_field: user.partner_id})
+
+    # TRAINER, EMPLOYER_LIAISON and ENTERPRISE_OFFICER are linked through the
+    # entity they own — Training Enrolment (Sprint 5), Placement (Sprint 5),
+    # Enterprise (Sprint 6). Each of those viewsets overrides this when its
+    # sprint lands.
+    return queryset.none()
+
+
+def scope_queryset(
+    queryset,
+    user,
+    *,
+    scope_kind="case",
+    woreda_field=None,
+    case_manager_field=None,
+    partner_field=None,
+    linked=linked_scope,
+):
+    """Narrow `queryset` to the rows `user`'s §7 scope allows.
+
+    A module function rather than only a mixin method, because scoping is not
+    only a viewset concern: the programme dashboard aggregates across several
+    models at once and must count exactly the rows the user could have listed.
+    One implementation, so "fails closed" is decided in one place.
+
+    A caller that omits a field needed by the requesting user's scope gets an
+    empty queryset, never an unfiltered one. Failing closed matters here: these
+    are personal case records (§9), and the cost of a silent over-broad filter is
+    a data protection incident rather than a bug report.
+    """
+    scope = user.case_scope() if scope_kind == "case" else user.referral_scope()
+
+    if scope == Scope.ALL:
+        return queryset
+
+    if scope == Scope.NONE:
+        return queryset.none()
+
+    if scope == Scope.OWN_WOREDA:
+        if not woreda_field:
+            return queryset.none()
+        return queryset.filter(**{f"{woreda_field}__in": user.woreda_assignment})
+
+    if scope == Scope.OWN_CASELOAD:
+        if not case_manager_field:
+            return queryset.none()
+        return queryset.filter(**{case_manager_field: user.pk})
+
+    if scope == Scope.LINKED:
+        return linked(queryset, user, partner_field)
+
+    return queryset.none()
+
+
 class ScopedQuerySetMixin:
     """Narrow a viewset's queryset to the rows the user's scope allows.
 
@@ -96,10 +162,7 @@ class ScopedQuerySetMixin:
             case_manager_field = "case__case_manager_id"
             partner_field = "receiving_partner_id"
 
-    A viewset that omits a field needed by the requesting user's scope gets an
-    empty queryset, never an unfiltered one. Failing closed matters here: these
-    are personal case records (§9), and the cost of a silent over-broad filter is
-    a data protection incident rather than a bug report.
+    The decision itself lives in `scope_queryset`; this is the viewset's way in.
     """
 
     scope_kind = "case"
@@ -112,44 +175,17 @@ class ScopedQuerySetMixin:
         return self.apply_scope(queryset, self.request.user)
 
     def apply_scope(self, queryset, user):
-        scope = user.case_scope() if self.scope_kind == "case" else user.referral_scope()
-
-        if scope == Scope.ALL:
-            return queryset
-
-        if scope == Scope.NONE:
-            return queryset.none()
-
-        if scope == Scope.OWN_WOREDA:
-            if not self.woreda_field:
-                return queryset.none()
-            return queryset.filter(**{f"{self.woreda_field}__in": user.woreda_assignment})
-
-        if scope == Scope.OWN_CASELOAD:
-            if not self.case_manager_field:
-                return queryset.none()
-            return queryset.filter(**{self.case_manager_field: user.pk})
-
-        if scope == Scope.LINKED:
-            return self.apply_linked_scope(queryset, user)
-
-        return queryset.none()
+        return scope_queryset(
+            queryset,
+            user,
+            scope_kind=self.scope_kind,
+            woreda_field=self.woreda_field,
+            case_manager_field=self.case_manager_field,
+            partner_field=self.partner_field,
+            # Subclasses override `apply_linked_scope`, so route through the
+            # instance rather than the module function.
+            linked=lambda qs, u, field: self.apply_linked_scope(qs, u),
+        )
 
     def apply_linked_scope(self, queryset, user):
-        """Rows linked to this user's own organisation or activity.
-
-        Partner staff are scoped to their own institution's referrals (§7). A
-        partner-staff account with no `partner` set sees nothing — User.clean
-        refuses to create one, so this is a backstop against rows written before
-        that rule existed, or by a direct database edit.
-        """
-        if user.role == Role.PARTNER_STAFF:
-            if not (user.partner_id and self.partner_field):
-                return queryset.none()
-            return queryset.filter(**{self.partner_field: user.partner_id})
-
-        # TRAINER, EMPLOYER_LIAISON and ENTERPRISE_OFFICER are linked through the
-        # entity they own — Training Enrolment (Sprint 5), Placement (Sprint 5),
-        # Enterprise (Sprint 6). Each of those viewsets overrides this method
-        # when its sprint lands.
-        return queryset.none()
+        return linked_scope(queryset, user, self.partner_field)

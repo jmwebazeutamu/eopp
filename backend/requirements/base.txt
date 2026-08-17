@@ -26,6 +26,7 @@ django-axes>=6.3,<8.0                    # login rate limiting
 argon2-cffi>=23.1,<26.0                  # password hashing
 phonenumbers>=8.13,<10.0
 Pillow>=10.2,<12.0
+openpyxl>=3.1,<4.0                       # §4.1 bulk youth intake from the woreda registers, which arrive as .xlsx
 
 gunicorn>=21.2,<24.0
 whitenoise>=6.6,<7.0

@@ -1,16 +1,20 @@
 """Youth intake and registration API — spec §4.1, §10 Sprint 1."""
 
 from django.db.models import Exists, OuterRef, Subquery
+from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema
-from rest_framework import filters, viewsets
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from apps.cases.models import Case, CaseStatus
 from apps.common.summaries import summary_response
 from apps.users.permissions import CanAccessCases, IsOperational, ScopedQuerySetMixin
 
+from . import imports
 from .models import Youth
 from .serializers import YouthIntakeSerializer, YouthSerializer
 
@@ -93,6 +97,63 @@ class YouthViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         if self.action == "create":
             return YouthIntakeSerializer
         return super().get_serializer_class()
+
+    # -- bulk intake (§4.1) -------------------------------------------------
+    #
+    # The register arrives as a spreadsheet, so the API takes one. Both actions
+    # keep the viewset's own permissions: the template is readable by anyone who
+    # may read case records, and the upload is a POST, so `CanAccessCases`
+    # already gates it on `can_write_cases`.
+
+    @extend_schema(
+        responses={(200, imports.XLSX_CONTENT_TYPE): OpenApiTypes.BINARY},
+        description="The blank youth register, with its columns and allowed values on a second sheet.",
+    )
+    @action(detail=False, methods=["get"], url_path="import/template")
+    def import_template(self, request):
+        response = HttpResponse(imports.build_template(), content_type=imports.XLSX_CONTENT_TYPE)
+        response["Content-Disposition"] = 'attachment; filename="youth-register-template.xlsx"'
+        return response
+
+    @extend_schema(
+        request={
+            "multipart/form-data": {"type": "object", "properties": {"file": {"type": "string", "format": "binary"}}}
+        },
+        parameters=[
+            OpenApiParameter(
+                "commit",
+                OpenApiTypes.BOOL,
+                description="Write the rows. Omitted or false, the file is only validated and a report returned.",
+            )
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+        description=(
+            "Import youth from a .xlsx register. Validates every row first and writes nothing unless all of them "
+            "pass; rows matching a youth already on file are skipped."
+        ),
+    )
+    @action(detail=False, methods=["post"], url_path="import", parser_classes=[MultiPartParser, FormParser])
+    def import_youth(self, request):
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response({"detail": "Attach the register as 'file'."}, status=status.HTTP_400_BAD_REQUEST)
+        if upload.size > imports.MAX_FILE_BYTES:
+            return Response(
+                {"detail": f"The file is larger than {imports.MAX_FILE_BYTES // (1024 * 1024)} MB."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            rows = imports.read_rows(upload)
+        except imports.WorkbookError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not rows:
+            return Response({"detail": "The sheet has a header row but no youth."}, status=status.HTTP_400_BAD_REQUEST)
+
+        commit = str(request.query_params.get("commit", request.data.get("commit", ""))).lower() in {"1", "true", "yes"}
+        report = imports.run_import(rows, request.user, request=request, commit=commit)
+        return Response(report)
 
     def perform_destroy(self, instance):
         """Deleting a youth would orphan the audit trail §9 requires.

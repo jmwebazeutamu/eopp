@@ -18,6 +18,7 @@ api_v1_patterns = [
     path("cases/", include("apps.cases.urls")),
     path("referrals/", include("apps.referrals.urls")),
     path("alerts/", include("apps.alerts.urls")),
+    path("dashboard/", include("apps.dashboard.urls")),
     # Added as each sprint lands (spec §10):
     #   training/    Sprint 5      enterprises/ Sprint 6
     #   placements/  Sprint 5      followups/   Sprint 6

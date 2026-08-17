@@ -92,6 +92,22 @@ export const REFERRAL_TONE: Record<ReferralStatusCode, ReferralTone> = {
   },
 };
 
+/**
+ * Spreadsheet-import row outcomes.
+ *
+ * Only `error` blocks the import, so only `error` is red — a row already on file
+ * is a normal result of re-sending a register, not a failure, and colouring it
+ * as one would teach staff to ignore the colour that matters. Gold is absent
+ * here because nothing in an import is waiting on anyone.
+ */
+export type ImportOutcome = "new" | "duplicate" | "error";
+
+export const IMPORT_TONE: Record<ImportOutcome, StatusTone> = {
+  new: { fg: "var(--green-ink)", bg: "var(--green-100)", bd: "var(--green-border)", mark: "●" },
+  duplicate: { fg: "var(--ink-600)", bg: "var(--fill-muted-2)", bd: "var(--closed-border)", mark: "⊘" },
+  error: { fg: "var(--red-700)", bg: "var(--red-100)", bd: "var(--red-border)", mark: "✕" },
+};
+
 /** Waiting-time badges escalate in tone rather than only in wording. */
 export type WaitLevel = "ok" | "warn" | "over";
 

@@ -42,17 +42,23 @@ CATEGORIES = [
     ("OTHER", "Other", "Catch-all; requires a free-text note.", False, True),
 ]
 
-# (code, label, applies_to_category_codes, requires_note) — spec §5.3
+# (code, label, applies_to_category_codes, requires_note, counts_as_placement) — spec §5.3
+#
+# `counts_as_placement` is what the programme dashboard's placement figures sum.
+# The three that carry it are the outcomes that put a young person into paid work
+# or into their own enterprise. Training Completion does not: finishing a TVET
+# course closes the referral successfully without anyone being placed, and
+# counting it would inflate the headline number the donor reads.
 OUTCOME_TYPES = [
-    ("SERVICE_UPTAKE", "Service Uptake", ["COMPLEMENTARY_SERVICE", "COACHING"], False),
-    ("TRAINING_COMPLETION", "Training Completion", ["TRAINING"], False),
-    ("JOB_PLACEMENT", "Job Placement", ["EMPLOYMENT"], False),
-    ("APPRENTICESHIP_START", "Apprenticeship Start", ["APPRENTICESHIP"], False),
-    ("ENTERPRISE_ENROLMENT", "Enterprise Enrolment", ["ENTERPRISE"], False),
-    ("FINANCE_ACCESS", "Finance Access", ["FINANCE_ACCESS"], False),
-    ("MARKET_LINKAGE_ESTABLISHED", "Market Linkage Established", ["MARKET_LINKAGE"], False),
+    ("SERVICE_UPTAKE", "Service Uptake", ["COMPLEMENTARY_SERVICE", "COACHING"], False, False),
+    ("TRAINING_COMPLETION", "Training Completion", ["TRAINING"], False, False),
+    ("JOB_PLACEMENT", "Job Placement", ["EMPLOYMENT"], False, True),
+    ("APPRENTICESHIP_START", "Apprenticeship Start", ["APPRENTICESHIP"], False, True),
+    ("ENTERPRISE_ENROLMENT", "Enterprise Enrolment", ["ENTERPRISE"], False, True),
+    ("FINANCE_ACCESS", "Finance Access", ["FINANCE_ACCESS"], False, False),
+    ("MARKET_LINKAGE_ESTABLISHED", "Market Linkage Established", ["MARKET_LINKAGE"], False, False),
     # Empty applies_to means "any category" — §5.3's Other row.
-    ("OTHER", "Other", [], True),
+    ("OTHER", "Other", [], True, False),
 ]
 
 # (code, label, description, requires_note) — spec §5.4
@@ -106,10 +112,16 @@ class Command(BaseCommand):
             )
         self.stdout.write(f"  categories: {len(CATEGORIES)}")
 
-        for order, (code, label, category_codes, requires_note) in enumerate(OUTCOME_TYPES):
+        for order, (code, label, category_codes, requires_note, is_placement) in enumerate(OUTCOME_TYPES):
             outcome, _created = OutcomeType.objects.update_or_create(
                 code=code,
-                defaults={"label": label, "requires_note": requires_note, "sort_order": order * 10, "is_active": True},
+                defaults={
+                    "label": label,
+                    "requires_note": requires_note,
+                    "counts_as_placement": is_placement,
+                    "sort_order": order * 10,
+                    "is_active": True,
+                },
             )
             outcome.applies_to.set(ReferralCategory.objects.filter(code__in=category_codes))
         self.stdout.write(f"  outcome types: {len(OUTCOME_TYPES)}")
