@@ -640,9 +640,16 @@ faults that have already shipped here once.
 - **Blue is absent and red is reserved for genuine failure.** Gold carries
   waiting, terracotta carries stalled. `--gold-500` is fill only, never behind
   text — it is 2.6:1.
-- **One breakpoint, 780px.** Below it: cards and a bottom tab bar sticky *inside*
-  the main column, never `position: fixed`. At or above: nav rail and tables.
-  Touch targets 48px, tab bar 56px.
+- **Three breakpoints, in `base.css` only.** `900px` collapses every
+  multi-column grid to one column; `780px` is the structural switch (below it:
+  cards and a bottom tab bar sticky *inside* the main column, never
+  `position: fixed`; at or above: nav rail and tables); `640px` drops the KPI
+  row to two columns. Touch targets 48px, tab bar 56px. The design handoff
+  specifies 780px alone — 900 and 640 were added on the programme's
+  instruction of 2026-08-18 and supersede it.
+- **Card padding is 24px** (`--s5`), gaps 16px between cards and 24px between
+  sections. Same instruction. `.card` is used on every screen, so changing it
+  moves every screen.
 - **Phone numbers are masked by default** (`maskPhone`). The case screen has a
   per-view, never-persisted Reveal; the registry has none at all.
 - **Strings go through `i18n/`.** English is populated; Amharic and Afaan Oromo

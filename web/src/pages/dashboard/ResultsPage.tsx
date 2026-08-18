@@ -88,7 +88,7 @@ export default function ResultsPage() {
         </table>
       </Card>
 
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+      <div className="grid-panels">
         <Card>
           <CapsLabel>{t("me.cumulative")}</CapsLabel>
           <div className="t-meta" style={{ marginTop: 2 }}>
@@ -129,7 +129,7 @@ export default function ResultsPage() {
 
       <Card>
         <CapsLabel style={{ marginBottom: 10 }}>{t("me.disaggregation")}</CapsLabel>
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+        <div className="grid-panels">
           {data.disaggregation.map((cut) => (
             <div key={cut.label}>
               <div className="t-body-strong" style={{ marginBottom: 4 }}>

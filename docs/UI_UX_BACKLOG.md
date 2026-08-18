@@ -10,7 +10,7 @@ already correct, or a matter of taste, and is recorded under
 ## Where it stands
 
 79 findings. 30 fixed (`033c171`, `1f875b3`, `160d947`), 6 partial, **38 open**,
-4 rejected on inspection, 1 deferred pending a decision.
+4 rejected on inspection.
 
 Section 4b covers the Woreda dashboard layout brief of 2026-08-18 and is
 closed. Four of its twelve items did not reproduce and are recorded as
@@ -142,7 +142,7 @@ Fixed in `160d947`. Recorded so the reasoning survives.
 | WOR-09 | — | **rejected** | ✔ | "Content off-centre" — measured equal gutters at 1280/1440/1920 once the rail is discounted. |  |
 | WOR-10 | — | **rejected** | ✔ | "Sidebar icons have no labels" — visible labels when expanded, tooltip plus `aria-label` when collapsed. |  |
 | WOR-11 | — | **rejected** | ✔ | "Every bar starts and ends at the same x" — bar length is the deliberate encoding of caseload size. Starts and tracks equalised; ends left proportional. |  |
-| WOR-12 | — | **deferred** | ✔ | Card padding 24px and the 900/640 breakpoints the brief asks for. `.card` is used on every screen, so padding is a global change; and the design system fixes one breakpoint at 780px, which `auto-fit` satisfies without adding two more. Both need a decision, not a Woreda-local edit. |  |
+| WOR-12 | — | done `fcdda28` | ✔ | Card padding 24px and the 900/640 breakpoints, **applied globally** on the programme's instruction. Supersedes the handoff's single-breakpoint rule; `.claude/skills/design/SKILL.md` and CLAUDE.md were updated so it is not reverted. Nine inline grids across the four tier pages became `.grid-panels`, since an inline reflow width cannot see a media query. |  |
 
 ## 5. Design system conformance
 

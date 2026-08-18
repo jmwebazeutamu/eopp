@@ -152,7 +152,8 @@ p {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
-  padding: 14px 16px;
+  /* 24px, on the 4px scale. Nothing touches a card edge. */
+  padding: var(--s5);
 }
 
 .card--muted {
@@ -408,7 +409,32 @@ p {
   border-radius: var(--r-chip);
 }
 
-/* -- Grids --------------------------------------------------------------- */
+/* -- Grids ---------------------------------------------------------------
+ *
+ * Reflow widths. There are three breakpoints in this stylesheet and each has a
+ * distinct job — they are not three ways of saying "small screen":
+ *
+ *   900px  every multi-column grid collapses to one column
+ *   780px  the structural switch: nav rail vs bottom tab bar, table vs cards
+ *          (the `.only-phone` / `.only-laptop` helpers below)
+ *   640px  the KPI row drops from three columns to two
+ *
+ * The 780px switch stays the design handoff's; 900 and 640 were added on the
+ * programme's instruction of 2026-08-18, superseding the handoff's
+ * single-breakpoint rule. Keep them in this file — a grid that declares its own
+ * width elsewhere will not collapse with the rest.
+ */
+
+/* Every grid in this section collapses at 900px. */
+@media (max-width: 899px) {
+  .grid-cards,
+  .grid-slots,
+  .grid-pairs,
+  .grid-panels,
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 .grid-cards {
   display: grid;
@@ -432,6 +458,20 @@ p {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--s3) var(--s4);
+}
+
+/*
+ * The dashboards' panel grid.
+ *
+ * Replaces nine inline `repeat(auto-fit, minmax(...))` declarations across the
+ * four tier pages. Inline, each carried its own reflow width and none of them
+ * could see the 900px rule.
+ */
+.grid-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--s4);
+  align-items: start;
 }
 
 /* -- Visibility helpers --------------------------------------------------
@@ -587,20 +627,29 @@ button.row-link {
  * Spacing follows the 4px scale already in tokens.css: 16px between cards,
  * 24px between sections.
  *
- * These grids reflow with `auto-fit` rather than at named widths. The design
- * system fixes one breakpoint, 780px, and adding the 900px and 640px the
- * layout brief asks for would put three in the stylesheet. `auto-fit` reaches
- * the same arrangements continuously, and is the pattern the programme
- * dashboard already uses.
+ * Grids reflow with `auto-fit` and collapse outright at 900px; see the
+ * breakpoint note in the Grids section above.
  */
 
 .kpi-row {
   display: grid;
   gap: var(--s4);
-  /* 176px keeps all five across at 1280, 1440 and 1920 — the three widths the
-     brief checks — and drops to three, then two, then one as it narrows. */
+  /* 176px keeps all five across at 1280, 1440 and 1920. */
   grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
   align-items: start;
+}
+
+/* Three across — 3+2, never 4+1 with a card alone at the left. */
+@media (max-width: 899px) {
+  .kpi-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .dash-grid {

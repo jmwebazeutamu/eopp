@@ -72,15 +72,16 @@ export default function ProgrammePage() {
         <>
           <MetricCards metrics={data.metrics} />
 
-          {/* auto-fit rather than the visibility helpers: these panels have no
-              separate phone layout, they simply stop sitting side by side. One
-              rule, so there is no way for both variants to render at once. */}
-          <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
+          {/* `.grid-panels` rather than the visibility helpers: these panels
+              have no separate phone layout, they simply stop sitting side by
+              side. One rule, so there is no way for both variants to render at
+              once — and the 900px collapse reaches them from base.css. */}
+          <div className="grid-panels">
             <FunnelPanel stages={data.funnel} />
             <LagPanel standardDays={data.confirmation_lag.standard_days} partners={data.confirmation_lag.partners} />
           </div>
 
-          <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
+          <div className="grid-panels">
             <WoredaPanel rows={data.woredas} />
             <AlertPanel alerts={data.alerts} />
           </div>
@@ -88,7 +89,7 @@ export default function ProgrammePage() {
           <PartnerLeaguePanel performance={data.partner_performance} />
           <OutcomeMatrixPanel matrix={data.outcome_matrix} />
 
-          <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
+          <div className="grid-panels">
             <ParallelLoadPanel load={data.parallel_load} />
             {/* G-13: PM-8 was computed and never rendered. */}
             <HealthPanel rows={data.data_completeness} />

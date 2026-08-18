@@ -38,7 +38,7 @@ export function MetricCards({ metrics }: { metrics: ProgrammeDashboard["metrics"
   const gender = metrics.gender_split;
 
   return (
-    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+    <div className="grid-panels">
       {/* The goal card. */}
       <Card style={{ background: "var(--green-900)", borderColor: "var(--green-900)" }}>
         <CapsLabel style={{ color: "var(--gold-300)" }}>{t("dash.placements")}</CapsLabel>

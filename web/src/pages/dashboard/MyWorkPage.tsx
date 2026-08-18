@@ -91,7 +91,7 @@ export default function MyWorkPage() {
         </>
       }
     >
-      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+      <div className="kpi-row">
         <Tile
           label={t("cm.needsAction")}
           value={data.needs_action_count}
@@ -128,7 +128,7 @@ export default function MyWorkPage() {
         />
       </div>
 
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+      <div className="grid-panels">
         <Card>
           <CapsLabel>{t("cm.needsAction")}</CapsLabel>
           <div className="t-meta" style={{ margin: "2px 0 10px" }}>

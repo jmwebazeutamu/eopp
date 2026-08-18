@@ -36,9 +36,17 @@ offices, personal case data. Breaking one is a defect, not a preference.
    it cannot be the part that is dropped.
 3. **Blue is absent. Red is genuine failure only.** Gold carries waiting, terra
    cotta carries stalled. `--gold-500` is fill only, never behind text (2.6:1).
-4. **One breakpoint, 780px.** Tables + nav rail above, cards + bottom tab bar
-   below. The tab bar is `position: sticky` inside the main column, never
-   `fixed`. Touch targets 48px, tab bar 56px.
+4. **Three breakpoints, each with one job.** `900px` collapses every
+   multi-column grid to one column · `780px` is the structural switch — tables
+   + nav rail above, cards + bottom tab bar below · `640px` drops the KPI row
+   from three columns to two. All three live in `base.css`; a grid that
+   declares its own reflow width elsewhere will not collapse with the rest.
+   The tab bar is `position: sticky` inside the main column, never `fixed`.
+   Touch targets 48px, tab bar 56px.
+
+   The handoff specifies 780px alone. 900 and 640 were added on the
+   programme's instruction of 2026-08-18 — do not "restore" the single
+   breakpoint.
 5. **Personal data is masked by default.** `maskPhone` everywhere; the case
    screen has a per-view, never-persisted reveal, the registry has none.
 6. **No icon fonts, no chart libraries, no CDN fonts.** Inline SVG paths,
