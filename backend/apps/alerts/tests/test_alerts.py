@@ -408,6 +408,60 @@ def test_summary_counts_by_type(case, case_manager, as_user, settings):
     assert len(response.data["by_type"]) == len(AlertType.choices)
 
 
+def test_summary_counters_sum_to_the_open_total(make_case, case_manager, as_user, settings):
+    """The counters and the total are the same number, broken down.
+
+    They were not. The summary grouped its own viewset queryset, and the
+    ordering — `-triggered_date` — joins the GROUP BY of a
+    `.values().annotate()`, so one alert type raised on three different days
+    came back as three rows of 1 and the dict comprehension kept only the last.
+    The alerts screen read "110 open" beside six counters summing to 51: Stall
+    showed 4 where the truth was 10, and onward prompts 2 where it was 55.
+
+    Several alerts of the *same* type on *different* days is what reproduces
+    it — one per type cannot, because there is nothing for the ordering to
+    split.
+
+    `counters_for` counts through a subquery on the primary keys, which
+    discards annotations, joins and ordering together.
+    """
+    settings.STALL_ALERT_THRESHOLD_DAYS = 30
+    for day in range(3):
+        case = make_case(case_manager)
+        _age_case(case, 45 + day)
+        tasks.detect_stalled_cases()
+    # Distinct triggered dates are what the ordering has to split on.
+    for offset, pk in enumerate(Alert.objects.values_list("pk", flat=True)):
+        Alert.objects.filter(pk=pk).update(triggered_date=date.today() - timedelta(days=offset))
+
+    body = as_user(case_manager).get("/api/v1/alerts/summary/").data
+
+    assert body["open_total"] == 3
+    assert sum(row["count"] for row in body["counters"]) == body["open_total"]
+    assert body["total"] == body["open_total"]
+    # `by_type` is the same breakdown and must agree with it.
+    assert sum(row["count"] for row in body["by_type"]) == body["open_total"]
+    assert next(r["count"] for r in body["counters"] if r["value"] == AlertType.STALL) == 3
+
+
+def test_summary_counters_name_the_parameter_that_reproduces_them(case, case_manager, as_user, settings):
+    """Each counter carries the query the chip row toggles.
+
+    `alert_type__in`, not `alert_type`: the chips select more than one type at
+    a time, and a single-value filter would return rows matching neither.
+    """
+    settings.STALL_ALERT_THRESHOLD_DAYS = 30
+    _age_case(case, 45)
+    tasks.detect_stalled_cases()
+
+    body = as_user(case_manager).get("/api/v1/alerts/summary/").data
+    assert {row["param"] for row in body["counters"]} == {"alert_type__in"}
+
+    counted = next(r["count"] for r in body["counters"] if r["value"] == AlertType.STALL)
+    listed = as_user(case_manager).get("/api/v1/alerts/", {"alert_type__in": AlertType.STALL, "status": "OPEN"}).data
+    assert listed["count"] == counted
+
+
 def test_run_all_detections_reports_each_job(case, make_referral, case_manager, taxonomy, settings):
     settings.STALL_ALERT_THRESHOLD_DAYS = 30
     _age_case(case, 45)

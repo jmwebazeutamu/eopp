@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, errorMessage } from "../api/client";
 import type { Paginated, Youth } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import FilterChips, { SearchBox } from "../components/FilterChips";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import YouthDetailModal from "../components/YouthDetailModal";
 import YouthFormModal from "../components/YouthFormModal";
@@ -124,7 +124,7 @@ export default function YouthListPage() {
 
       <SearchBox placeholder={t("cases.search")} />
 
-      <MiniDashboard resource="/youth" params={scopeParam(scope.woreda)} />
+      <FilterChips resource="/youth" params={scopeParam(scope.woreda)} />
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 

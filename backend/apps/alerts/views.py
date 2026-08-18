@@ -1,7 +1,6 @@
 """Alert API — spec §4.13, §10 Sprint 4."""
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import filters, viewsets
@@ -9,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed, ValidationError
 from rest_framework.response import Response
 
+from apps.common.summaries import counters_for, summary_response
 from apps.users.permissions import CanAccessCases, IsOperational, ScopedQuerySetMixin
 
 from .models import Alert, AlertStatus, AlertType
@@ -35,7 +35,14 @@ class AlertViewSet(ScopedQuerySetMixin, viewsets.ReadOnlyModelViewSet):
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     # `case__woreda` backs the shell's woreda scope selector; see ReferralViewSet.
-    filterset_fields = ["status", "alert_type", "case", "assigned_to", "case__woreda"]
+    # `alert_type__in` backs multi-select in the filter chip row.
+    filterset_fields = {
+        "status": ["exact"],
+        "alert_type": ["exact", "in"],
+        "case": ["exact"],
+        "assigned_to": ["exact"],
+        "case__woreda": ["exact"],
+    }
     search_fields = ["case__youth__full_name", "summary"]
     ordering_fields = ["triggered_date", "alert_type"]
     ordering = ["-triggered_date"]
@@ -107,18 +114,25 @@ class AlertViewSet(ScopedQuerySetMixin, viewsets.ReadOnlyModelViewSet):
         woredas and a case manager's cover their caseload.
         """
         visible = self.filter_queryset(self.get_queryset())
-        by_type = {row["alert_type"]: row["n"] for row in visible.open().values("alert_type").annotate(n=Count("id"))}
+        open_alerts = visible.open()
+
+        # Counted through `counters_for`, which groups a fresh subquery on the
+        # primary keys rather than this queryset.
+        #
+        # Grouping it directly was silently wrong: `Meta.ordering` joins the
+        # GROUP BY of a `.values().annotate()`, so each alert type came back
+        # split across many rows and the dict comprehension kept only the last
+        # of them. The screen showed "110 open" beside six counters summing to
+        # 51 — the same fault `counters_for` exists to prevent, reproduced by
+        # hand here.
+        counters = counters_for(open_alerts, param="alert_type__in", field="alert_type", choices=AlertType)
+        by_type = [{"alert_type": row["value"], "label": row["label"], "count": row["count"]} for row in counters]
         return Response(
             {
-                "open_total": visible.open().count(),
-                "assigned_to_me": visible.open().for_user(request.user).count(),
-                "by_type": [
-                    {
-                        "alert_type": value,
-                        "label": label,
-                        "count": by_type.get(value, 0),
-                    }
-                    for value, label in AlertType.choices
-                ],
+                "open_total": open_alerts.count(),
+                "assigned_to_me": open_alerts.for_user(request.user).count(),
+                # Kept for the navigation badge and the dashboards.
+                "by_type": by_type,
+                **summary_response(open_alerts, counters),
             }
         )

@@ -3,11 +3,30 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
-import type { Alert, AlertSummary, AlertTypeCode, Paginated } from "../api/types";
+import type { Alert, AlertSummary, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import FilterChips from "../components/FilterChips";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { Button, CapsLabel, Card, PageHeader } from "../components/ui";
-import { ALERT_REASON, ALERT_TONE } from "../design/status";
+import { ALERT_TONE } from "../design/status";
+
+/**
+ * The chip palette for each alert type.
+ *
+ * `ALERT_TONE` gives a background and a foreground; the counter cards took the
+ * foreground alone, which is the fault that rendered the Cases screen's Placed
+ * count white on white. A mark is added so a selected chip is never colour
+ * alone — a triangle for the two that mean something has gone wrong, a quarter
+ * circle for the two that mean waiting, a dot for the two that are prompts.
+ */
+const ALERT_CHIP_TONES: Record<string, { fg: string; bg: string; mark: string }> = {
+  STALL: { ...ALERT_TONE.STALL, mark: "\u25b2" },
+  REFERRAL_CONFIRMATION_OVERDUE: { ...ALERT_TONE.REFERRAL_CONFIRMATION_OVERDUE, mark: "\u25d4" },
+  FOLLOW_UP_DUE: { ...ALERT_TONE.FOLLOW_UP_DUE, mark: "\u25cf" },
+  ONWARD_REFERRAL_PROMPT: { ...ALERT_TONE.ONWARD_REFERRAL_PROMPT, mark: "\u25cf" },
+  REPLACEMENT_REFERRAL_PROMPT: { ...ALERT_TONE.REPLACEMENT_REFERRAL_PROMPT, mark: "\u25b2" },
+  RETENTION_CHECK_DUE: { ...ALERT_TONE.RETENTION_CHECK_DUE, mark: "\u25d4" },
+};
 import { useLang } from "../i18n/LanguageContext";
 
 /**
@@ -33,7 +52,8 @@ export default function AlertsPage() {
   const [resolving, setResolving] = useState<{ alert: Alert; kind: "action" | "dismiss" } | null>(null);
   const [note, setNote] = useState("");
 
-  const filter = (params.get("type") ?? "") as AlertTypeCode | "";
+  // Named by the server through the counters, not chosen here.
+  const filter = params.get("alert_type__in") ?? "";
   const canWrite = user?.access.case_write ?? false;
 
   const load = useCallback(async () => {
@@ -41,7 +61,12 @@ export default function AlertsPage() {
     try {
       const [list, summaryResponse] = await Promise.all([
         api.get<Paginated<Alert>>("/alerts/", {
-          params: { status: "OPEN", alert_type: filter || undefined, page_size: 100, ...scopeParam(scope.woreda, "case__woreda") },
+          params: {
+            status: "OPEN",
+            alert_type__in: filter || undefined,
+            page_size: 100,
+            ...scopeParam(scope.woreda, "case__woreda"),
+          },
         }),
         api.get<AlertSummary>("/alerts/summary/", { params: scopeParam(scope.woreda, "case__woreda") }),
       ]);
@@ -58,12 +83,6 @@ export default function AlertsPage() {
     void load();
   }, [load]);
 
-  function toggleFilter(type: AlertTypeCode) {
-    const next = new URLSearchParams(params);
-    if (filter === type) next.delete("type");
-    else next.set("type", type);
-    setParams(next, { replace: true });
-  }
 
   async function resolve() {
     if (!resolving) return;
@@ -85,27 +104,11 @@ export default function AlertsPage() {
         subtitle={t("alerts.subtitle", { count: summary?.open_total ?? 0, scope: scope.label })}
       />
 
-      <div className="grid-counters">
-        {(summary?.by_type ?? []).map((entry) => {
-          const tone = ALERT_TONE[entry.alert_type] ?? { fg: "var(--ink-600)", bg: "var(--fill-muted)" };
-          const active = filter === entry.alert_type;
-          return (
-            <Card
-              key={entry.alert_type}
-              onClick={() => toggleFilter(entry.alert_type)}
-              style={active ? { borderColor: "var(--green-700)", borderWidth: 2 } : undefined}
-            >
-              <div className="t-metric-sm" style={{ color: tone.fg }}>
-                {entry.count}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{entry.label}</div>
-              <div className="t-meta" style={{ fontSize: 11 }}>
-                {ALERT_REASON[entry.alert_type] ?? ""}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+      <FilterChips
+        resource="/alerts"
+        params={scopeParam(scope.woreda, "case__woreda")}
+        tones={ALERT_CHIP_TONES}
+      />
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 

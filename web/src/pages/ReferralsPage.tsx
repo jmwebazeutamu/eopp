@@ -6,7 +6,7 @@ import { api, errorMessage } from "../api/client";
 import type { Paginated, ProgrammeRules, Referral, ReferralPrompts } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import ReferralActionModal, { ACTION_LABELS, actionsFor, type ReferralAction } from "../components/ReferralActions";
-import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import FilterChips, { SearchBox } from "../components/FilterChips";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { referralRef } from "../components/ReferralPanel";
 import { Button, CapsLabel, Card, CountBadge, PageHeader, ReferralStatusChip, WaitBadge } from "../components/ui";
@@ -26,9 +26,8 @@ import { useLang } from "../i18n/LanguageContext";
  */
 
 /** Counters take their colour from the status they filter to. */
-const REFERRAL_COUNTER_TONES = Object.fromEntries(
-  Object.entries(REFERRAL_TONE).map(([status, tone]) => [status, { fg: tone.ink }]),
-);
+/** The chip palette, taken whole — see the note on CASE_COUNTER_TONES. */
+const REFERRAL_COUNTER_TONES = REFERRAL_TONE;
 
 interface Group {
   key: string;
@@ -127,7 +126,7 @@ export default function ReferralsPage() {
 
       <SearchBox placeholder="Search by youth or partner" />
 
-      <MiniDashboard resource="/referrals" params={scopeParam(scope.woreda, "case__woreda")} tones={REFERRAL_COUNTER_TONES} />
+      <FilterChips resource="/referrals" params={scopeParam(scope.woreda, "case__woreda")} tones={REFERRAL_COUNTER_TONES} />
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 

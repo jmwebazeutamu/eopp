@@ -38,7 +38,13 @@ class CaseViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     case_manager_field = "case_manager_id"
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["case_status", "woreda", "case_manager"]
+    # `case_status` keeps its exact lookup for existing links; `__in` is what
+    # the filter chip row uses to select more than one status at a time.
+    filterset_fields = {
+        "case_status": ["exact", "in"],
+        "woreda": ["exact"],
+        "case_manager": ["exact"],
+    }
     search_fields = ["youth__full_name", "youth__phone_number", "youth__national_or_kebele_id"]
     ordering_fields = ["last_activity_date", "opened_date", "case_status"]
     ordering = ["-last_activity_date"]
@@ -99,7 +105,7 @@ class CaseViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         to look next.
         """
         visible = self.filter_queryset(self.get_queryset())
-        counters = counters_for(visible, param="case_status", field="case_status", choices=CaseStatus)
+        counters = counters_for(visible, param="case_status__in", field="case_status", choices=CaseStatus)
         return Response(summary_response(visible, counters))
 
     @action(detail=False, methods=["get"], url_path="my-caseload")

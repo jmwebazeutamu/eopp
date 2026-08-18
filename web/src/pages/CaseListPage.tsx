@@ -6,7 +6,7 @@ import { api, errorMessage } from "../api/client";
 import type { CaseListRow, CaseStatus, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import CaseFormModal from "../components/CaseFormModal";
-import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import FilterChips, { SearchBox } from "../components/FilterChips";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { Button, CaseStatusChip, Card, PageHeader } from "../components/ui";
 import { CASE_TONE } from "../design/status";
@@ -28,9 +28,15 @@ import { useLang } from "../i18n/LanguageContext";
 const PAGE_SIZE = 25;
 
 /** Counters take their colour from the status they filter to. */
-const CASE_COUNTER_TONES = Object.fromEntries(
-  Object.entries(CASE_TONE).map(([status, tone]) => [status, { fg: tone.fg }]),
-);
+/**
+ * The chip palette, taken whole.
+ *
+ * This used to hand the counter cards `{ fg: tone.fg }` alone. `CASE_TONE` is a
+ * *chip* palette — `PLACED.fg` is white, meant to sit on `--green-700` — so the
+ * Placed count was painted white on a white card and rendered invisible while
+ * the other four showed. A tone is a background and a foreground together.
+ */
+const CASE_COUNTER_TONES = CASE_TONE;
 
 export default function CaseListPage() {
   const scope = useScope();
@@ -124,7 +130,7 @@ export default function CaseListPage() {
 
       {/* The counters carry the status filter now — the chip row said the same
           thing without the numbers. */}
-      <MiniDashboard resource="/cases" params={scopeParam(scope.woreda)} tones={CASE_COUNTER_TONES} />
+      <FilterChips resource="/cases" params={scopeParam(scope.woreda)} tones={CASE_COUNTER_TONES} />
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 

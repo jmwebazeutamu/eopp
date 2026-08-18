@@ -51,6 +51,8 @@ export const STRINGS = {
   "shell.scope": "Woreda scope",
   "shell.appMark": "PSNP Youth",
   "search.label": "Search records",
+  "filters.label": "Filter the list",
+  "filters.all": "All",
   "search.placeholder": "Search youth, cases, partners",
   "search.none": "Nothing found.",
   "search.youth": "Youth",

@@ -265,6 +265,33 @@ p {
   color: var(--on-dark);
 }
 
+/* Selected chips are filled, unselected outlined. The count sits inside the
+   chip so it cannot be read as a separate number. */
+.chip-filter__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+/* A zero-count chip is quieter but still a control: "no stalled cases" is a
+   finding, and a filter that demonstrates it is worth being able to click. */
+.chip-filter[data-empty="true"] {
+  color: var(--ink-600);
+  border-style: dashed;
+}
+
+.chip-filter[data-empty="true"][aria-pressed="true"] {
+  border-style: solid;
+}
+
+/* Wraps rather than scrolls. A horizontal scroller hides filters off the right
+   edge with nothing to say they are there. */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .count-badge {
   display: inline-flex;
   align-items: center;

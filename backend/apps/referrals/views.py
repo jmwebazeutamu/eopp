@@ -74,7 +74,18 @@ class ReferralViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     # `case__woreda` backs the shell's woreda scope selector. It is the same
     # column `woreda_field` scopes on, so a narrowed view is always a subset of
     # what §7 already allows — the filter cannot widen anything.
-    filterset_fields = ["case", "status", "referral_category", "receiving_partner", "referral_trigger", "case__woreda"]
+    # `case__woreda` backs the shell's woreda scope selector. It is the same
+    # column `woreda_field` scopes on, so a narrowed view is always a subset of
+    # what §7 already allows — the filter cannot widen anything. `status__in`
+    # backs multi-select in the filter chip row.
+    filterset_fields = {
+        "case": ["exact"],
+        "status": ["exact", "in"],
+        "referral_category": ["exact"],
+        "receiving_partner": ["exact"],
+        "referral_trigger": ["exact"],
+        "case__woreda": ["exact"],
+    }
     search_fields = ["case__youth__full_name", "receiving_partner__partner_name"]
     ordering_fields = ["initiated_date", "status"]
     ordering = ["-initiated_date"]
@@ -282,7 +293,7 @@ class ReferralViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         """Referral counts by §6.1 status, for the queue's counter row."""
         visible = self.filter_queryset(self.get_queryset())
         return Response(
-            summary_response(visible, counters_for(visible, param="status", field="status", choices=ReferralStatus))
+            summary_response(visible, counters_for(visible, param="status__in", field="status", choices=ReferralStatus))
         )
 
     @extend_schema(responses={200: None})

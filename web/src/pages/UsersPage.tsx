@@ -14,7 +14,7 @@ import {
   type Role,
 } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import FilterChips, { SearchBox } from "../components/FilterChips";
 import UserDetailModal from "../components/UserDetailModal";
 import { Button, Card, MutedChip, PageHeader } from "../components/ui";
 import { useLang } from "../i18n/LanguageContext";
@@ -126,7 +126,7 @@ export default function UsersPage() {
 
       <SearchBox placeholder="Search by name, username or email" />
 
-      <MiniDashboard resource="/users" />
+      <FilterChips resource="/users" />
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 

@@ -5,7 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { api, errorMessage } from "../api/client";
 import type { Paginated, Partner } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import FilterChips, { SearchBox } from "../components/FilterChips";
 import PartnerDetailModal, { MOU_TONE } from "../components/PartnerDetailModal";
 import PartnerFormModal from "../components/PartnerFormModal";
 import { Button, CapsLabel, Card, Field, MutedChip, PageHeader } from "../components/ui";
@@ -81,7 +81,7 @@ export default function PartnersPage() {
 
       <SearchBox placeholder="Search by name, contact or email" />
 
-      <MiniDashboard resource="/partners" />
+      <FilterChips resource="/partners" />
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 
