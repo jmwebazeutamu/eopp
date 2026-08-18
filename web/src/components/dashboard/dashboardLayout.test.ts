@@ -5,7 +5,7 @@ import {
   barPercent,
   funnelFill,
   lagScale,
-  splitSegments,
+  compositionSegments,
   standardMarkPercent,
 } from "./dashboardLayout";
 
@@ -85,19 +85,60 @@ describe("lagScale", () => {
   });
 });
 
-describe("splitSegments", () => {
-  it("closes the bar even when the two rounded shares do not total 100", () => {
-    // 46.4 and 53.6 both round down; drawn independently they leave a hairline.
-    const segments = splitSegments(46, 53);
-    expect(segments.female + segments.male).toBe(100);
+describe("compositionSegments", () => {
+  it("never derives a segment by subtraction", () => {
+    // The gender bar drew women from the API and computed men as 100 - women,
+    // which absorbed every "Other" and unrecorded youth into the male segment.
+    const segments = compositionSegments(
+      [
+        { key: "FEMALE", label: "Women", n: 26 },
+        { key: "MALE", label: "Men", n: 24 },
+        { key: "OTHER", label: "Other", n: 8 },
+      ],
+      63,
+    );
+    expect(segments.map((s) => s.key)).toEqual(["FEMALE", "MALE", "OTHER", "unaccounted"]);
+    expect(segments.find((s) => s.key === "MALE")?.n).toBe(24);
   });
 
-  it("clamps a share that arrives out of range", () => {
-    expect(splitSegments(140, 0).female).toBe(100);
-    expect(splitSegments(-5, 100).female).toBe(0);
+  it("surfaces whatever the server did not account for", () => {
+    // 26 + 24 of 63 leaves 13 unaccounted. A bar that does not add up should
+    // look like one rather than quietly balancing itself.
+    const segments = compositionSegments(
+      [
+        { key: "FEMALE", label: "Women", n: 26 },
+        { key: "MALE", label: "Men", n: 24 },
+      ],
+      63,
+    );
+    const remainder = segments.find((s) => s.key === "unaccounted");
+    expect(remainder?.n).toBe(13);
+    expect(remainder?.percent).toBe(21);
   });
 
-  it("gives the whole bar to one side when every placement is one sex", () => {
-    expect(splitSegments(100, 0)).toEqual({ female: 100, male: 0 });
+  it("adds no remainder when the categories account for the total", () => {
+    const segments = compositionSegments(
+      [
+        { key: "FEMALE", label: "Women", n: 30 },
+        { key: "MALE", label: "Men", n: 30 },
+      ],
+      60,
+    );
+    expect(segments.map((s) => s.key)).toEqual(["FEMALE", "MALE"]);
+  });
+
+  it("drops empty categories rather than drawing zero-width slivers", () => {
+    const segments = compositionSegments(
+      [
+        { key: "FEMALE", label: "Women", n: 10 },
+        { key: "OTHER", label: "Other", n: 0 },
+      ],
+      10,
+    );
+    expect(segments.map((s) => s.key)).toEqual(["FEMALE"]);
+  });
+
+  it("returns nothing at all for an empty total", () => {
+    expect(compositionSegments([{ key: "FEMALE", label: "Women", n: 0 }], 0)).toEqual([]);
   });
 });

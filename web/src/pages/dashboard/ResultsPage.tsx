@@ -4,6 +4,7 @@ import { NotYet } from "../../components/dashboard/panels";
 import { RateValue } from "../../components/dashboard/Figure";
 import { barPercent } from "../../components/dashboard/dashboardLayout";
 import { useLang } from "../../i18n/LanguageContext";
+import { formatAsOf } from "../../i18n/asOf";
 import { useTier } from "./useTier";
 
 /**
@@ -31,7 +32,7 @@ export default function ResultsPage() {
     <>
       <PageHeader
         title={t("tier.resultsFull")}
-        subtitle={`${data.scope_label} · ${t("tier.asOf", { when: new Date(data.as_of).toLocaleDateString() })}`}
+        subtitle={`${data.scope_label} · ${t("tier.asOf", { when: formatAsOf(data.as_of) })}`}
       />
 
       <Card>

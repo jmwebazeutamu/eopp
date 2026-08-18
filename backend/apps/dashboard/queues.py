@@ -134,6 +134,12 @@ def caseload_by_status(user):
         )
     )
     by_status = {row["case_status"]: row for row in rows}
+    # Stalled is the one status with a second, independent measure. §6.2 is
+    # explicit that stall *detection* raises an alert and never sets the status
+    # — moving a case to Stalled is a judgement, an observation about the clock
+    # is not — so the two legitimately differ, and the screen showing 52 in this
+    # table and 55 in the at-risk list beside it was a labelling defect rather
+    # than an arithmetic one. Each row now says what it is counting.
     return [
         {
             "status": status,
@@ -141,6 +147,8 @@ def caseload_by_status(user):
             "n": by_status.get(status, {}).get("n", 0),
             "oldest_days": (by_status.get(status, {}).get("oldest") or timedelta()).days,
             "slug": status.lower(),
+            "unit": str(_("cases")),
+            "basis": str(_("recorded status")),
         }
         for status in STATUS_ORDER
     ]
@@ -170,6 +178,24 @@ UNINSTRUMENTED_RISK_CONDITIONS = [
     _("Left a placement with no exit reason — placements are not recorded yet"),
     _("4+ failed contact attempts — follow-up calls are not recorded yet"),
 ]
+
+
+def caseload_basis(user):
+    """Whose cases the caseload table is actually showing.
+
+    "My caseload" is true for a case manager and false for anyone whose §7 scope
+    is wider: an administrator saw 546 cases under that heading, none of which
+    were theirs. The card reads this rather than assuming.
+    """
+    from apps.users.models import Scope
+
+    scope = user.case_scope()
+    if scope == Scope.OWN_CASELOAD:
+        return {"own": True, "label": str(_("My caseload"))}
+    if scope == Scope.OWN_WOREDA:
+        woredas = ", ".join(user.woreda_assignment) or str(_("no woreda assigned"))
+        return {"own": False, "label": str(_("Caseload in %(woredas)s") % {"woredas": woredas})}
+    return {"own": False, "label": str(_("Caseload, all woredas"))}
 
 
 def at_risk(user):

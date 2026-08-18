@@ -15,6 +15,7 @@ never replied.
 from datetime import date, timedelta
 
 import pytest
+from django.conf import settings
 
 from apps.dashboard.rules import REPORT_MIN_DENOMINATOR
 from apps.dashboard.services import (
@@ -253,7 +254,7 @@ def test_a_funnel_below_the_floor_keeps_its_counts_and_drops_its_percentages(loc
 # ---------------------------------------------------------------------------
 
 
-def test_confirmation_lag_averages_days_from_sent_to_decision(
+def test_confirmation_lag_reports_the_median_not_the_mean(
     locations, programme_manager, case_manager, make_case, make_referral
 ):
     referral = make_referral(make_case(programme_manager, name="Waited Six Days"))
@@ -262,13 +263,16 @@ def test_confirmation_lag_averages_days_from_sent_to_decision(
     referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_date=date.today())
 
     lag = programme_dashboard(programme_manager)["confirmation_lag"]
-    assert lag["standard_days"] == 14
-    # One observation: the mean is withheld, but the partner and the count stay,
-    # so the panel says "too few to assess" rather than implying a fast partner.
+    assert lag["standard_days"] == settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS
+    # Both pages read this from one helper now. It used to compute a mean here
+    # and a median on the woreda page, so the two disagreed on identical n.
     assert lag["partners"] == [
         {
             "partner": "Adama Polytechnic College",
-            "lag": {"days": None, "n": 1, "band": "suppressed", "note": "Too few to assess."},
+            "median_days": None,
+            "n": 0,
+            "staff_recorded": 1,
+            "band": "suppressed",
         }
     ]
 
@@ -299,9 +303,10 @@ def test_partners_are_ordered_by_evidence_not_by_speed(
     referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_date=date.today())
 
     partners = programme_dashboard(programme_manager)["confirmation_lag"]["partners"]
-    # The faster partner does not lead on one observation.
+    # Staff recorded all of these on the partners' behalf, so none of them
+    # measures partner responsiveness; the order falls back to evidence.
     assert [row["partner"] for row in partners] == ["Adama Polytechnic College", "Thin Evidence Institute"]
-    assert [row["lag"]["n"] for row in partners] == [3, 1]
+    assert [row["staff_recorded"] for row in partners] == [3, 1]
 
 
 # ---------------------------------------------------------------------------
@@ -429,7 +434,7 @@ def test_panels_compose_from_the_same_scoped_bases(locations, programme_manager,
 
     assert metric_cards(youth, referrals, date.today())["placements_this_quarter"]["value"] == 1
     assert funnel(youth, cases, referrals)[0]["count"] == 1
-    assert confirmation_lag(referrals)["partners"][0]["lag"]["n"] == 1
+    assert confirmation_lag(referrals)["partners"][0]["staff_recorded"] == 1
     assert woreda_comparison(youth, referrals)[0]["placed"] == 1
 
 

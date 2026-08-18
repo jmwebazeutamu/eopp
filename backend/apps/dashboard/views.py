@@ -7,6 +7,7 @@ Sprint 7. This serves the first, and does not duplicate the second.
 
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import BasePermission
@@ -117,6 +118,13 @@ class MyWorkView(APIView):
                 "active": queues.active_referrals(user),
                 "uninstrumented_risk": [str(c) for c in queues.UNINSTRUMENTED_RISK_CONDITIONS],
                 "caseload_by_status": queues.caseload_by_status(user),
+                # 4.4: whose cases these are. "My caseload" is only true for a
+                # case manager.
+                "caseload_basis": queues.caseload_basis(user),
+                # 4.3: the at-risk list measures the clock, the table measures
+                # the recorded status. They differ legitimately (§6.2) and the
+                # screen has to say which is which.
+                "at_risk_basis": str(_("threshold reached")),
                 "week": queues.week_counts(user),
                 "outcomes_verified": queues.outcomes_verified(user),
                 "woredas": list(user.woreda_assignment or []),

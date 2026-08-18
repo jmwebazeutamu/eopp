@@ -128,10 +128,14 @@ export function FunnelPanel({ stages }: { stages: FunnelStage[] }) {
                   ? t("dash.lostUnknown", { count: stage.lost.count })
                   : t("dash.lost", { count: stage.lost.count, percent: stage.lost.share.percent })}
               </strong>
-              {stages[index + 1]?.median_days_in_prev_stage !== null &&
-                stages[index + 1]?.median_days_in_prev_stage !== undefined && (
-                  <> · {t("dash.medianInStage", { days: stages[index + 1].median_days_in_prev_stage as number })}</>
-                )}
+              {" "}
+              {t("dash.lostTo", { stage: stage.lost.to_label })}
+              {/* The duration is the one for THIS transition. It used to read
+                  the next row's median, which after the coverage rows landed
+                  between the gates was a different transition entirely. */}
+              {stage.lost.median_days !== null && (
+                <> · {t("dash.medianInStage", { days: stage.lost.median_days })}</>
+              )}
             </div>
           )}
         </div>

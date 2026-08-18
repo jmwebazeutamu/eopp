@@ -4,6 +4,7 @@ import { OutcomeMatrixPanel, ParallelLoadPanel, PartnerLeaguePanel } from "../..
 import { AlertPanel, FunnelPanel, LagPanel, WoredaPanel } from "../../components/dashboard/panels";
 import { CapsLabel, Card, MutedChip, PageHeader } from "../../components/ui";
 import { useLang } from "../../i18n/LanguageContext";
+import { formatAsOf } from "../../i18n/asOf";
 import { useTier } from "./useTier";
 
 /**
@@ -60,9 +61,7 @@ export default function ProgrammePage() {
         title={t("tier.programmeFull")}
         subtitle={
           data
-            ? `${t("dash.subtitle", { period: data.period.label, scope: data.scope_label })} · ${t("pm.asOf", {
-                when: new Date(data.as_of).toLocaleString(),
-              })}`
+            ? `${t("dash.subtitle", { period: data.period.label, scope: data.scope_label })} · ${t("pm.asOf", { when: formatAsOf(data.as_of) })}`
             : undefined
         }
       />

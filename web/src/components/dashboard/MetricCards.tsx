@@ -1,10 +1,9 @@
 import type { CSSProperties } from "react";
 
-import type { ProgrammeDashboard } from "../../api/types";
+import type { GenderSplit, ProgrammeDashboard } from "../../api/types";
 import { useLang } from "../../i18n/LanguageContext";
 import { CapsLabel, Card } from "../ui";
-import type { Rate } from "../../api/types";
-import { splitSegments } from "./dashboardLayout";
+import { compositionSegments } from "./dashboardLayout";
 import { NotYet } from "./panels";
 
 /**
@@ -94,7 +93,7 @@ export function MetricCards({ metrics }: { metrics: ProgrammeDashboard["metrics"
       <Card>
         <CapsLabel>{t("dash.genderSplit")}</CapsLabel>
         {gender.available ? (
-          <GenderBar female={gender.female} male={gender.male} baseline={gender.registration_female} />
+          <GenderBar split={gender} />
         ) : (
           <div className="t-meta" style={{ marginTop: 10 }}>
             {t("dash.noPlacementsYet")}
@@ -108,26 +107,52 @@ export function MetricCards({ metrics }: { metrics: ProgrammeDashboard["metrics"
 /**
  * A single 34px stacked bar, per the handoff.
  *
- * Both labels sit inside their own segment in `--ink-900`. `--gold-500` is
- * documented as fill-only because it is 2.6:1 against paper — but that is the
- * ratio for gold *as* text. Ink on gold is 5.9:1, which clears AA, and it is
- * what the handoff's own dashboard mockup shows. Do not "fix" this to white.
+ * Every category the server returns gets a segment, and anything it did not
+ * account for gets its own. The bar used to draw women from the API and derive
+ * men as `100 - women`, which absorbed a fifth of the placements — every youth
+ * whose sex is "Other" or unrecorded — into the male segment without trace.
+ *
+ * Labels sit inside their own segment in `--ink-900`. `--gold-500` is documented
+ * as fill-only because it is 2.6:1 against paper; that is the ratio for gold
+ * *as* text. Ink on gold is 5.9:1, which clears AA, and it is what the handoff's
+ * own mockup shows. Do not "fix" this to white.
  */
-function GenderBar({ female, male, baseline }: { female: Rate; male: Rate; baseline: Rate }) {
+const SEX_FILL: Record<string, string> = {
+  FEMALE: "var(--gold-500)",
+  MALE: "var(--green-700)",
+  OTHER: "var(--green-500)",
+  unaccounted: "var(--cancelled-bar)",
+};
+
+const SEX_INK: Record<string, string> = {
+  FEMALE: "var(--ink-900)",
+  MALE: "var(--on-dark)",
+  OTHER: "var(--on-dark)",
+  unaccounted: "var(--on-dark)",
+};
+
+function GenderBar({ split }: { split: GenderSplit }) {
   const { t } = useLang();
 
-  // Below the reporting floor the split is not drawn at all. A 67/33 bar off
-  // three placements invites exactly the parity conclusion three cases cannot
-  // support, and a bar is more persuasive than the asterisk beside it.
-  if (female.percent === null || male.percent === null) {
+  // Below the reporting floor the split is not drawn at all: a bar off three
+  // placements invites a parity conclusion three cases cannot support, and a
+  // bar is more persuasive than the asterisk beside it.
+  if (split.female.percent === null) {
     return (
       <div className="t-meta" style={{ marginTop: 10 }}>
-        {t("dash.splitTooFew", { n: female.d })}
+        {t("dash.splitTooFew", { n: split.female.d })}
       </div>
     );
   }
 
-  const segments = splitSegments(female.percent, male.percent);
+  const segments = compositionSegments(
+    [
+      { key: "FEMALE", label: t("dash.womenLabel"), n: split.female.n },
+      { key: "MALE", label: t("dash.menLabel"), n: split.male.n },
+      { key: "OTHER", label: t("dash.otherLabel"), n: split.other?.n ?? 0 },
+    ],
+    split.placed_total,
+  );
 
   return (
     <>
@@ -142,46 +167,37 @@ function GenderBar({ female, male, baseline }: { female: Rate; male: Rate; basel
           fontWeight: 600,
         }}
       >
-        <span
-          style={{
-            width: `${segments.female}%`,
-            background: "var(--gold-500)",
-            color: "var(--ink-900)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            // The label is dropped rather than allowed to overflow into the
-            // neighbouring segment; the figure below still states both shares.
-            overflow: "hidden",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {segments.female >= 22 ? t("dash.women", { percent: segments.female }) : ""}
-        </span>
-        <span
-          style={{
-            width: `${segments.male}%`,
-            background: "var(--green-700)",
-            color: "var(--on-dark)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {segments.male >= 22 ? t("dash.men", { percent: segments.male }) : ""}
-        </span>
+        {segments.map((segment) => (
+          <span
+            key={segment.key}
+            title={`${segment.label}: ${segment.n}`}
+            style={{
+              width: `${segment.percent}%`,
+              background: SEX_FILL[segment.key] ?? "var(--fill-muted-2)",
+              color: SEX_INK[segment.key] ?? "var(--ink-900)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {segment.percent >= 18 ? `${segment.percent}%` : ""}
+          </span>
+        ))}
       </div>
+
+      {/* Every segment named with its own count, so nothing rests on the bar. */}
       <div className="t-meta" style={{ marginTop: 8 }}>
-        {t("dash.women", { percent: segments.female })} · {t("dash.men", { percent: segments.male })} ·{" "}
-        {t("dash.ofCount", { n: female.n + male.n, d: female.d })}
-        {female.band === "provisional" && "*"}
+        {segments.map((segment) => `${segment.label} ${segment.percent}% (${segment.n})`).join(" · ")}
       </div>
-      {baseline.percent !== null && (
-        <div className="t-meta">{t("dash.registrationBaseline", { percent: baseline.percent })}</div>
+      <div className="t-meta">{t("dash.ofCount", { n: split.placed_total, d: split.placed_total })}</div>
+      {split.registration_female.percent !== null && (
+        <div className="t-meta">
+          {t("dash.registrationBaseline", { percent: split.registration_female.percent })}
+        </div>
       )}
-      {female.band === "provisional" && <div className="t-meta">{t("dash.provisionalNote")}</div>}
+      {split.female.band === "provisional" && <div className="t-meta">{t("dash.provisionalNote")}</div>}
     </>
   );
 }

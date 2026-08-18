@@ -2,6 +2,7 @@ import type { CompletenessRow, WoredaDashboard } from "../../api/types";
 import { CapsLabel, Card, MutedChip, PageHeader } from "../../components/ui";
 import { useLang } from "../../i18n/LanguageContext";
 import { NotYet } from "../../components/dashboard/panels";
+import { formatAsOf } from "../../i18n/asOf";
 import { useTier } from "./useTier";
 
 /**
@@ -94,9 +95,7 @@ export default function WoredaPage() {
     <>
       <PageHeader
         title={t("tier.woredaFull")}
-        subtitle={`${t("tier.woredaWhy")} · ${data.scope_label} · ${t("ws.asOf", {
-          when: new Date(data.as_of).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        })}`}
+        subtitle={`${t("tier.woredaWhy")} · ${data.scope_label} · ${t("ws.asOf", { when: formatAsOf(data.as_of) })}`}
       />
 
       {/* W-5. Four of these were already computed further down the page and

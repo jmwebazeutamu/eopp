@@ -63,16 +63,41 @@ export function standardMarkPercent(standard: number, scale: number): number {
 }
 
 /**
- * The gender split bar.
+ * Segments of a composition bar, sized from the values the server actually sent.
  *
- * Rounding each share independently can total 99 or 101 and leave a hairline
- * gap or an overflow in a two-segment bar that must read as one whole. The
- * second segment takes the remainder so the bar always closes.
+ * The gender bar used to render women from the API and derive men as
+ * `100 - women`, which silently absorbed every other category into "men": 13 of
+ * 63 placements whose sex is "Other" or unrecorded disappeared into the male
+ * segment, and "Other" is a real category holding 122 of 614 registered youth.
+ *
+ * Nothing is derived by subtraction here. Anything the server did not account
+ * for surfaces as its own remainder segment rather than being folded into a
+ * neighbour, so a bar that does not add up looks like one.
  */
-export function splitSegments(female: number, male: number): { female: number; male: number } {
-  const left = Math.max(0, Math.min(100, Math.round(female)));
-  const right = Math.max(0, 100 - left);
-  // `male` is the server's own figure; it is only used to decide whether the
-  // split is meaningful at all, not to size the bar.
-  return { female: left, male: male > 0 || left < 100 ? right : 0 };
+export interface Segment {
+  key: string;
+  label: string;
+  n: number;
+}
+
+export function compositionSegments(
+  segments: Segment[],
+  total: number,
+): { key: string; label: string; n: number; percent: number }[] {
+  if (total <= 0) return [];
+  const accounted = segments.reduce((sum, segment) => sum + segment.n, 0);
+  const rows = segments
+    .filter((segment) => segment.n > 0)
+    .map((segment) => ({ ...segment, percent: Math.round((segment.n / total) * 100) }));
+
+  const unaccounted = total - accounted;
+  if (unaccounted > 0) {
+    rows.push({
+      key: "unaccounted",
+      label: "Not recorded",
+      n: unaccounted,
+      percent: Math.round((unaccounted / total) * 100),
+    });
+  }
+  return rows;
 }

@@ -51,8 +51,16 @@ function stage(
   };
 }
 
-function lost(count: number, of: number): FunnelStage["lost"] {
-  return { count, share: reported(count, of, Math.round((count * 100) / of)) };
+function lost(count: number, of: number, toLabel = "Referred", medianDays: number | null = 23): FunnelStage["lost"] {
+  return {
+    count,
+    share: reported(count, of, Math.round((count * 100) / of)),
+    to_stage: toLabel.toLowerCase().replace(/ /g, "_"),
+    to_label: toLabel,
+    // The duration belongs to the transition this loss describes, not to
+    // whichever row happens to come next in the list.
+    median_days: medianDays,
+  };
 }
 
 function mean(days: number, n: number): MeanDays {
@@ -310,11 +318,18 @@ describe("ProgrammePage", () => {
     expect(screen.getByText("69 lost (28%)")).toBeInTheDocument();
   });
 
-  it("shows median days in stage, which no funnel chart can", async () => {
-    renderDashboard();
-    // Reported against the stage above, so it sits on the transition it measures.
-    expect(await screen.findByText(/median 13 days in stage/)).toBeInTheDocument();
-    expect(screen.getByText(/median 60 days in stage/)).toBeInTheDocument();
+  it("pairs each loss with the duration of its own transition", async () => {
+    // 4.6. "76 lost between Case opened and Referred" was printed beside the
+    // 0-day median for Case opened to Profiled, and the 22-day median the loss
+    // actually spans never reached the screen.
+    const data = payload();
+    data.funnel[1].lost = lost(24, 394, "Referred", 22);
+    renderDashboard(data);
+
+    const row = await screen.findByText(/24 lost/);
+    const text = row.parentElement?.textContent ?? "";
+    expect(text).toContain("reaching Referred");
+    expect(text).toContain("median 22 days in stage");
   });
 
   it("orders partners by how much evidence there is, not by speed", async () => {

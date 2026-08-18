@@ -23,7 +23,7 @@ after go-live can join the headline figure without a deploy.
 from datetime import date
 
 from django.conf import settings
-from django.db.models import Avg, Count, DurationField, ExpressionWrapper, F, Min, Q
+from django.db.models import Count, F, Min, Q
 from django.utils.translation import gettext_lazy as _
 
 from apps.cases.models import Case
@@ -32,7 +32,7 @@ from apps.users.models import Scope
 from apps.users.permissions import scope_queryset
 from apps.youth.models import Sex, Youth
 
-from .rules import mean_days, quarter_elapsed_fraction, rate
+from .rules import band_for, median, quarter_elapsed_fraction, rate
 
 # §4.7 Placement, with the 30/60/90-day retention checkpoints, is Sprint 5.
 # Everything the funnel's last row and the retention card need comes from it.
@@ -191,20 +191,16 @@ def metric_cards(youth, referrals, today):
             # conclusion the numbers cannot support.
             "female": rate(by_sex.get(Sex.FEMALE, 0), placed_total),
             "male": rate(by_sex.get(Sex.MALE, 0), placed_total),
+            # "Other" is a real category — 122 of 614 registered youth — not a
+            # rounding remainder. The bar used to derive men by subtraction,
+            # which folded this segment and every unrecorded sex into "men".
+            "other": rate(by_sex.get(Sex.OTHER, 0), placed_total),
             "registration_female": rate(registered_female, registered_total),
         },
     }
 
 
-def _median(values):
-    """Whole days. No numpy for one statistic on a few hundred rows."""
-    ordered = sorted(v for v in values if v is not None)
-    if not ordered:
-        return None
-    middle = len(ordered) // 2
-    if len(ordered) % 2:
-        return ordered[middle]
-    return round((ordered[middle - 1] + ordered[middle]) / 2)
+# `rules.median` is the one implementation; services had a second copy.
 
 
 # The pipeline, as one row per stage. `date_field` is the annotation that says
@@ -303,7 +299,7 @@ def funnel(youth, cases, referrals):
                 for row in reached
                 if row[previous_field] is not None and row[field] >= row[previous_field]
             ]
-            median_days = _median(spans)
+            median_days = median(spans)
 
         # OQ-1 is settled and the column exists, but nothing has written to it
         # yet. An empty column is "not instrumented", never a 100% loss.
@@ -348,7 +344,21 @@ def funnel(youth, cases, referrals):
         # been "lost" at profiling.
         if gating and last_gating is not None:
             lost = last_gating["count"] - count
-            last_gating["lost"] = {"count": lost, "share": rate(lost, last_gating["count"])}
+            # The duration belongs to the transition the loss describes.
+            #
+            # The card used to pair a gate's loss with the *next row's* median,
+            # which after the coverage rows landed between them was a different
+            # transition entirely: "76 lost between Case opened and Referred"
+            # was printed beside the 0-day median for Case opened to Profiled,
+            # while the 22-day median that loss actually spans never reached the
+            # screen. Carrying it inside `lost` makes the pairing structural.
+            last_gating["lost"] = {
+                "count": lost,
+                "share": rate(lost, last_gating["count"]),
+                "to_stage": key,
+                "to_label": str(label),
+                "median_days": median_days,
+            }
         out.append(entry)
         if gating:
             last_gating = entry
@@ -372,38 +382,75 @@ def funnel(youth, cases, referrals):
     return out
 
 
-def confirmation_lag(referrals):
-    """Days from referral sent to partner decision, averaged per partner.
+def partner_response_times(referrals):
+    """WS-4 — median days from referral sent to partner decision, per partner.
 
-    Only referrals that actually got a decision are averaged. Including the ones
-    still waiting would score a partner who has never replied as fast, because a
-    null lag is not a short lag.
+    Median, not mean, and every row carries its n.
     """
-    lag = ExpressionWrapper(F("confirmed_date") - F("initiated_date"), output_field=DurationField())
-    rows = (
-        referrals.filter(confirmed_date__isnull=False)
-        .values("receiving_partner_id", "receiving_partner__partner_name")
-        .annotate(mean=Avg(lag), n=Count("id"))
-        .order_by("mean")
+    rows = {}
+    for partner, initiated, confirmed, recorded_by in referrals.filter(confirmed_date__isnull=False).values_list(
+        "receiving_partner__partner_name", "initiated_date", "confirmed_date", "confirmation_recorded_by_id"
+    ):
+        entry = rows.setdefault(partner, {"partner_answered": [], "staff_recorded": 0})
+        if recorded_by is None:
+            # The partner answered through their own login. Only these measure
+            # partner responsiveness.
+            entry["partner_answered"].append((confirmed - initiated).days)
+        else:
+            entry["staff_recorded"] += 1
+
+    # A case manager may record a partner's confirmation on their behalf
+    # (decided 2026-08-18). That keeps the queue moving, and it would quietly
+    # destroy this card if the two were averaged together: a partner who never
+    # answers would score identically to one who answers in a day, because staff
+    # kept things moving for them. The median is computed over the partner's own
+    # answers, and the staff-recorded count sits beside it so the reader can see
+    # how much of the traffic is being carried by staff.
+    out = [
+        {
+            "partner": partner,
+            "median_days": (
+                median(entry["partner_answered"]) if band_for(len(entry["partner_answered"])) != "suppressed" else None
+            ),
+            "n": len(entry["partner_answered"]),
+            "staff_recorded": entry["staff_recorded"],
+            "band": band_for(len(entry["partner_answered"])),
+        }
+        for partner, entry in rows.items()
+    ]
+    # Slowest first among those with enough evidence to judge, so the partner a
+    # supervisor needs to chase is at the top. Anything the bands withheld sinks
+    # to the bottom rather than being ranked on a median it does not have.
+    #
+    # `staff_recorded` is the last tiebreak so the order is deterministic even
+    # when every median is withheld — which happens whenever staff have been
+    # recording confirmations on partners' behalf, and left the rows in
+    # arbitrary order.
+    return sorted(
+        out,
+        key=lambda row: (
+            row["median_days"] is None,
+            -(row["median_days"] or 0),
+            -row["n"],
+            -row["staff_recorded"],
+            row["partner"],
+        ),
     )
+
+
+def confirmation_lag(referrals):
+    """The same figures the woreda page shows, from the same helper.
+
+    This used to compute its own **mean** while the woreda page computed a
+    **median** over the same referrals, so the two pages disagreed by a day or
+    two on identical n — Adama Health Centre read 9 here and 8 there, and the
+    woreda page was the one matching the raw data. One partner sitting on a
+    referral for months drags a mean somewhere no individual referral ever was,
+    which is why the handoff specifies a median.
+    """
     return {
         "standard_days": confirmation_standard_days(),
-        # Ordered by the number of referrals each mean rests on, not by the mean
-        # itself. Sorting by speed ranks partners by luck when the denominators
-        # are this small, and a published ranking is hard to withdraw; ordering
-        # by n puts the partners there is most evidence about at the top and
-        # removes the ranking incentive.
-        "partners": sorted(
-            [
-                {
-                    "partner": row["receiving_partner__partner_name"],
-                    "lag": mean_days(row["mean"].days + row["mean"].seconds / 86400, row["n"]),
-                }
-                for row in rows
-                if row["mean"] is not None
-            ],
-            key=lambda entry: -entry["lag"]["n"],
-        ),
+        "partners": partner_response_times(referrals),
     }
 
 

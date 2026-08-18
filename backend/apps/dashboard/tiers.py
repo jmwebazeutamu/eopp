@@ -36,7 +36,8 @@ from apps.referrals.models import ConfirmationStatus, ReferralStatus
 from apps.referrals.taxonomy import OutcomeType, ReferralCategory
 from apps.youth.models import DisabilityStatus, PsnpStatus, SettlementType, Sex
 
-from .rules import VERDICT_LABEL, age_band, band_for, funnel_verdict, median, rate, wilson_bounds
+from .rules import VERDICT_LABEL, age_band, funnel_verdict, median, rate, wilson_bounds
+from .services import partner_response_times
 
 PLACEMENT_PENDING = _("Not measurable yet: placements and their follow-up checks are not recorded in the system.")
 TRAINING_PENDING = _("Not measurable yet: training enrolments are not recorded in the system.")
@@ -225,48 +226,6 @@ def woreda_supervisor(youth, cases, referrals):
 # ---------------------------------------------------------------------------
 # Tier 3 — programme manager
 # ---------------------------------------------------------------------------
-
-
-def partner_response_times(referrals):
-    """WS-4 — median days from referral sent to partner decision, per partner.
-
-    Median, not mean, and every row carries its n.
-    """
-    rows = {}
-    for partner, initiated, confirmed, recorded_by in referrals.filter(confirmed_date__isnull=False).values_list(
-        "receiving_partner__partner_name", "initiated_date", "confirmed_date", "confirmation_recorded_by_id"
-    ):
-        entry = rows.setdefault(partner, {"partner_answered": [], "staff_recorded": 0})
-        if recorded_by is None:
-            # The partner answered through their own login. Only these measure
-            # partner responsiveness.
-            entry["partner_answered"].append((confirmed - initiated).days)
-        else:
-            entry["staff_recorded"] += 1
-
-    # A case manager may record a partner's confirmation on their behalf
-    # (decided 2026-08-18). That keeps the queue moving, and it would quietly
-    # destroy this card if the two were averaged together: a partner who never
-    # answers would score identically to one who answers in a day, because staff
-    # kept things moving for them. The median is computed over the partner's own
-    # answers, and the staff-recorded count sits beside it so the reader can see
-    # how much of the traffic is being carried by staff.
-    out = [
-        {
-            "partner": partner,
-            "median_days": (
-                median(entry["partner_answered"]) if band_for(len(entry["partner_answered"])) != "suppressed" else None
-            ),
-            "n": len(entry["partner_answered"]),
-            "staff_recorded": entry["staff_recorded"],
-            "band": band_for(len(entry["partner_answered"])),
-        }
-        for partner, entry in rows.items()
-    ]
-    # Slowest first among those with enough evidence to judge, so the partner a
-    # supervisor needs to chase is at the top. Anything the bands withheld sinks
-    # to the bottom rather than being ranked on a median it does not have.
-    return sorted(out, key=lambda row: (row["median_days"] is None, -(row["median_days"] or 0), -row["n"]))
 
 
 def partner_performance(referrals):

@@ -459,6 +459,8 @@ export interface GenderSplit {
   placed_total: number;
   female: Rate;
   male: Rate;
+  /** Rendered as its own segment. Never folded into "men" by subtraction. */
+  other?: Rate;
   /** The baseline a placement split only means something against. */
   registration_female: Rate;
 }
@@ -482,7 +484,14 @@ export interface FunnelStage {
    */
   median_days_in_prev_stage: number | null;
   /** What was lost leaving this stage. Null on the last drawable row. */
-  lost: { count: number; share: Rate } | null;
+  lost: {
+    count: number;
+    share: Rate;
+    /** The transition this loss describes — the duration below belongs to it. */
+    to_stage: string;
+    to_label: string;
+    median_days: number | null;
+  } | null;
   available: boolean;
   reason: string;
 }
