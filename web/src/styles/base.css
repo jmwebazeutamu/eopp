@@ -35,6 +35,31 @@ table,
   border-radius: var(--r-control);
 }
 
+/*
+ * The ring on dark green.
+ *
+ * --green-500 is 5.3:1 on paper but 1.81:1 on --green-700 and 2.41:1 on
+ * --green-900 — both under the 3:1 a non-text indicator needs, and the shell is
+ * exactly where a keyboard user lands first. White is 9.5:1 there.
+ *
+ * Applied by class rather than by element, because the dashboard tier tabs are
+ * also a <nav> and sit on paper, where a white ring would be invisible.
+ */
+.on-dark :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline-color: var(--on-dark);
+}
+
+/* antd renders its own control internals and moves focus to a hidden inner
+   input, so `:focus-visible` never reaches anything the user can see — the
+   woreda scope selector was the one control in the shell with no ring at all.
+   The ring goes on the focused root, which is the element antd flags and the
+   one class name that has been stable across its internals. */
+.on-dark .ant-select-focused {
+  outline: 2px solid var(--on-dark);
+  outline-offset: 2px;
+  border-radius: var(--r-button);
+}
+
 h1,
 h2,
 h3,
@@ -103,6 +128,10 @@ p {
 .page {
   padding: 14px;
   max-width: 1180px;
+  /* Centred in whatever width the shell leaves. Without this, collapsing the
+     rail moved the table 176px left and left a dead gutter on the right — the
+     control appeared to do nothing. */
+  margin-inline: auto;
 }
 
 @media (min-width: 780px) {
@@ -229,18 +258,6 @@ p {
 }
 
 /* Filter chips: a horizontally scrolling row, not a dropdown, on phone. */
-.chip-row {
-  display: flex;
-  gap: var(--s2);
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
-}
-
-.chip-row::-webkit-scrollbar {
-  display: none;
-}
-
 .chip-filter {
   min-height: 40px;
   padding: 0 13px;
@@ -285,7 +302,10 @@ p {
 }
 
 /* Wraps rather than scrolls. A horizontal scroller hides filters off the right
-   edge with nothing to say they are there. */
+   edge with nothing to say they are there.
+   This used to be two blocks: an older one that set `overflow-x: auto` with a
+   hidden scrollbar, and this one. The cascade merged them, so the row wrapped
+   *and* kept a latent horizontal scroller. */
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -504,12 +524,60 @@ p {
   border-top-right-radius: var(--r-card);
 }
 
-/* Compact rows keep a 36px target rather than collapsing to the text height:
-   these rows are tap targets on a phone and click targets everywhere. */
-.table--compact td {
-  padding: 8px 14px;
-}
-
+/* Compact rows keep a real target rather than collapsing to the text height:
+   these rows are tap targets on a phone and click targets everywhere.
+   `padding` is set once, on the earlier .table--compact td rule. */
 .table--compact tbody tr {
   min-height: 36px;
+}
+
+/*
+ * The one keyboard target in a clickable table row.
+ *
+ * `.table tbody tr` carries `cursor: pointer` and an onClick, which sold the
+ * affordance to a mouse and to nobody else: Tab went from the last filter chip
+ * straight to the pagination, skipping all 145 rows. The phone card list *is*
+ * operable, but it is `display: none` above 780px — so on the shared laptop the
+ * table was the only rendering and the row was mouse-only.
+ *
+ * The link inherits the cell's type rather than looking like a link, because
+ * the whole row is still clickable and an underlined name would imply the rest
+ * of the row is not.
+ */
+button.row-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.row-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.row-link:hover,
+.row-link:focus-visible {
+  text-decoration: underline;
+}
+
+/* Off-screen until focused, then the first thing on the page. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 10px 16px;
+  background: var(--surface);
+  color: var(--ink-900);
+  font-weight: 700;
+  border-radius: 0 0 var(--r-button) 0;
+}
+
+.skip-link:focus-visible {
+  left: 0;
 }

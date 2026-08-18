@@ -202,9 +202,9 @@ export default function MyWorkPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>{t("queue.col.youth")}</th>
-                  <th>{t("cases.col.woreda")}</th>
-                  <th>{t("queue.col.waiting")}</th>
+                  <th scope="col">{t("queue.col.youth")}</th>
+                  <th scope="col">{t("queue.col.partner")}</th>
+                  <th scope="col">{t("queue.col.waiting")}</th>
                 </tr>
               </thead>
               <tbody>

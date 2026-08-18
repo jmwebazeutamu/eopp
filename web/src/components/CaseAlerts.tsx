@@ -3,7 +3,25 @@ import { App, Alert as AntAlert, Button, Card, Space, Tag, Typography } from "an
 import { useCallback, useEffect, useState } from "react";
 
 import { api, errorMessage } from "../api/client";
-import { ALERT_TYPE_COLOURS, type Alert, type Paginated } from "../api/types";
+import type { Alert, Paginated } from "../api/types";
+import { ALERT_TONE } from "../design/status";
+
+/**
+ * A geometric mark per alert type, so the chip is never colour alone.
+ *
+ * This chip previously read its colour from `ALERT_TYPE_COLOURS` — antd preset
+ * names, outside the token layer, including a blue the handoff says is
+ * deliberately absent and a red on STALL where the handoff assigns terracotta
+ * and reserves red for genuine failure.
+ */
+const ALERT_MARK: Record<string, string> = {
+  STALL: "\u25b2",
+  REFERRAL_CONFIRMATION_OVERDUE: "\u25d4",
+  FOLLOW_UP_DUE: "\u25cf",
+  ONWARD_REFERRAL_PROMPT: "\u25cf",
+  REPLACEMENT_REFERRAL_PROMPT: "\u25b2",
+  RETENTION_CHECK_DUE: "\u25d4",
+};
 import { useAuth } from "../auth/AuthContext";
 
 /**
@@ -79,7 +97,16 @@ export default function CaseAlerts({ caseId, onChanged }: { caseId: string; onCh
             showIcon
             title={
               <Space wrap>
-                <Tag color={ALERT_TYPE_COLOURS[alert.alert_type]}>{alert.alert_type_display}</Tag>
+                <span
+                  className="chip"
+                  style={{
+                    color: (ALERT_TONE[alert.alert_type] ?? { fg: "var(--ink-600)" }).fg,
+                    background: (ALERT_TONE[alert.alert_type] ?? { bg: "var(--fill-muted)" }).bg,
+                    borderColor: "transparent",
+                  }}
+                >
+                  <span aria-hidden="true">{ALERT_MARK[alert.alert_type] ?? "●"}</span> {alert.alert_type_display}
+                </span>
                 <Typography.Text style={{ fontSize: 13 }}>{alert.summary}</Typography.Text>
               </Space>
             }

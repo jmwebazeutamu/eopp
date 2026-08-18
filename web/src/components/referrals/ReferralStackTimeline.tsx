@@ -413,7 +413,13 @@ function Connector({
 /** Text colour for a label sitting on a filled bar. */
 function onDark(status: Referral["status"]): string {
   // Pending Confirmation is the one pale fill; everything else takes white.
-  return status === "PENDING_CONFIRMATION" ? "var(--gold-700)" : "#ffffff";
+  // Ink on the two pale fills, white on the four dark ones.
+  //
+  // This returned --gold-700 on --gold-500 (2.32:1) and white on
+  // --cancelled-bar (2.98:1) — both unreadable, and the gold one breaks the
+  // token file's own rule that --gold-500 is fill only, never behind text.
+  // --ink-900 is 5.97:1 on gold and 5.90:1 on the cancelled grey.
+  return status === "PENDING_CONFIRMATION" || status === "CANCELLED" ? "var(--ink-900)" : "var(--on-dark)";
 }
 
 function truncate(value: string, max: number): string {

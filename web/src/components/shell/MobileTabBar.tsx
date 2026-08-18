@@ -62,6 +62,7 @@ export default function MobileTabBar({
   return (
     <>
       <nav
+        className="on-dark"
         aria-label={t("nav.primary")}
         style={{
           position: "sticky",

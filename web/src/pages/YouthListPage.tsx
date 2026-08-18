@@ -153,7 +153,17 @@ export default function YouthListPage() {
               {rows.map((youth) => (
                 <tr key={youth.id} onClick={() => openRecord(youth)}>
                   <td>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{youth.full_name}</div>
+                    {/* A button, not a link: this opens the record in place. */}
+                    <button
+                      type="button"
+                      className="row-link"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openRecord(youth);
+                      }}
+                    >
+                      {youth.full_name}
+                    </button>
                     <div style={{ color: "var(--ink-400)" }}>
                       {youth.age} · {youth.sex}
                     </div>
@@ -186,7 +196,7 @@ export default function YouthListPage() {
             </div>
 
             <div className="t-meta">
-              {youth.national_or_kebele_id || "—"} · {youth.age} · {youth.sex} · {youth.woreda} {youth.kebele}
+              {youth.national_or_kebele_id || "—"} · {youth.age} · {youth.sex} · {youth.woreda} · {youth.kebele}
             </div>
 
             <div className="card__rule" />

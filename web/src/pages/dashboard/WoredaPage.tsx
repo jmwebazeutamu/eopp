@@ -57,9 +57,9 @@ function Completeness({ rows }: { rows: CompletenessRow[] }) {
     <table className="table">
       <thead>
         <tr>
-          <th>{t("me.indicator")}</th>
-          <th>{t("ws.missing", { missing: "", of: "" }).trim() || "Missing"}</th>
-          <th>{t("pm.verdict")}</th>
+          <th scope="col">{t("me.indicator")}</th>
+          <th scope="col">{t("ws.missingCol")}</th>
+          <th scope="col">{t("ws.cost")}</th>
         </tr>
       </thead>
       <tbody>
@@ -258,9 +258,9 @@ export default function WoredaPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>{t("partners.title")}</th>
-                <th>{t("queue.col.waiting")}</th>
-                <th>n</th>
+                <th scope="col">{t("partners.one")}</th>
+                <th scope="col">{t("ws.medianDays")}</th>
+                <th scope="col">{t("ws.confirmedReferrals")}</th>
               </tr>
             </thead>
             <tbody>

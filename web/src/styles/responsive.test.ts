@@ -26,7 +26,7 @@ describe("responsive visibility helpers", () => {
 
     Object.entries(SOURCES).forEach(([path, source]) => {
       source.split("\n").forEach((line, index) => {
-        if (!/className="only-(phone|laptop)"/.test(line)) return;
+        if (!/className="[^"]*\bonly-(phone|laptop)\b/.test(line)) return;
         if (/style=\{\{[^}]*display:/.test(line)) offenders.push(`${path}:${index + 1}`);
       });
     });

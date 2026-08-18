@@ -90,7 +90,14 @@ export function FunnelPanel({ stages }: { stages: FunnelStage[] }) {
                   className="track__fill"
                   style={{
                     width: `${barPercent(stage.count ?? 0, top)}%`,
-                    background: stage.gating ? funnelFill(index, drawable.length) : "var(--fill-muted-2)",
+                    background: stage.gating
+                        ? funnelFill(index, drawable.length)
+                        // Coverage, not a gate — a hatch rather than a solid,
+                        // so the difference in kind survives being looked at.
+                        // This was --fill-muted-2 on a --fill-muted track:
+                        // 1.04:1, invisible, so the two largest non-gating
+                        // counts read as the emptiest rows on the panel.
+                        : "repeating-linear-gradient(45deg, var(--green-500) 0 4px, var(--green-100) 4px 9px)",
                   }}
                 />
               )}

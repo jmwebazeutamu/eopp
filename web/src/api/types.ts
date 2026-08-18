@@ -345,14 +345,6 @@ export interface AlertSummary {
   by_type: { alert_type: AlertTypeCode; label: string; count: number }[];
 }
 
-export const ALERT_TYPE_COLOURS: Record<AlertTypeCode, string> = {
-  STALL: "red",
-  REFERRAL_CONFIRMATION_OVERDUE: "orange",
-  FOLLOW_UP_DUE: "blue",
-  ONWARD_REFERRAL_PROMPT: "green",
-  REPLACEMENT_REFERRAL_PROMPT: "volcano",
-  RETENTION_CHECK_DUE: "purple",
-};
 
 /**
  * Alert types whose detection job arrives with its source entity: Follow-Up

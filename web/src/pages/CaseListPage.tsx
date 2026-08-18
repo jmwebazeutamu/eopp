@@ -1,6 +1,6 @@
 import { App } from "antd";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
 import type { CaseListRow, CaseStatus, Paginated } from "../api/types";
@@ -146,7 +146,9 @@ export default function CaseListPage() {
                   {rows.map((row) => (
                     <tr key={row.id} onClick={() => navigate(`/cases/${row.id}`)}>
                       <td>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{row.youth.full_name}</div>
+                        <Link className="row-link" to={`/cases/${row.id}`} onClick={(e) => e.stopPropagation()}>
+                          {row.youth.full_name}
+                        </Link>
                         <div style={{ color: "var(--ink-400)" }}>
                           {row.youth.age} · {row.youth.sex}
                         </div>
@@ -175,7 +177,7 @@ export default function CaseListPage() {
                   <CaseStatusChip status={row.case_status} label={row.case_status_display} />
                 </div>
                 <div className="t-meta">
-                  {row.youth.age} · {row.youth.sex} · {row.woreda} {row.youth.kebele}
+                  {row.youth.age} · {row.youth.sex} · {row.woreda} · {row.youth.kebele}
                 </div>
                 <div className="card__rule" />
                 <div style={{ fontSize: 13 }}>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MARK_MAX_PERCENT,
   MIN_VISIBLE_PERCENT,
   barPercent,
   funnelFill,
@@ -72,7 +73,13 @@ describe("lagScale", () => {
     // Otherwise the 14-day mark sits off the end of the track exactly when a
     // supervisor most wants to see that everyone is inside it.
     expect(lagScale([2, 4, 6], 14)).toBe(14);
-    expect(standardMarkPercent(14, lagScale([2, 4, 6], 14))).toBe(100);
+    // Inside the track, not at its edge. This asserted 100 — which is where
+    // the mark was drawn, and where the track's `overflow: hidden` clipped it
+    // away entirely. On the programme dashboard every partner median was
+    // withheld, `lagScale` fell back to the standard, and the panel promised a
+    // reference mark it never drew.
+    expect(standardMarkPercent(14, lagScale([2, 4, 6], 14))).toBe(MARK_MAX_PERCENT);
+    expect(MARK_MAX_PERCENT).toBeLessThan(100);
   });
 
   it("stretches to the worst partner when one is over the standard", () => {

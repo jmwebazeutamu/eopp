@@ -22,6 +22,15 @@ const BIG_NUMBER: CSSProperties = {
   marginTop: 6,
 };
 
+/**
+ * A segment narrower than this gets no label inside it.
+ *
+ * Was 18, which silently dropped the label from a 16% segment that measured
+ * 50px — ample for "16%". The other two segments on that bar were labelled, so
+ * the third read as an error rather than as a segment.
+ */
+const LABEL_INSIDE_MIN_PERCENT = 12;
+
 export function MetricCards({ metrics }: { metrics: ProgrammeDashboard["metrics"] }) {
   const { t } = useLang();
   const placements = metrics.placements_this_quarter;
@@ -182,7 +191,7 @@ function GenderBar({ split }: { split: GenderSplit }) {
               whiteSpace: "nowrap",
             }}
           >
-            {segment.percent >= 18 ? `${segment.percent}%` : ""}
+            {segment.percent >= LABEL_INSIDE_MIN_PERCENT ? `${segment.percent}%` : ""}
           </span>
         ))}
       </div>
@@ -191,7 +200,7 @@ function GenderBar({ split }: { split: GenderSplit }) {
       <div className="t-meta" style={{ marginTop: 8 }}>
         {segments.map((segment) => `${segment.label} ${segment.percent}% (${segment.n})`).join(" · ")}
       </div>
-      <div className="t-meta">{t("dash.ofCount", { n: split.placed_total, d: split.placed_total })}</div>
+      <div className="t-meta">{t("dash.splitBase", { n: split.placed_total })}</div>
       {split.registration_female.percent !== null && (
         <div className="t-meta">
           {t("dash.registrationBaseline", { percent: split.registration_female.percent })}

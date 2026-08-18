@@ -189,7 +189,7 @@ export default function CaseDetailPage() {
           }}
         >
           <div className="t-caps" style={{ color: "var(--gold-300)" }}>
-            Goal: paid work retained at 6 months
+            {t('case.goal')}
           </div>
           <div style={{ margin: "8px 0 10px", fontSize: 15 }}>
             {JOURNEY[Math.min(stepsDone, JOURNEY.length) - 1]}

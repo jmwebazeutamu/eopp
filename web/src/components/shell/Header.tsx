@@ -25,6 +25,7 @@ export default function Header({ isPhone = false }: { isPhone?: boolean }) {
 
   return (
     <header
+      className="on-dark"
       style={{
         height: isPhone ? HEADER_HEIGHT_PHONE : HEADER_HEIGHT,
         flexShrink: 0,

@@ -75,15 +75,25 @@ export default function ListPage({
       <div className="list-page__controls">
         <SearchBox placeholder={searchPlaceholder} />
         {rowDensity && (
-        <button
-          type="button"
-          className="chip-filter only-laptop"
-          aria-pressed={density === "compact"}
-          onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
-          title={t("list.densityHint")}
-        >
-          {t(density === "compact" ? "list.comfortable" : "list.compact")}
-        </button>
+          // `.only-laptop` on its own element: composed onto `.chip-filter` it
+          // won the cascade and turned the button into `display: block`,
+          // dropping the flex centring. It also slipped past the guard in
+          // styles/responsive.test.ts, which matched the class exactly.
+          <div className="only-laptop">
+            <button
+              type="button"
+              className="chip-filter"
+              // The label names the thing being toggled and does not change;
+              // `aria-pressed` carries the state. Swapping the label as well
+              // announced "Comfortable rows, pressed" while the table was
+              // compact — the inverse of the truth.
+              aria-pressed={density === "compact"}
+              onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
+              title={t("list.densityHint")}
+            >
+              {t("list.compact")}
+            </button>
+          </div>
         )}
       </div>
 

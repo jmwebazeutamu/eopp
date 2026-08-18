@@ -54,6 +54,7 @@ export default function Sidebar({
 
   return (
     <nav
+      className="on-dark"
       aria-label={t("nav.primary")}
       style={{
         width: collapsed ? RAIL_COLLAPSED : RAIL_EXPANDED,

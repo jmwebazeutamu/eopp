@@ -4,6 +4,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { api } from "../api/client";
 import type { AlertSummary } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { useLang } from "../i18n/LanguageContext";
 import Header from "./shell/Header";
 import { ScopeProvider } from "./shell/ScopeContext";
 import MobileTabBar from "./shell/MobileTabBar";
@@ -42,6 +43,7 @@ function useIsPhone() {
 export default function AppLayout() {
   const { user, loading, logout } = useAuth();
   const location = useLocation();
+  const { t } = useLang();
   const isPhone = useIsPhone();
   const [openAlerts, setOpenAlerts] = useState(0);
   // Per user, not per browser: these are shared office machines.
@@ -80,6 +82,13 @@ export default function AppLayout() {
     // it starts *below* the header — clipping the only sign-out button.
     <ScopeProvider user={user}>
     <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--paper)" }}>
+      {/* Ten tab stops — header search, scope, rail collapse, six nav items,
+          account — sat between arriving and the page content, on every
+          navigation. Visible only on focus. */}
+      <a className="skip-link" href="#main">
+        {t("shell.skipToContent")}
+      </a>
+
       <Header isPhone={isPhone} />
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
@@ -98,7 +107,7 @@ export default function AppLayout() {
           />
         )}
 
-        <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+        <main id="main" tabIndex={-1} style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
           <div style={{ flex: 1 }}>
             <Outlet />
           </div>

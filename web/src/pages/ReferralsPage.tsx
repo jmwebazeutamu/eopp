@@ -1,6 +1,6 @@
 import { App } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
 import type { Paginated, ProgrammeRules, Referral, ReferralPrompts } from "../api/types";
@@ -136,12 +136,6 @@ export default function ReferralsPage() {
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 
-      {!loading && total === 0 && (
-        <Card>
-          <div className="t-meta">{t("queue.empty")}</div>
-        </Card>
-      )}
-
       {groups
         .filter((group) => group.rows.length > 0)
         .map((group) => (
@@ -176,7 +170,17 @@ export default function ReferralsPage() {
                           style={{ cursor: canOpenCases ? "pointer" : "default" }}
                         >
                           <td>
-                            <div style={{ fontSize: 14, fontWeight: 600 }}>{referral.youth_name}</div>
+                            {canOpenCases ? (
+                              <Link
+                                className="row-link"
+                                to={`/cases/${referral.case}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {referral.youth_name}
+                              </Link>
+                            ) : (
+                              <div style={{ fontSize: 14, fontWeight: 600 }}>{referral.youth_name}</div>
+                            )}
                             <div style={{ color: "var(--ink-400)" }}>{referralRef(referral.id)}</div>
                           </td>
                           <td>

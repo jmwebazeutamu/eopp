@@ -59,8 +59,15 @@ export function lagScale(days: number[], standard: number): number {
 /** Where the standard's reference mark sits along the track, in percent. */
 export function standardMarkPercent(standard: number, scale: number): number {
   if (scale <= 0) return 0;
-  return Math.min(100, (standard / scale) * 100);
+  // Capped below 100, not at it. The track clips its overflow, so a mark
+  // positioned at exactly 100% is drawn entirely outside the box — which is
+  // what happened whenever every partner median was withheld and `lagScale`
+  // fell back to the standard itself.
+  return Math.min(MARK_MAX_PERCENT, (standard / scale) * 100);
 }
+
+/** Leaves room for the mark's own width inside the track. */
+export const MARK_MAX_PERCENT = 98;
 
 /**
  * Segments of a composition bar, sized from the values the server actually sent.
