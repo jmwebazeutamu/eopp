@@ -42,8 +42,12 @@ def test_a_user_can_change_their_own_name_and_contacts(person, as_user):
     person.refresh_from_db()
     assert person.full_name == "Almaz Tesfaye"
     # Normalised: the domain is lowercased, so two spellings cannot both be held.
-    assert person.work_email == "Almaz@example.com"
-    assert person.personal_email == "almaz.home@example.com"
+    # Addresses are rows now; the wire shape is unchanged.
+    assert {e.kind: e.address for e in person.emails.all()} == {
+        "WORK": "Almaz@example.com",
+        "PERSONAL": "almaz.home@example.com",
+    }
+    assert response.data["work_email"] == "Almaz@example.com"
     assert person.work_phone == "+251911000111"
     assert person.personal_phone == "+251911000222"
     # The response is the full /me/ shape, so one round trip refreshes the client.
@@ -93,8 +97,7 @@ def test_a_personal_number_is_optional(person, as_user):
 
 
 def test_keeping_your_own_email_is_not_a_clash_with_yourself(person, as_user):
-    person.work_email = "mine@example.com"
-    person.save(update_fields=["work_email"])
+    person.emails.create(kind="WORK", address="mine@example.com")
     assert (
         as_user(person).patch("/api/v1/users/me/", {"work_email": "mine@example.com"}, format="json").status_code == 200
     )
@@ -199,3 +202,74 @@ def test_signing_in_with_the_old_password_stops_working(person, as_user, api):
 def test_an_anonymous_caller_reaches_neither_route(api):
     assert api.patch("/api/v1/users/me/", {"full_name": "x"}, format="json").status_code in (401, 403)
     assert api.post("/api/v1/users/me/password/", {}, format="json").status_code in (401, 403)
+
+
+# ---------------------------------------------------------------------------
+# "An email is registered once" — enforced by the database, not by a serializer
+# ---------------------------------------------------------------------------
+
+
+def test_the_database_refuses_a_duplicate_address(person):
+    """The constraint is the authority, so it is tested without the API.
+
+    Two flat columns could not express this. `unique=True` on each would still
+    permit one account's work address to equal another's personal.
+    """
+    from django.db import IntegrityError, transaction
+
+    from apps.users.models import UserEmail
+
+    other = User.objects.create_user("other", PASSWORD, full_name="Other", role=Role.CASE_MANAGER)
+    person.emails.create(kind="WORK", address="one@example.com")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        UserEmail.objects.create(user=other, kind="PERSONAL", address="one@example.com")
+
+
+def test_the_index_is_case_insensitive(person):
+    """`A@x.com` and `a@x.com` are one inbox. A constraint that let both
+    through would enforce nothing."""
+    from django.db import IntegrityError, transaction
+
+    other = User.objects.create_user("other2", PASSWORD, full_name="Other", role=Role.CASE_MANAGER)
+    person.emails.create(kind="WORK", address="Mixed@Example.com")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        other.emails.create(kind="WORK", address="mixed@example.com")
+
+
+def test_one_address_of_each_kind_per_account(person):
+    from django.db import IntegrityError, transaction
+
+    person.emails.create(kind="WORK", address="a@example.com")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        person.emails.create(kind="WORK", address="b@example.com")
+
+
+def test_deleting_an_account_releases_its_addresses(person):
+    """The address means nothing without the account, and holding it would
+    block whoever needs it next."""
+    from apps.users.models import UserEmail
+
+    person.emails.create(kind="WORK", address="released@example.com")
+    person.delete()
+    assert not UserEmail.objects.filter(address="released@example.com").exists()
+
+
+def test_the_api_reports_a_duplicate_against_the_right_field(person, as_user):
+    User.objects.create_user(
+        "holder", PASSWORD, full_name="Holder", role=Role.CASE_MANAGER, work_email="held@example.com"
+    )
+    response = as_user(person).patch("/api/v1/users/me/", {"personal_email": "HELD@example.com"}, format="json")
+    assert response.status_code == 400
+    assert "personal_email" in response.data
+
+
+def test_clearing_an_address_frees_it_for_another_account(person, as_user):
+    other = User.objects.create_user("next", PASSWORD, full_name="Next", role=Role.CASE_MANAGER)
+    as_user(person).patch("/api/v1/users/me/", {"work_email": "shared@example.com"}, format="json")
+    as_user(person).patch("/api/v1/users/me/", {"work_email": ""}, format="json")
+
+    response = as_user(other).patch("/api/v1/users/me/", {"work_email": "shared@example.com"}, format="json")
+    assert response.status_code == 200
+    assert response.data["work_email"] == "shared@example.com"

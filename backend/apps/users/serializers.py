@@ -1,7 +1,6 @@
 """Serializers for User (spec §4.12)."""
 
 from django.contrib.auth.password_validation import validate_password
-from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -11,12 +10,60 @@ from apps.locations.models import Location, LocationLevel
 from .models import ACCESS_MATRIX, AccountStatus, Role, User
 
 
-class UserSerializer(serializers.ModelSerializer):
+class EmailAddressMixin:
+    """Reads and writes `work_email` / `personal_email` over `UserEmail` rows.
+
+    The API shape is unchanged by the move to a table — clients still send and
+    receive two flat fields — so nothing in the frontend had to know that
+    "registered once" became a database constraint.
+
+    Uniqueness is *not* re-checked here. The unique index is the authority, and
+    a serializer that also checked would be a second opinion that can disagree
+    with it under concurrency. `IntegrityError` is translated instead.
+    """
+
+    def _email_of(self, user, kind):
+        row = next((e for e in user.emails.all() if e.kind == kind), None)
+        return row.address if row else ""
+
+    def get_work_email(self, user):
+        return self._email_of(user, "WORK")
+
+    def get_personal_email(self, user):
+        return self._email_of(user, "PERSONAL")
+
+    def _save_emails(self, user, addresses):
+        """Set, replace or clear one address per kind."""
+        from django.db import IntegrityError
+
+        from .models import UserEmail
+
+        for kind, address in addresses.items():
+            address = UserEmail.normalize(address)
+            existing = user.emails.filter(kind=kind).first()
+            if not address:
+                if existing:
+                    existing.delete()
+                continue
+            try:
+                if existing:
+                    existing.address = address
+                    existing.save(update_fields=["address", "updated_at"])
+                else:
+                    user.emails.create(kind=kind, address=address)
+            except IntegrityError:
+                field = "work_email" if kind == "WORK" else "personal_email"
+                raise serializers.ValidationError({field: _("Another account already uses this email address.")})
+
+
+class UserSerializer(EmailAddressMixin, serializers.ModelSerializer):
     """Read/write representation used by the administrator's user management UI."""
 
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     partner_name = serializers.CharField(source="partner.partner_name", read_only=True, default=None)
     password = serializers.CharField(write_only=True, required=False, style={"input_type": "password"})
+    work_email = serializers.EmailField(required=False, allow_blank=True)
+    personal_email = serializers.EmailField(required=False, allow_blank=True)
     # Annotated by the viewset; 0 for an account that manages no cases.
     caseload_count = serializers.IntegerField(read_only=True, default=0)
 
@@ -74,20 +121,41 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password", None)
+        addresses = {
+            "WORK": validated_data.pop("work_email", None),
+            "PERSONAL": validated_data.pop("personal_email", None),
+        }
+        addresses = {
+            "WORK": validated_data.pop("work_email", ""),
+            "PERSONAL": validated_data.pop("personal_email", ""),
+        }
         if not password:
             raise serializers.ValidationError({"password": "Required when creating a user."})
-        return User.objects.create_user(password=password, **validated_data)
+        user = User.objects.create_user(password=password, **validated_data)
+        self._save_emails(user, {k: v for k, v in addresses.items() if v})
+        return user
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["work_email"] = self.get_work_email(instance)
+        data["personal_email"] = self.get_personal_email(instance)
+        return data
 
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
+        addresses = {
+            "WORK": validated_data.pop("work_email", None),
+            "PERSONAL": validated_data.pop("personal_email", None),
+        }
         user = super().update(instance, validated_data)
+        self._save_emails(user, {k: v for k, v in addresses.items() if v is not None})
         if password:
             user.set_password(password)
             user.save(update_fields=["password"])
         return user
 
 
-class CurrentUserSerializer(serializers.ModelSerializer):
+class CurrentUserSerializer(EmailAddressMixin, serializers.ModelSerializer):
     """`/me/` — what the web and mobile clients read to build their navigation.
 
     Exposes the resolved §7 access row so the frontend can hide actions the API
@@ -98,6 +166,8 @@ class CurrentUserSerializer(serializers.ModelSerializer):
     partner_name = serializers.CharField(source="partner.partner_name", read_only=True, default=None)
     access = serializers.SerializerMethodField()
     scopable_woredas = serializers.SerializerMethodField()
+    work_email = serializers.SerializerMethodField()
+    personal_email = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -186,7 +256,7 @@ class AssignableUserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class ProfileSerializer(serializers.ModelSerializer):
+class ProfileSerializer(EmailAddressMixin, serializers.ModelSerializer):
     """What a user may change about their own account.
 
     Deliberately a separate serializer from `UserSerializer` rather than a
@@ -201,42 +271,39 @@ class ProfileSerializer(serializers.ModelSerializer):
     other.
     """
 
+    work_email = serializers.EmailField(required=False, allow_blank=True)
+    personal_email = serializers.EmailField(required=False, allow_blank=True)
+
     class Meta:
         model = User
         fields = ["full_name", "work_email", "personal_email", "work_phone", "personal_phone"]
 
-    def validate_work_email(self, value):
-        return self._unique_email(value)
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["work_email"] = self.get_work_email(instance)
+        data["personal_email"] = self.get_personal_email(instance)
+        return data
 
-    def validate_personal_email(self, value):
-        return self._unique_email(value)
-
-    def _unique_email(self, value):
-        """Normalised, and not already claimed by any account in either slot.
-
-        Neither column carries a unique constraint, so two accounts can hold
-        one address. That is tolerable while sign-in is by username and stops
-        being tolerable the moment a password reset is sent to an address — so
-        it is refused here rather than discovered then.
-
-        Both columns are checked, not just the matching one: an address is one
-        address, and "someone else has it as their personal" is the same
-        collision as "someone else has it as their work".
-        """
-        if not value:
-            return value
-        value = User.objects.normalize_email(value).strip()
-        clash = User.objects.filter(Q(work_email__iexact=value) | Q(personal_email__iexact=value))
-        if self.instance is not None:
-            clash = clash.exclude(pk=self.instance.pk)
-        if clash.exists():
-            raise serializers.ValidationError(_("Another account already uses this email address."))
-        return value
+    def update(self, instance, validated_data):
+        addresses = {
+            "WORK": validated_data.pop("work_email", None),
+            "PERSONAL": validated_data.pop("personal_email", None),
+        }
+        instance = super().update(instance, validated_data)
+        self._save_emails(instance, {k: v for k, v in addresses.items() if v is not None})
+        return instance
 
     def validate(self, attrs):
-        """The two addresses on one account must also differ from each other."""
-        work = (attrs.get("work_email") or getattr(self.instance, "work_email", "")).lower()
-        personal = (attrs.get("personal_email") or getattr(self.instance, "personal_email", "")).lower()
+        """The two addresses on one account must also differ from each other.
+
+        The unique index catches this too — one address, one row — but the
+        message it would produce names the wrong culprit, so it is caught here
+        where the field can be named.
+        """
+        work = (attrs.get("work_email") or self.get_work_email(self.instance) if self.instance else "").lower()
+        personal = (
+            attrs.get("personal_email") or self.get_personal_email(self.instance) if self.instance else ""
+        ).lower()
         if work and work == personal:
             raise serializers.ValidationError(
                 {"personal_email": _("Use a different address from your work email, or leave it blank.")}

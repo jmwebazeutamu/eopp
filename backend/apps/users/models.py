@@ -10,11 +10,12 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
-from apps.common.models import UUIDModel
+from apps.common.models import BaseModel, UUIDModel
 
 
 class Role(models.TextChoices):
@@ -157,15 +158,21 @@ class UserManager(BaseUserManager):
         # `email` is still accepted as an alias for `work_email`: createsuperuser
         # and any caller written before the rename passes it, and silently
         # dropping an address is worse than accepting it under its old name.
-        for field in ("work_email", "personal_email"):
-            if extra_fields.get(field):
-                extra_fields[field] = self.normalize_email(extra_fields[field])
-        alias = extra_fields.pop("email", "")
-        if alias and not extra_fields.get("work_email"):
-            extra_fields["work_email"] = self.normalize_email(alias)
+        # Addresses are rows now, so they are pulled out here and written after
+        # the user exists. `email` stays accepted as an alias for the work
+        # address: createsuperuser passes it, and silently dropping an address
+        # is worse than accepting it under its old name.
+        addresses = {
+            "WORK": extra_fields.pop("work_email", "") or extra_fields.pop("email", ""),
+            "PERSONAL": extra_fields.pop("personal_email", ""),
+        }
+        extra_fields.pop("email", None)
         user = self.model(username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
+        for kind, address in addresses.items():
+            if address:
+                user.emails.create(kind=kind, address=address)
         return user
 
     def create_superuser(self, username, password=None, **extra_fields):
@@ -196,8 +203,13 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
     #
     # Whichever address a password reset would use has to be decided before one
     # is built; today nothing sends mail. See PROFILE-1 in the UI backlog.
-    work_email = models.EmailField(_("work email"), blank=True)
-    personal_email = models.EmailField(_("personal email"), blank=True)
+    # Emails live in `UserEmail`, one row per address, because "an address is
+    # registered once" is a statement about addresses and cannot be expressed
+    # across two columns: `unique=True` on each would still allow one account's
+    # work address to equal another's personal, or its own.
+    #
+    # Phones stay flat. Numbers are shared far more loosely than mailboxes — a
+    # shared office line is normal — so the same constraint would be wrong.
     work_phone = models.CharField(_("work phone"), max_length=32, blank=True)
     personal_phone = models.CharField(_("personal phone"), max_length=32, blank=True)
 
@@ -291,3 +303,72 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
 
         if errors:
             raise ValidationError(errors)
+
+
+class EmailKind(models.TextChoices):
+    WORK = "WORK", _("Work")
+    PERSONAL = "PERSONAL", _("Personal")
+
+
+class UserEmail(BaseModel):
+    """One email address, held by one account.
+
+    The uniqueness the programme asked for is a property of the *address*, not
+    of a column, so the address is the row. Two constraints carry it, both in
+    the database rather than in a serializer:
+
+    - `unique_address` — a case-insensitive unique index across every row, so
+      an address cannot be registered twice however it is filed. Two flat
+      columns could not express this: `unique=True` on each would still permit
+      one account's work address to equal another's personal, or its own.
+    - `one_per_kind` — a user holds at most one work and one personal address.
+
+    Case-insensitive because mailboxes are: `A@x.com` and `a@x.com` are one
+    inbox, and a constraint that let both through would enforce nothing.
+    """
+
+    user = models.ForeignKey(
+        "users.User",
+        verbose_name=_("user"),
+        related_name="emails",
+        on_delete=models.CASCADE,
+        help_text=_("Deleting the account removes its addresses; they mean nothing without it."),
+    )
+    kind = models.CharField(_("kind"), max_length=16, choices=EmailKind.choices)
+    address = models.EmailField(_("address"))
+
+    history = HistoricalRecords()  # §9 audit trail
+
+    class Meta:
+        verbose_name = _("user email")
+        verbose_name_plural = _("user emails")
+        ordering = ["kind"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("address"),
+                name="user_email_unique_address",
+                violation_error_message=_("Another account already uses this email address."),
+            ),
+            models.UniqueConstraint(
+                fields=["user", "kind"],
+                name="user_email_one_per_kind",
+                violation_error_message=_("That account already has an address of this kind."),
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.address} ({self.get_kind_display()})"
+
+    def save(self, *args, **kwargs):
+        # Normalised on the way in, so the unique index and the value agree.
+        self.address = UserEmail.normalize(self.address)
+        return super().save(*args, **kwargs)
+
+    @staticmethod
+    def normalize(address):
+        """Trim, and lowercase the domain — the half that is case-insensitive
+        by RFC. The local part is left alone; the unique index is what makes
+        the comparison case-insensitive."""
+        from django.contrib.auth.models import BaseUserManager
+
+        return BaseUserManager.normalize_email((address or "").strip())
