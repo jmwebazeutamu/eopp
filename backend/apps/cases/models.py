@@ -59,6 +59,19 @@ class CaseQuerySet(models.QuerySet):
         return self.open().filter(last_activity_date__lte=cutoff)
 
 
+class CaseActionType(models.TextChoices):
+    NEXT_ACTION = "NEXT_ACTION", _("Next action")
+    FEEDBACK = "FEEDBACK", _("Feedback")
+    FOLLOW_UP = "FOLLOW_UP", _("Follow-up")
+    STATUS_NOTE = "STATUS_NOTE", _("Status note")
+
+
+class CaseActionStatus(models.TextChoices):
+    OPEN = "OPEN", _("Open")
+    DONE = "DONE", _("Done")
+    SUPERSEDED = "SUPERSEDED", _("Superseded")
+
+
 class Case(BaseModel):
     """Spec §4.2. `case_id` is `id`, per the §4 type-translation guide."""
 
@@ -218,6 +231,69 @@ class Case(BaseModel):
                 if update_fields is not None:
                     kwargs["update_fields"] = set(update_fields) | {"woreda"}
         return super().save(*args, **kwargs)
+
+
+class CaseAction(BaseModel):
+    """Append-only case activity: next actions, feedback, and follow-up notes."""
+
+    case = models.ForeignKey("cases.Case", on_delete=models.CASCADE, related_name="actions", verbose_name=_("case"))
+    action_type = models.CharField(
+        _("action type"), max_length=20, choices=CaseActionType.choices, default=CaseActionType.NEXT_ACTION
+    )
+    body = models.TextField(_("body"))
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_case_actions",
+        verbose_name=_("created by"),
+    )
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_case_actions",
+        verbose_name=_("assigned to"),
+    )
+    status = models.CharField(_("status"), max_length=20, choices=CaseActionStatus.choices, default=CaseActionStatus.OPEN)
+    due_date = models.DateField(_("due date"), null=True, blank=True)
+    resolved_at = models.DateTimeField(_("resolved at"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("case action")
+        verbose_name_plural = _("case actions")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["case", "action_type", "status"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_action_type_display()} for {self.case}"
+
+    def clean(self):
+        errors = {}
+        if self.status == CaseActionStatus.DONE and not self.resolved_at:
+            errors["resolved_at"] = _("A completed action needs a resolved timestamp.")
+        if self.status == CaseActionStatus.OPEN and self.resolved_at:
+            errors["resolved_at"] = _("Only completed actions may have a resolved timestamp.")
+        if errors:
+            raise ValidationError(errors)
+
+    @classmethod
+    def sync_case_summary(cls, case):
+        """Keep Case.next_action and owner aligned with the latest open next action."""
+        current = (
+            cls.objects.filter(case=case, action_type=CaseActionType.NEXT_ACTION, status=CaseActionStatus.OPEN)
+            .select_related("assigned_to")
+            .order_by("-created_at")
+            .first()
+        )
+        case.next_action = current.body if current else ""
+        case.next_action_owner = current.assigned_to if current else None
+        case.save(update_fields=["next_action", "next_action_owner", "updated_at"])
 
 
 class Pathway(models.TextChoices):

@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import pytest
 from django.core.exceptions import ValidationError
 
-from apps.cases.models import Case, CaseStatus
+from apps.cases.models import Case, CaseAction, CaseActionStatus, CaseStatus
 
 pytestmark = pytest.mark.django_db
 
@@ -186,6 +186,79 @@ def test_assignment_moves_the_case_and_records_activity(make_case, case_manager,
     case.refresh_from_db()
     assert case.case_manager == other_case_manager
     assert case.last_activity_date == date.today()
+
+
+def test_case_patch_to_next_action_creates_history_row(make_case, case_manager, as_user):
+    case = make_case(case_manager)
+    response = as_user(case_manager).patch(f"/api/v1/cases/{case.pk}/", {"next_action": "Call employer"}, format="json")
+    assert response.status_code == 200, response.data
+    action = CaseAction.objects.get(case=case)
+    assert action.body == "Call employer"
+    assert action.created_by == case_manager
+    assert action.status == CaseActionStatus.OPEN
+
+
+def test_posting_a_new_next_action_supersedes_the_previous_one(make_case, case_manager, other_case_manager, as_user):
+    case = make_case(case_manager)
+    first = as_user(case_manager).post(
+        "/api/v1/cases/actions/",
+        {"case": str(case.pk), "action_type": "NEXT_ACTION", "body": "Confirm enrolment"},
+        format="json",
+    )
+    assert first.status_code == 201, first.data
+    second = as_user(case_manager).post(
+        "/api/v1/cases/actions/",
+        {
+            "case": str(case.pk),
+            "action_type": "NEXT_ACTION",
+            "body": "Visit training centre",
+            "assigned_to": str(other_case_manager.pk),
+        },
+        format="json",
+    )
+    assert second.status_code == 201, second.data
+    case.refresh_from_db()
+    assert case.next_action == "Visit training centre"
+    assert case.next_action_owner == other_case_manager
+    statuses = list(CaseAction.objects.filter(case=case).order_by("created_at").values_list("status", flat=True))
+    assert statuses == [CaseActionStatus.SUPERSEDED, CaseActionStatus.OPEN]
+
+
+def test_feedback_is_retained_without_overwriting_current_next_action(make_case, case_manager, as_user):
+    case = make_case(case_manager, next_action="Confirm TVET enrolment")
+    response = as_user(case_manager).post(
+        "/api/v1/cases/actions/",
+        {"case": str(case.pk), "action_type": "FEEDBACK", "body": "Partner asked for ID copy"},
+        format="json",
+    )
+    assert response.status_code == 201, response.data
+    case.refresh_from_db()
+    assert case.next_action == "Confirm TVET enrolment"
+    assert CaseAction.objects.filter(case=case, action_type="FEEDBACK").count() == 1
+
+
+def test_resolving_current_next_action_clears_case_summary(make_case, case_manager, as_user):
+    case = make_case(case_manager)
+    create = as_user(case_manager).post(
+        "/api/v1/cases/actions/",
+        {"case": str(case.pk), "action_type": "NEXT_ACTION", "body": "Check attendance"},
+        format="json",
+    )
+    action_id = create.data["id"]
+    response = as_user(case_manager).post(f"/api/v1/cases/actions/{action_id}/resolve/")
+    assert response.status_code == 200, response.data
+    case.refresh_from_db()
+    action = CaseAction.objects.get(pk=action_id)
+    assert action.status == CaseActionStatus.DONE
+    assert case.next_action == ""
+
+
+def test_case_detail_includes_recent_actions(make_case, case_manager, as_user):
+    case = make_case(case_manager)
+    CaseAction.objects.create(case=case, action_type="FEEDBACK", body="Called partner", created_by=case_manager)
+    response = as_user(case_manager).get(f"/api/v1/cases/{case.pk}/")
+    assert response.status_code == 200
+    assert response.data["recent_actions"][0]["body"] == "Called partner"
 
 
 def test_cases_cannot_be_deleted(make_case, case_manager, as_user):

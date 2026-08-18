@@ -1,5 +1,6 @@
 """Case API — spec §4.2, §10 Sprint 1."""
 
+from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Q
@@ -14,9 +15,10 @@ from apps.common.summaries import counters_for, summary_response
 from apps.users.models import Role, User
 from apps.users.permissions import CanAccessCases, IsOperational, ScopedQuerySetMixin
 
-from .models import Case, CaseStatus, PathwayAssignment, ProfilingRecord
+from .models import Case, CaseAction, CaseActionStatus, CaseActionType, CaseStatus, PathwayAssignment, ProfilingRecord
 from .serializers import (
     CaseAssignmentSerializer,
+    CaseActionSerializer,
     CaseListSerializer,
     CaseSerializer,
     PathwayAssignmentSerializer,
@@ -61,7 +63,26 @@ class CaseViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         case.touch()
 
     def perform_update(self, serializer):
+        previous_action = serializer.instance.next_action
         case = serializer.save()
+        new_action = serializer.validated_data.get("next_action")
+        if new_action is not None and not new_action.strip():
+            case.next_action_owner = None
+            case.save(update_fields=["next_action_owner", "updated_at"])
+        if new_action is not None and new_action != previous_action and new_action.strip():
+            CaseAction.objects.filter(
+                case=case,
+                action_type=CaseActionType.NEXT_ACTION,
+                status=CaseActionStatus.OPEN,
+            ).update(status=CaseActionStatus.SUPERSEDED)
+            CaseAction.objects.create(
+                case=case,
+                action_type=CaseActionType.NEXT_ACTION,
+                body=new_action,
+                created_by=self.request.user,
+                assigned_to=case.next_action_owner,
+            )
+            CaseAction.sync_case_summary(case)
         case.touch()
 
     def perform_destroy(self, instance):
@@ -198,6 +219,30 @@ class ProfilingRecordViewSet(_CaseChildViewSet):
     filterset_fields = ["case", "priority_flag"]
     ordering_fields = ["assessed_date", "created_at"]
     ordering = ["-assessed_date"]
+
+
+@extend_schema(tags=["cases"])
+class CaseActionViewSet(_CaseChildViewSet):
+    """Case action and feedback history."""
+
+    queryset = CaseAction.objects.select_related("case", "case__youth", "created_by", "assigned_to")
+    serializer_class = CaseActionSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["case", "action_type", "status", "assigned_to"]
+    ordering_fields = ["created_at", "due_date"]
+    ordering = ["-created_at"]
+
+    @extend_schema(responses=CaseActionSerializer)
+    @action(detail=True, methods=["post"])
+    def resolve(self, request, pk=None):
+        action = self.get_object()
+        action.status = CaseActionStatus.DONE
+        action.resolved_at = timezone.now()
+        action.full_clean()
+        action.save(update_fields=["status", "resolved_at", "updated_at"])
+        CaseAction.sync_case_summary(action.case)
+        action.case.touch()
+        return Response(CaseActionSerializer(action, context=self.get_serializer_context()).data)
 
 
 @extend_schema(tags=["cases"])

@@ -6,7 +6,7 @@ from rest_framework import serializers
 from apps.users.models import Role, User
 from apps.youth.serializers import YouthSummarySerializer
 
-from .models import Case, Pathway, PathwayAssignment, ProfilingRecord
+from .models import Case, CaseAction, CaseActionStatus, CaseActionType, Pathway, PathwayAssignment, ProfilingRecord
 
 
 class CaseListSerializer(serializers.ModelSerializer):
@@ -52,6 +52,7 @@ class CaseSerializer(serializers.ModelSerializer):
     # forward reference at class-creation time.
     current_pathway = serializers.SerializerMethodField()
     current_profiling = serializers.SerializerMethodField()
+    recent_actions = serializers.SerializerMethodField()
 
     class Meta:
         model = Case
@@ -76,6 +77,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "next_action",
             "next_action_owner",
             "next_action_owner_name",
+            "recent_actions",
             "created_at",
             "updated_at",
         ]
@@ -90,6 +92,10 @@ class CaseSerializer(serializers.ModelSerializer):
     def get_current_profiling(self, obj):
         record = obj.current_profiling
         return ProfilingRecordSerializer(record).data if record else None
+
+    def get_recent_actions(self, obj):
+        actions = obj.actions.select_related("created_by", "assigned_to").all()[:10]
+        return CaseActionSerializer(actions, many=True).data
 
     def validate_case_manager(self, value):
         if value.role != Role.CASE_MANAGER:
@@ -140,6 +146,70 @@ class CaseAssignmentSerializer(serializers.Serializer):
         if not value.is_operational:
             raise serializers.ValidationError(f"{value.full_name}'s account is not active.")
         return value
+
+
+class CaseActionSerializer(serializers.ModelSerializer):
+    """Append-only notes and tasks hanging off a case."""
+
+    created_by_name = serializers.CharField(source="created_by.full_name", read_only=True, default=None)
+    assigned_to_name = serializers.CharField(source="assigned_to.full_name", read_only=True, default=None)
+    action_type_display = serializers.CharField(source="get_action_type_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = CaseAction
+        fields = [
+            "id",
+            "case",
+            "action_type",
+            "action_type_display",
+            "body",
+            "created_by",
+            "created_by_name",
+            "assigned_to",
+            "assigned_to_name",
+            "status",
+            "status_display",
+            "due_date",
+            "resolved_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_by_name", "resolved_at", "created_at", "updated_at"]
+
+    def validate_assigned_to(self, value):
+        if value and not value.is_operational:
+            raise serializers.ValidationError(f"{value.full_name}'s account is not active.")
+        return value
+
+    def validate(self, attrs):
+        candidate = self.instance or CaseAction()
+        for key, value in attrs.items():
+            setattr(candidate, key, value)
+        if not candidate.body.strip():
+            raise serializers.ValidationError({"body": "This field may not be blank."})
+        try:
+            candidate.clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict)
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        validated_data["created_by"] = request.user
+        if (
+            validated_data["action_type"] == CaseActionType.NEXT_ACTION
+            and validated_data.get("status", CaseActionStatus.OPEN) == CaseActionStatus.OPEN
+        ):
+            CaseAction.objects.filter(
+                case=validated_data["case"],
+                action_type=CaseActionType.NEXT_ACTION,
+                status=CaseActionStatus.OPEN,
+            ).update(status=CaseActionStatus.SUPERSEDED)
+        action = super().create(validated_data)
+        CaseAction.sync_case_summary(action.case)
+        action.case.touch()
+        return action
 
 
 class ProfilingRecordSerializer(serializers.ModelSerializer):

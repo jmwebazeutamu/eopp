@@ -5,6 +5,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, errorMessage } from "../api/client";
 import {
   PATHWAY_OPTIONS,
+  type CaseAction,
+  type CaseActionType,
   type CaseDetail,
   type Paginated,
   type Pathway,
@@ -55,6 +57,7 @@ export default function CaseDetailPage() {
   const [revising, setRevising] = useState(false);
   const [editing, setEditing] = useState(false);
   const [revealPhone, setRevealPhone] = useState(false);
+  const [actionForm] = Form.useForm<{ action_type: CaseActionType; body: string }>();
   const [reviseForm] = Form.useForm<{ selected_pathway: Pathway; revision_reason: string }>();
 
   const load = useCallback(async () => {
@@ -102,16 +105,27 @@ export default function CaseDetailPage() {
     setRevealPhone(false);
   }, [caseId]);
 
-  async function saveNextAction(values: { next_action: string }) {
+  async function saveCaseAction(values: { action_type: CaseActionType; body: string }) {
     setSaving(true);
     try {
-      const response = await api.patch<CaseDetail>(`/cases/${caseId}/`, values);
-      setRecord(response.data);
-      message.success("Next action updated.");
+      await api.post("/cases/actions/", { case: caseId, ...values });
+      actionForm.resetFields();
+      message.success(values.action_type === "NEXT_ACTION" ? "Next action added." : "Feedback recorded.");
+      void load();
     } catch (error) {
-      message.error(errorMessage(error, "Could not update the case."));
+      message.error(errorMessage(error, "Could not record case history."));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function resolveAction(actionId: string) {
+    try {
+      await api.post(`/cases/actions/${actionId}/resolve/`);
+      message.success("Action resolved.");
+      void load();
+    } catch (error) {
+      message.error(errorMessage(error, "Could not resolve the action."));
     }
   }
 
@@ -379,8 +393,23 @@ export default function CaseDetailPage() {
       {canWrite && (
         <Card>
           <CapsLabel style={{ marginBottom: 8 }}>{t("case.nextAction")}</CapsLabel>
-          <Form layout="vertical" initialValues={{ next_action: record.next_action }} onFinish={saveNextAction}>
-            <Form.Item name="next_action">
+          <Form
+            form={actionForm}
+            layout="vertical"
+            initialValues={{ action_type: "NEXT_ACTION", body: "" }}
+            onFinish={saveCaseAction}
+          >
+            <Form.Item name="action_type" label="Entry type" rules={[{ required: true }]}>
+              <Select
+                options={[
+                  { value: "NEXT_ACTION", label: "Next action" },
+                  { value: "FEEDBACK", label: "Feedback" },
+                  { value: "FOLLOW_UP", label: "Follow-up" },
+                  { value: "STATUS_NOTE", label: "Status note" },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="body" rules={[{ required: true, message: "Enter the action or feedback." }]}>
               <Input.TextArea rows={3} placeholder="e.g. Confirm TVET enrolment with Adama Polytechnic" />
             </Form.Item>
             <Button variant="primary" type="submit" disabled={saving}>
@@ -389,6 +418,25 @@ export default function CaseDetailPage() {
           </Form>
         </Card>
       )}
+
+      <Card
+        style={{
+          background: "var(--green-100)",
+          borderColor: "var(--green-border)",
+          marginLeft: 24,
+        }}
+      >
+        <CapsLabel style={{ marginBottom: 8 }}>Action history</CapsLabel>
+        {record.recent_actions.length ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {record.recent_actions.map((action) => (
+              <ActionRow key={action.id} action={action} canWrite={canWrite} onResolve={resolveAction} />
+            ))}
+          </div>
+        ) : (
+          <div className="t-meta">No action or feedback history recorded.</div>
+        )}
+      </Card>
 
       <CaseFormModal open={editing} record={record} onClose={() => setEditing(false)} onSaved={() => load()} />
 
@@ -417,6 +465,39 @@ export default function CaseDetailPage() {
   );
 }
 
+function ActionRow({
+  action,
+  canWrite,
+  onResolve,
+}: {
+  action: CaseAction;
+  canWrite: boolean;
+  onResolve: (actionId: string) => Promise<void>;
+}) {
+  const isOpenNextAction = action.action_type === "NEXT_ACTION" && action.status === "OPEN";
+  return (
+    <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <strong>{action.action_type_display}</strong>
+          <MutedChip>{action.status_display}</MutedChip>
+          <span className="t-meta">
+            {stamp(action.created_at)}
+            {action.created_by_name ? ` by ${action.created_by_name}` : ""}
+          </span>
+        </div>
+        {canWrite && isOpenNextAction && (
+          <Button size="sm" onClick={() => void onResolve(action.id)}>
+            Mark done
+          </Button>
+        )}
+      </div>
+      <div style={{ marginTop: 6 }}>{action.body}</div>
+      {action.assigned_to_name && <div className="t-meta">Owner: {action.assigned_to_name}</div>}
+    </div>
+  );
+}
+
 function Row({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
@@ -437,4 +518,8 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: stri
  */
 function caseRef(id: string): string {
   return id.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+function stamp(value: string): string {
+  return value.replace("T", " ").slice(0, 16);
 }

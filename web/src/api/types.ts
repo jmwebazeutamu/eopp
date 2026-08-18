@@ -82,10 +82,32 @@ export interface CaseDetail extends Omit<CaseListRow, "youth"> {
   is_open: boolean;
   next_action_owner: string | null;
   next_action_owner_name: string | null;
+  recent_actions: CaseAction[];
   /** Resolved server-side: the one assignment with is_current (spec §4.4). */
   current_pathway: PathwayAssignment | null;
   /** The most recent profiling record — §3's "latest record is current". */
   current_profiling: ProfilingRecord | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CaseActionType = "NEXT_ACTION" | "FEEDBACK" | "FOLLOW_UP" | "STATUS_NOTE";
+export type CaseActionStatus = "OPEN" | "DONE" | "SUPERSEDED";
+
+export interface CaseAction {
+  id: string;
+  case: string;
+  action_type: CaseActionType;
+  action_type_display: string;
+  body: string;
+  created_by: string | null;
+  created_by_name: string | null;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  status: CaseActionStatus;
+  status_display: string;
+  due_date: string | null;
+  resolved_at: string | null;
   created_at: string;
   updated_at: string;
 }

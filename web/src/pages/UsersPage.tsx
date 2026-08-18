@@ -141,10 +141,19 @@ export default function UsersPage() {
         {rows.map((row) => (
           /* The record opens read-only; the edit form is a step inside it,
              because that form carries the role and a password field. */
-          <Card key={row.id} onClick={() => setViewing(row)}>
+          <Card key={row.id} onClick={() => setViewing(row)} hasOwnKeyboardTarget>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-start" }}>
               <div style={{ flex: 1, minWidth: 200 }}>
-                <div className="t-body-strong">{row.full_name}</div>
+                <button
+                  type="button"
+                  className="row-link t-body-strong"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setViewing(row);
+                  }}
+                >
+                  {row.full_name}
+                </button>
                 <div className="t-meta">
                   {row.role_display} · {row.username}
                 </div>

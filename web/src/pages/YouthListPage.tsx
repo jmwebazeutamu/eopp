@@ -180,9 +180,18 @@ export default function YouthListPage() {
 
       <div className="only-phone">
         {rows.map((youth) => (
-          <Card key={youth.id} onClick={() => openRecord(youth)}>
+          <Card key={youth.id} onClick={() => openRecord(youth)} hasOwnKeyboardTarget>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-start", justifyContent: "space-between" }}>
-              <span className="t-body-strong">{youth.full_name}</span>
+              <button
+                type="button"
+                className="row-link t-body-strong"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openRecord(youth);
+                }}
+              >
+                {youth.full_name}
+              </button>
               <CasePill youth={youth} onOpenCase={(id) => navigate(`/cases/${id}`)} />
             </div>
 

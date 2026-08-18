@@ -222,10 +222,19 @@ export default function PartnersPage() {
             {rows.map((partner) => {
               const tone = MOU_TONE[partner.mou_status];
               return (
-                <Card key={partner.id} onClick={() => setViewing(partner)} style={{ padding: "12px 14px" }}>
+                <Card key={partner.id} onClick={() => setViewing(partner)} style={{ padding: "12px 14px" }} hasOwnKeyboardTarget>
                   <div style={{ display: "flex", gap: 8, alignItems: "flex-start", justifyContent: "space-between" }}>
                     <div style={{ minWidth: 0 }}>
-                      <div className="t-body-strong">{partner.partner_name}</div>
+                      <button
+                        type="button"
+                        className="row-link t-body-strong"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setViewing(partner);
+                        }}
+                      >
+                        {partner.partner_name}
+                      </button>
                       <div className="t-meta">{partner.partner_type_display}</div>
                     </div>
                     <span className="chip" style={{ color: tone.fg, background: tone.bg, borderColor: tone.bd }}>

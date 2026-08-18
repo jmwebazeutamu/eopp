@@ -309,57 +309,70 @@ function ReferralCard({
           by the trigger label ("Onward", "Replacement") the card already
           shows — a coloured rail was a third encoding of the same fact. */}
       <Card muted={closed} style={selected ? { boxShadow: "0 0 0 2px var(--green-500)" } : undefined}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <CapsLabel>
-              {referral.referral_category_label} · {referralRef(referral.id)}
-            </CapsLabel>
-            <div className="t-card-title">{referral.receiving_partner_detail.partner_name}</div>
-          </div>
-          <ReferralStatusChip status={referral.status} label={referral.status_display} />
-        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+          <div style={{ flex: "1 1 420px", minWidth: 0 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <CapsLabel>
+                  {referral.referral_category_label} · {referralRef(referral.id)}
+                </CapsLabel>
+                <div className="t-card-title">{referral.receiving_partner_detail.partner_name}</div>
+              </div>
+              <ReferralStatusChip status={referral.status} label={referral.status_display} />
+            </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 8 }}>
-          <MutedChip style={{ fontSize: 12 }}>
-            {referral.counts_toward_parallel_cap ? t("case.usesSlot") : t("case.noSlot")}
-          </MutedChip>
-          <span className="t-meta">
-            {referral.trigger_display} · initiated {referral.initiated_date}
-            {referral.confirmed_date && ` · confirmed ${referral.confirmed_date}`}
-            {referral.outcome_date && ` · outcome ${referral.outcome_date}`}
-            {referral.failure_date && ` · failed ${referral.failure_date}`}
-          </span>
-          {waiting !== null && level !== null && (
-            <WaitBadge level={level}>{t("case.waiting", { days: waiting })}</WaitBadge>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 8 }}>
+              <MutedChip style={{ fontSize: 12 }}>
+                {referral.counts_toward_parallel_cap ? t("case.usesSlot") : t("case.noSlot")}
+              </MutedChip>
+              <span className="t-meta">
+                {referral.trigger_display} · initiated {referral.initiated_date}
+                {referral.confirmed_date && ` · confirmed ${referral.confirmed_date}`}
+                {referral.outcome_date && ` · outcome ${referral.outcome_date}`}
+                {referral.failure_date && ` · failed ${referral.failure_date}`}
+              </span>
+              {waiting !== null && level !== null && (
+                <WaitBadge level={level}>{t("case.waiting", { days: waiting })}</WaitBadge>
+              )}
+            </div>
+
+            {(referral.outcome_type_label || referral.failure_reason_label || referral.notes) && (
+              <div style={{ marginTop: 8, fontSize: 14 }}>
+                {referral.outcome_type_label && <div>Outcome: {referral.outcome_type_label}</div>}
+                {referral.failure_reason_label && (
+                  <div style={{ color: "var(--red-700)" }}>Failed: {referral.failure_reason_label}</div>
+                )}
+                {referral.notes && <div className="t-meta">{referral.notes}</div>}
+              </div>
+            )}
+          </div>
+
+          {kinds.length > 0 && (
+            <div
+              style={{
+                flex: "0 0 220px",
+                width: 220,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                marginLeft: "auto",
+              }}
+            >
+              {kinds.map((kind) => (
+                <Button
+                  key={kind}
+                  style={{ width: "100%", justifyContent: "center" }}
+                  variant={
+                    kind === "confirm" ? "primary" : kind === "decline" || kind === "fail" ? "destructive-soft" : "secondary"
+                  }
+                  onClick={() => onAction({ kind, referral })}
+                >
+                  {ACTION_LABELS[kind]}
+                </Button>
+              ))}
+            </div>
           )}
         </div>
-
-        {(referral.outcome_type_label || referral.failure_reason_label || referral.notes) && (
-          <div style={{ marginTop: 8, fontSize: 14 }}>
-            {referral.outcome_type_label && <div>Outcome: {referral.outcome_type_label}</div>}
-            {referral.failure_reason_label && (
-              <div style={{ color: "var(--red-700)" }}>Failed: {referral.failure_reason_label}</div>
-            )}
-            {referral.notes && <div className="t-meta">{referral.notes}</div>}
-          </div>
-        )}
-
-        {kinds.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-            {kinds.map((kind) => (
-              <Button
-                key={kind}
-                style={{ flex: "1 1 180px" }}
-                variant={
-                  kind === "confirm" ? "primary" : kind === "decline" || kind === "fail" ? "destructive-soft" : "secondary"
-                }
-                onClick={() => onAction({ kind, referral })}
-              >
-                {ACTION_LABELS[kind]}
-              </Button>
-            ))}
-          </div>
-        )}
       </Card>
     </div>
   );

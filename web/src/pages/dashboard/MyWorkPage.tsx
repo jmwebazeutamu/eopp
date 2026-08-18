@@ -78,6 +78,13 @@ export default function MyWorkPage() {
 
   if (loading && !data) return <div className="t-meta">{t("common.loading")}</div>;
   if (!data) return null;
+  const atRiskColumns = data.at_risk.reduce<Array<typeof data.at_risk>>(
+    (columns, row, index) => {
+      columns[index % 2].push(row);
+      return columns;
+    },
+    [[], []],
+  );
 
   return (
     <TierPage
@@ -128,73 +135,18 @@ export default function MyWorkPage() {
         />
       </div>
 
-      <div className="grid-panels">
-        <Card>
-          <CapsLabel>{t("cm.needsAction")}</CapsLabel>
-          <div className="t-meta" style={{ margin: "2px 0 10px" }}>
-            {t("cm.needsActionWhy")}
-          </div>
-          {data.needs_action.length === 0 ? (
-            // "Nothing is overdue" is a claim about the programme. For a
-            // supervisor with nothing assigned but hundreds open in view, the
-            // true statement is the narrower one.
-            <div className="t-meta">
-              {data.open_alerts_in_scope > 0
-                ? t("cm.noneAssigned", { count: data.open_alerts_in_scope })
-                : t("cm.nothingOverdue")}
-            </div>
-          ) : (
-            <div className="stack" style={{ gap: 0 }}>
-              {data.needs_action.map((row) => (
-                <Link
-                  key={row.id}
-                  to={`/cases/${row.case}`}
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    padding: "9px 0",
-                    borderBottom: "1px solid var(--line)",
-                    textDecoration: "none",
-                    color: "inherit",
-                  }}
-                >
-                  <span>
-                    <span className="t-body-strong">{row.youth_name}</span>
-                    <span className="t-meta" style={{ display: "block" }}>
-                      {row.reason}
-                    </span>
-                  </span>
-                  <span
-                    className="chip"
-                    style={{
-                      color: row.days_overdue > 0 ? "var(--red-700)" : "var(--gold-700)",
-                      background: row.days_overdue > 0 ? "var(--red-100)" : "var(--gold-100)",
-                      borderColor: "transparent",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <span className="chip__mark" aria-hidden>
-                      {row.days_overdue > 0 ? "▲" : "◔"}
-                    </span>
-                    {row.days_overdue > 0 ? t("cm.overdue", { days: row.days_overdue }) : t("cm.dueToday")}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-          {data.needs_action_count > data.needs_action.length && (
-            <Link className="t-meta" style={{ display: "inline-block", marginTop: 10, fontWeight: 600 }} to="/alerts">
-              {t("cm.viewAll", { n: data.needs_action_count })}
-            </Link>
-          )}
-        </Card>
-
+      <div
+        style={{
+          display: "grid",
+          gap: 20,
+          gridTemplateColumns: "minmax(0, 1.4fr) minmax(320px, 1fr)",
+          alignItems: "start",
+        }}
+      >
         <Card>
           <CapsLabel>{t("cm.awaiting")}</CapsLabel>
           <div className="t-meta" style={{ margin: "2px 0 10px" }}>
-            {t("cm.awaitingWhy")}
+            Longest wait first.
           </div>
           {data.awaiting_partner.length === 0 ? (
             <div className="t-meta">{t("cm.nothingWaiting")}</div>
@@ -230,88 +182,153 @@ export default function MyWorkPage() {
           </div>
         </Card>
 
-        <Card>
-          <CapsLabel style={{ marginBottom: 10 }}>{t("cm.caseload")}</CapsLabel>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{t("cases.col.status")}</th>
-                <th>{t("cm.cases")}</th>
-                <th>{t("cm.oldest")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.caseload_by_status.map((row) => (
-                <tr key={row.status}>
-                  <td>
-                    <Link to={`/cases?case_status=${row.status}`} style={{ textDecoration: "none" }}>
-                      <CaseStatusChip status={row.status as CaseStatus} label={row.label} />
-                    </Link>
-                  </td>
-                  <td className="tabular">{row.n}</td>
-                  <td className="tabular">{row.n ? `${row.oldest_days}d` : "—"}</td>
+        <div style={{ display: "grid", gap: 20 }}>
+          <Card>
+            <CapsLabel style={{ marginBottom: 10 }}>{t("cm.caseload")}</CapsLabel>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t("cases.col.status")}</th>
+                  <th>{t("cm.cases")}</th>
+                  <th>{t("cm.oldest")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+              </thead>
+              <tbody>
+                {data.caseload_by_status.map((row) => (
+                  <tr key={row.status}>
+                    <td>
+                      <Link to={`/cases?case_status=${row.status}`} style={{ textDecoration: "none" }}>
+                        <span style={{ whiteSpace: "nowrap" }}>
+                          <CaseStatusChip status={row.status as CaseStatus} label={row.label} />
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="tabular">{row.n}</td>
+                    <td className="tabular">{row.n ? `${row.oldest_days}d` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
 
-        <Card>
-          <CapsLabel>{t("cm.atRisk")}</CapsLabel>
-          <div className="t-meta" style={{ margin: "2px 0 10px" }}>
-            {t("cm.atRiskWhy")}
-          </div>
-          {data.at_risk.length === 0 ? (
-            <div className="t-meta">{t("cm.noneAtRisk")}</div>
-          ) : (
-            <div className="stack" style={{ gap: 0 }}>
-              {data.at_risk.map((row) => (
-                <Link
-                  key={row.case}
-                  to={`/cases/${row.case}`}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    padding: "9px 0",
-                    borderBottom: "1px solid var(--line)",
-                    textDecoration: "none",
-                    color: "inherit",
-                  }}
-                >
-                  <span>
-                    <span className="t-body-strong">{row.youth_name}</span>
-                    <span className="t-meta" style={{ display: "block" }}>
-                      {row.reason}
-                    </span>
-                  </span>
-                  <MutedChip>{row.badge}</MutedChip>
-                </Link>
-              ))}
+          <Card>
+            <CapsLabel>{t("cm.needsAction")}</CapsLabel>
+            <div className="t-meta" style={{ margin: "2px 0 10px" }}>
+              {t("cm.needsActionWhy")}
             </div>
-          )}
-
-          {data.at_risk_count > data.at_risk.length && (
-            <Link className="t-meta" style={{ display: "inline-block", marginTop: 10, fontWeight: 600 }} to="/cases">
-              {t("cm.viewAll", { n: data.at_risk_count })}
-            </Link>
-          )}
-
-          {/* Naming the three conditions this cannot see, rather than implying
-              it checked them. */}
-          <div
-            className="t-meta"
-            style={{ marginTop: 12, padding: "9px 11px", borderRadius: "var(--r-group)", background: "var(--fill-muted)" }}
-          >
-            {t("cm.notInstrumented")}
-            <ul style={{ margin: "6px 0 0", paddingInlineStart: 18 }}>
-              {data.uninstrumented_risk.map((condition) => (
-                <li key={condition}>{condition}</li>
-              ))}
-            </ul>
-          </div>
-        </Card>
+            {data.needs_action.length === 0 ? (
+              <div className="t-meta">
+                {data.open_alerts_in_scope > 0
+                  ? t("cm.noneAssigned", { count: data.open_alerts_in_scope })
+                  : t("cm.nothingOverdue")}
+              </div>
+            ) : (
+              <div className="stack" style={{ gap: 0 }}>
+                {data.needs_action.map((row) => (
+                  <Link
+                    key={row.id}
+                    to={`/cases/${row.case}`}
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      padding: "9px 0",
+                      borderBottom: "1px solid var(--line)",
+                      textDecoration: "none",
+                      color: "inherit",
+                    }}
+                  >
+                    <span>
+                      <span className="t-body-strong">{row.youth_name}</span>
+                      <span className="t-meta" style={{ display: "block" }}>
+                        {row.reason}
+                      </span>
+                    </span>
+                    <span
+                      className="chip"
+                      style={{
+                        color: row.days_overdue > 0 ? "var(--red-700)" : "var(--gold-700)",
+                        background: row.days_overdue > 0 ? "var(--red-100)" : "var(--gold-100)",
+                        borderColor: "transparent",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <span className="chip__mark" aria-hidden>
+                        {row.days_overdue > 0 ? "▲" : "◔"}
+                      </span>
+                      {row.days_overdue > 0 ? t("cm.overdue", { days: row.days_overdue }) : t("cm.dueToday")}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+            {data.needs_action_count > data.needs_action.length && (
+              <Link className="t-meta" style={{ display: "inline-block", marginTop: 10, fontWeight: 600 }} to="/alerts">
+                {t("cm.viewAll", { n: data.needs_action_count })}
+              </Link>
+            )}
+          </Card>
+        </div>
       </div>
+
+      <Card>
+        <CapsLabel>{t("cm.atRisk")}</CapsLabel>
+        <div className="t-meta" style={{ margin: "2px 0 10px" }}>
+          Longest without contact first.
+        </div>
+        {data.at_risk.length === 0 ? (
+          <div className="t-meta">{t("cm.noneAtRisk")}</div>
+        ) : (
+          <div style={{ display: "grid", gap: 20, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            {atRiskColumns.map((column, columnIndex) => (
+              <div key={columnIndex} className="stack" style={{ gap: 0 }}>
+                {column.map((row) => (
+                  <Link
+                    key={row.case}
+                    to={`/cases/${row.case}`}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      padding: "10px 0",
+                      borderBottom: "1px solid var(--line)",
+                      textDecoration: "none",
+                      color: "inherit",
+                    }}
+                  >
+                    <span>
+                      <span className="t-body-strong">{row.youth_name}</span>
+                      <span className="t-meta" style={{ display: "block" }}>
+                        {row.reason}
+                      </span>
+                    </span>
+                    <MutedChip style={{ whiteSpace: "nowrap" }}>{row.badge}</MutedChip>
+                  </Link>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {data.at_risk_count > data.at_risk.length && (
+          <Link className="t-meta" style={{ display: "inline-block", marginTop: 10, fontWeight: 600 }} to="/cases">
+            {t("cm.viewAll", { n: data.at_risk_count })}
+          </Link>
+        )}
+
+        <div
+          className="t-meta"
+          style={{ marginTop: 12, padding: "14px 16px", borderRadius: "var(--r-group)", background: "var(--fill-muted)" }}
+        >
+          {t("cm.notInstrumented")}
+          <ul style={{ margin: "6px 0 0", paddingInlineStart: 18 }}>
+            {data.uninstrumented_risk.map((condition) => (
+              <li key={condition}>{condition}</li>
+            ))}
+          </ul>
+        </div>
+      </Card>
     </TierPage>
   );
 }

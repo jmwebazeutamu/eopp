@@ -165,9 +165,15 @@ export default function CaseListPage() {
 
           <div className="only-phone">
             {rows.map((row) => (
-              <Card key={row.id} onClick={() => navigate(`/cases/${row.id}`)} style={{ padding: "12px 14px" }}>
+              <Card key={row.id} onClick={() => navigate(`/cases/${row.id}`)} style={{ padding: "12px 14px" }} hasOwnKeyboardTarget>
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-start", justifyContent: "space-between" }}>
-                  <span className="t-body-strong">{row.youth.full_name}</span>
+                  <Link
+                    className="row-link t-body-strong"
+                    to={`/cases/${row.id}`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {row.youth.full_name}
+                  </Link>
                   <CaseStatusChip status={row.case_status} label={row.case_status_display} />
                 </div>
                 <div className="t-meta">

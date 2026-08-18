@@ -116,27 +116,41 @@ export function Card({
   onClick,
   style,
   className,
+  hasOwnKeyboardTarget,
 }: {
   children: ReactNode;
   muted?: boolean;
   onClick?: () => void;
   style?: CSSProperties;
   className?: string;
+  /**
+   * Set when the card contains its own keyboard target — a link or button on
+   * the title — and the card's `onClick` is a mouse convenience on top of it.
+   *
+   * The card then keeps the whole surface clickable but stops pretending to be
+   * a button: no `role`, no `tabIndex`, no key handler. A `role="button"`
+   * containing real buttons is `nested-interactive`, and assistive technology
+   * flattens that subtree, so the controls inside stop being announced as
+   * their own — on the partner cards that hid every row action.
+   */
+  hasOwnKeyboardTarget?: boolean;
 }) {
   const classes = ["card", muted ? "card--muted" : "", onClick ? "card--interactive" : "", className];
+  // A card that is only mouse-clickable must not claim to be a button.
+  const actsAsButton = Boolean(onClick) && !hasOwnKeyboardTarget;
   return (
     <div
       className={classes.filter(Boolean).join(" ")}
       style={style}
       onClick={onClick}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      role={actsAsButton ? "button" : undefined}
+      tabIndex={actsAsButton ? 0 : undefined}
       onKeyDown={
-        onClick
+        actsAsButton
           ? (event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                onClick();
+                onClick?.();
               }
             }
           : undefined
