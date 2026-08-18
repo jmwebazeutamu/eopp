@@ -60,6 +60,24 @@ class ReferralStatus(models.TextChoices):
         return {cls.PENDING_CONFIRMATION, cls.ACTIVE}
 
 
+class VerificationSource(models.TextChoices):
+    """How an outcome was verified — OQ-2, settled 2026-08-18.
+
+    Without this every outcome is self-reported, and a self-reported placement
+    rate is an aspiration rather than a result. §8.3 of the dashboard handoff
+    makes the externally-verified subset the reportable headline, which is not
+    expressible until the source is recorded as data rather than as the free
+    text in `outcome_verification_method`.
+
+    Ordered weakest to strongest; `is_external` in the model reads the split.
+    """
+
+    SELF_REPORTED = "SELF_REPORTED", _("Self-reported by the youth")
+    PROVIDER_CONFIRMED = "PROVIDER_CONFIRMED", _("Confirmed by the receiving provider")
+    EMPLOYER_CONFIRMED = "EMPLOYER_CONFIRMED", _("Confirmed by the employer")
+    DOCUMENT_VERIFIED = "DOCUMENT_VERIFIED", _("Verified against a document")
+
+
 class ConfirmationStatus(models.TextChoices):
     """Spec §4.6. The receiving partner's response."""
 
@@ -139,6 +157,32 @@ class ReferralQuerySet(models.QuerySet):
 
     def for_case(self, case):
         return self.filter(case=case)
+
+    def placements(self):
+        """**The** definition of a placement. Nothing else may restate it.
+
+        A placement is a referral that completed with an outcome the
+        administrator has flagged `counts_as_placement` — job, apprenticeship or
+        enterprise. It is deliberately a queryset rather than a constant so the
+        flag stays admin-editable configuration (§9) and every consumer picks up
+        a change without a deploy.
+
+        Four separate copies of this filter had drifted across the dashboard
+        modules, three counting referrals and one counting youth, which is how
+        one screen came to show three different placement totals.
+        """
+        return self.filter(status=ReferralStatus.COMPLETED, outcome_type__counts_as_placement=True)
+
+    def placed_youth_ids(self):
+        """Distinct youth with at least one placement.
+
+        The unit that matters for every programme and donor figure: a youth
+        placed twice is one young person in work, not two.
+        """
+        return set(self.placements().values_list("case__youth_id", flat=True))
+
+    def placed_case_ids(self):
+        return set(self.placements().values_list("case_id", flat=True))
 
     def counting_toward_parallel_cap(self):
         """Active referrals that occupy a concurrency slot (spec §6.3).
@@ -242,8 +286,31 @@ class Referral(BaseModel):
     )
     confirmed_date = models.DateField(_("confirmed date"), null=True, blank=True)
     # §4.6 types confirmed_by as Text, not a User reference: the person
-    # confirming is often partner-side staff without a platform account.
+    # confirming is often partner-side staff without a platform account. This
+    # names whoever at the partner gave the answer.
     confirmed_by = models.CharField(_("confirmed by"), max_length=255, blank=True)
+
+    # Who typed it in, which is not always who said it.
+    #
+    # A case manager may record a partner's confirmation on their behalf —
+    # decided 2026-08-18, because partners in the pilot woredas may not log in
+    # for days and a referral nobody can confirm sits in Pending forever.
+    #
+    # The two fields have to stay separate. Fold them together and partner
+    # responsiveness stops being measurable: a partner who never answers looks
+    # identical to one who answers promptly, because staff kept the queue moving
+    # on their behalf. `confirmed_by` is the partner's word; this is the
+    # platform account that entered it, and it is NULL when the partner
+    # confirmed through their own login.
+    confirmation_recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_confirmations",
+        verbose_name=_("confirmation recorded by"),
+        help_text=_("Set when a staff member recorded the partner's answer rather than the partner entering it."),
+    )
 
     status = models.CharField(
         _("status"),
@@ -271,6 +338,30 @@ class Referral(BaseModel):
         verbose_name=_("outcome verified by"),
     )
     outcome_verification_method = models.CharField(_("verification method"), max_length=255, blank=True)
+    # OQ-2. The free-text method above says *how*; this says how strong it is,
+    # in a form a report can filter on.
+    verification_source = models.CharField(
+        _("verification source"),
+        max_length=24,
+        choices=VerificationSource.choices,
+        blank=True,
+        db_index=True,
+        help_text=_("Who verified the outcome. Anything but self-reported counts as externally verified."),
+    )
+
+    # OQ-1. The date the youth actually presented to the partner.
+    #
+    # Without it the pipeline cannot separate "the partner accepted" from "the
+    # youth turned up", and that gap is the largest single loss in the pilot —
+    # 50% between confirmation and outcome, at a median of 54 days. The stage
+    # renders as not-yet-instrumented until this is populated, never as zero.
+    service_start_date = models.DateField(
+        _("service start date"),
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_("The date the youth presented to the receiving partner."),
+    )
 
     failure_reason_code = models.ForeignKey(
         "referrals.FailureReasonCode",
@@ -398,6 +489,15 @@ class Referral(BaseModel):
             self.confirmation_status = transition.sets_confirmation
             if transition.sets_confirmation == ConfirmationStatus.CONFIRMED and not self.confirmed_date:
                 self.confirmed_date = date.today()
+            # An actor with a platform account is staff recording the partner's
+            # answer; a partner confirming through their own login is
+            # `PARTNER_STAFF` and leaves this null, which is what keeps the
+            # response-time metrics honest.
+            if transition.sets_confirmation and actor is not None and self.confirmation_recorded_by_id is None:
+                from apps.users.models import Role
+
+                if getattr(actor, "role", None) != Role.PARTNER_STAFF:
+                    self.confirmation_recorded_by = actor
 
         if new_status == ReferralStatus.COMPLETED and actor and not self.outcome_verified_by_id:
             self.outcome_verified_by = actor
@@ -405,6 +505,26 @@ class Referral(BaseModel):
         self.status = new_status
         self.full_clean(exclude=["parallel_group_id"], validate_unique=False)
         self.save()
+
+        # A recorded placement moves the case to Placed.
+        #
+        # Source of truth is the referral outcome, not `case_status`: the
+        # outcome carries a date, a verifier and a verification source, and the
+        # status carries none of those. The status is derived from it here, in
+        # the state machine, because that is the only route a referral is
+        # allowed to change (§6.2) and so the only place the derivation cannot
+        # be bypassed.
+        #
+        # Deliberately one-way. Removing an outcome does NOT demote the case:
+        # `PLACED` is also a judgement a case manager may set by hand (§4.2),
+        # and silently overwriting that would lose a human decision to a
+        # cascade. `manage.py reconcile_case_placement` reports those instead.
+        if new_status == ReferralStatus.COMPLETED and self.outcome_type_id:
+            from apps.cases.models import CaseStatus
+
+            if self.outcome_type.counts_as_placement and self.case.case_status != CaseStatus.PLACED:
+                self.case.case_status = CaseStatus.PLACED
+                self.case.save(update_fields=["case_status", "last_activity_date", "updated_at"])
 
         # Any referral movement is case activity (§4.2 last_activity_date).
         self.case.touch()
