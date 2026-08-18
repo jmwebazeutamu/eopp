@@ -61,17 +61,21 @@ export default function ReferralsPage() {
       // The counters filter by status, so a chosen status narrows both lists
       // to it and empties the other — which is what "show me only the failed
       // ones" should do to a queue grouped by urgency.
-      const status = params.get("status");
+      // `status__in` is what the chip row writes — the parameter the server
+      // names on its own counters — and it carries a comma-separated list
+      // because the chips multi-select.
+      const chosen = (params.get("status__in") ?? "").split(",").filter(Boolean);
+      const wants = (status: string) => chosen.length === 0 || chosen.includes(status);
       const search = params.get("q") || undefined;
       const [pendingResponse, activeResponse, promptsResponse, rulesResponse] = await Promise.all([
-        status && status !== "PENDING_CONFIRMATION"
-          ? Promise.resolve({ data: { results: [] as Referral[] } })
-          : api.get<Paginated<Referral>>("/referrals/", {
+        wants("PENDING_CONFIRMATION")
+          ? api.get<Paginated<Referral>>("/referrals/", {
               params: { status: "PENDING_CONFIRMATION", page_size: 100, search },
-            }),
-        status && status !== "ACTIVE"
-          ? Promise.resolve({ data: { results: [] as Referral[] } })
-          : api.get<Paginated<Referral>>("/referrals/", { params: { status: "ACTIVE", page_size: 100, search } }),
+            })
+          : Promise.resolve({ data: { results: [] as Referral[] } }),
+        wants("ACTIVE")
+          ? api.get<Paginated<Referral>>("/referrals/", { params: { status: "ACTIVE", page_size: 100, search } })
+          : Promise.resolve({ data: { results: [] as Referral[] } }),
         // The prompt conditions are querysets on the server (§6.2); asking for
         // them rather than recomputing "completed with no child" here keeps one
         // definition, the same one the Sprint 4 alert jobs materialise.

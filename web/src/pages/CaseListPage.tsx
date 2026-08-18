@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
-import type { CaseListRow, CaseStatus, Paginated } from "../api/types";
+import type { CaseListRow, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import CaseFormModal from "../components/CaseFormModal";
 import ListPage from "../components/ListPage";
@@ -52,7 +52,11 @@ export default function CaseListPage() {
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
 
-  const status = (params.get("case_status") ?? "") as CaseStatus | "";
+  // The chip row writes whatever parameter the server names on its counters,
+  // which is `case_status__in` — a comma-separated list, because the chips
+  // multi-select. Reading `case_status` here meant the URL changed, the chip
+  // lit up, and the list never filtered.
+  const status = params.get("case_status__in") ?? "";
   const query = params.get("q") ?? "";
   const page = Number(params.get("page") ?? 1);
 
@@ -78,7 +82,7 @@ export default function CaseListPage() {
         params: {
           page,
           page_size: PAGE_SIZE,
-          case_status: status || undefined,
+          case_status__in: status || undefined,
           ...scopeParam(scope.woreda),
           search: query || undefined,
         },
