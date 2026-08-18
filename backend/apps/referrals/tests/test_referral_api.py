@@ -1,5 +1,7 @@
 """Referral API tests — endpoints, scoping (§7), and the taxonomy lookups (§5)."""
 
+from datetime import date, timedelta
+
 import pytest
 
 from apps.referrals.models import Referral, ReferralStatus
@@ -336,3 +338,113 @@ def test_rules_endpoint_serves_the_thresholds_the_ui_shows(case_manager, as_user
 
 def test_rules_endpoint_needs_authentication(api):
     assert api.get("/api/v1/referrals/rules/").status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Queue conditions — what the referrals screen groups and paginates by
+# ---------------------------------------------------------------------------
+
+
+def _age(referral, days):
+    """Backdate a referral without going through the state machine."""
+    Referral.objects.filter(pk=referral.pk).update(initiated_date=date.today() - timedelta(days=days))
+
+
+def test_confirmation_overdue_uses_the_same_boundary_as_the_alert_job(case, make_referral, settings):
+    """Strictly beyond the threshold, matching alerts.tasks and rules.
+
+    Those two disagreed on this boundary once, and one referral read as overdue
+    on one screen and on time on another. A referral waiting exactly the
+    threshold has not breached it.
+    """
+    settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS = 14
+    on_the_day = make_referral(case)
+    _age(on_the_day, 14)
+    beyond = make_referral(case)
+    _age(beyond, 15)
+
+    overdue = set(Referral.objects.confirmation_overdue().values_list("pk", flat=True))
+    assert beyond.pk in overdue
+    assert on_the_day.pk not in overdue
+
+
+def test_the_pending_split_is_exhaustive(case, make_referral, settings):
+    """Overdue plus on-time accounts for every pending referral, once.
+
+    The queue draws these as two groups; a referral in neither, or in both,
+    would be invisible or double-counted.
+    """
+    settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS = 14
+    _age(make_referral(case), 30)
+    _age(make_referral(case), 2)
+
+    pending = Referral.objects.filter(status=ReferralStatus.PENDING_CONFIRMATION)
+    overdue = set(Referral.objects.confirmation_overdue().values_list("pk", flat=True))
+    on_time = set(Referral.objects.awaiting_confirmation_on_time().values_list("pk", flat=True))
+
+    assert overdue | on_time == set(pending.values_list("pk", flat=True))
+    assert overdue & on_time == set()
+
+
+def test_needs_decision_is_the_union_of_the_three_conditions(case, make_referral, case_manager, taxonomy, settings):
+    """§6.2's three prompts, as one queryset.
+
+    The referrals screen used to assemble this in the browser from the pending
+    list plus the prompts endpoint, which put the definition in the client and
+    made the screen impossible to paginate.
+    """
+    settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS = 14
+    stale = make_referral(case)
+    _age(stale, 40)
+
+    completed = make_referral(case)
+    completed.transition_to(ReferralStatus.ACTIVE, actor=case_manager)
+    completed.transition_to(ReferralStatus.COMPLETED, actor=case_manager, outcome_type=taxonomy["job_placement"])
+
+    failed = make_referral(case)
+    failed.transition_to(ReferralStatus.ACTIVE, actor=case_manager)
+    failed.transition_to(ReferralStatus.FAILED, actor=case_manager, failure_reason_code=taxonomy["no_show"])
+
+    fresh = make_referral(case)
+
+    needs = set(Referral.objects.needs_decision().values_list("pk", flat=True))
+    assert {stale.pk, completed.pk, failed.pk} <= needs
+    # Still inside the window and nobody is waiting on the case manager.
+    assert fresh.pk not in needs
+
+
+def test_needs_decision_counts_each_referral_once(case, make_referral, settings):
+    """The union is distinct. Without it a row could satisfy two conditions and
+    be paginated as two, so a page of 25 would show fewer than 25 rows."""
+    settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS = 14
+    _age(make_referral(case), 40)
+    ids = list(Referral.objects.needs_decision().values_list("pk", flat=True))
+    assert len(ids) == len(set(ids))
+
+
+def test_queue_filters_are_reachable_over_the_api(case, make_referral, as_user, case_manager, settings):
+    settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS = 14
+    _age(make_referral(case), 40)
+    make_referral(case)
+
+    client = as_user(case_manager)
+    assert client.get("/api/v1/referrals/", {"needs_decision": "true"}).data["count"] == 1
+    assert (
+        client.get(
+            "/api/v1/referrals/", {"status": ReferralStatus.PENDING_CONFIRMATION, "confirmation_overdue": "false"}
+        ).data["count"]
+        == 1
+    )
+
+
+def test_the_queue_paginates_rather_than_capping(case, make_referral, as_user, case_manager, settings):
+    """The screen asked for the first 100 of each queue and said nothing about
+    the rest; with 266 active referrals most of the queue was invisible."""
+    settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS = 14
+    for _ in range(30):
+        _age(make_referral(case), 40)
+
+    body = as_user(case_manager).get("/api/v1/referrals/", {"needs_decision": "true", "page_size": 25}).data
+    assert body["count"] == 30
+    assert len(body["results"]) == 25
+    assert body["next"] is not None

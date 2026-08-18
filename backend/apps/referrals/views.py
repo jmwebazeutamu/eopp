@@ -44,6 +44,11 @@ def _as_drf_error(exc):
     return ValidationError(detail)
 
 
+def _is_true(value):
+    """Query parameters arrive as strings; only these mean yes."""
+    return str(value).lower() in {"true", "1", "yes"}
+
+
 @extend_schema(tags=["referrals"])
 class ReferralViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     """The referral record and its state machine.
@@ -73,9 +78,6 @@ class ReferralViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     # `case__woreda` backs the shell's woreda scope selector. It is the same
     # column `woreda_field` scopes on, so a narrowed view is always a subset of
-    # what §7 already allows — the filter cannot widen anything.
-    # `case__woreda` backs the shell's woreda scope selector. It is the same
-    # column `woreda_field` scopes on, so a narrowed view is always a subset of
     # what §7 already allows — the filter cannot widen anything. `status__in`
     # backs multi-select in the filter chip row.
     filterset_fields = {
@@ -89,6 +91,29 @@ class ReferralViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     search_fields = ["case__youth__full_name", "receiving_partner__partner_name"]
     ordering_fields = ["initiated_date", "status"]
     ordering = ["-initiated_date"]
+
+    def get_queryset(self):
+        """Adds the two §6.2 conditions the referrals queue groups by.
+
+        `needs_decision` and `confirmation_overdue` are querysets on the model,
+        not filters expressed here, so the queue, the alert jobs and the
+        dashboards all read one definition. The queue used to assemble
+        "needs a decision" in the browser from two list calls plus the prompts
+        endpoint — which put the definition in the client and made the screen
+        impossible to paginate.
+        """
+        queryset = super().get_queryset()
+        params = self.request.query_params
+
+        if _is_true(params.get("needs_decision")):
+            queryset = queryset.needs_decision()
+
+        overdue = params.get("confirmation_overdue")
+        if overdue is not None:
+            queryset = (
+                queryset.confirmation_overdue() if _is_true(overdue) else queryset.awaiting_confirmation_on_time()
+            )
+        return queryset
 
     # -- creation and deletion --------------------------------------------
 

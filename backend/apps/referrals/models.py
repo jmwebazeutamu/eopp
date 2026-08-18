@@ -10,7 +10,7 @@ auditable and testable and can be handed to a government IT team at scale-up.
 """
 
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -225,6 +225,39 @@ class ReferralQuerySet(models.QuerySet):
         explicit so a row left inconsistent by a data fix cannot re-prompt.
         """
         return self.filter(status=ReferralStatus.FAILED, replacement_referral__isnull=True)
+
+    def confirmation_overdue(self):
+        """Pending referrals a partner has not answered within the window.
+
+        The same boundary as `alerts.tasks.detect_overdue_confirmations` and
+        `dashboard.rules.is_overdue_for_confirmation`: **strictly beyond** the
+        threshold, so a referral waiting exactly that many days has not yet
+        breached it. Those two already disagreed once, and one referral read as
+        overdue on one screen and on time on another.
+        """
+        cutoff = date.today() - timedelta(days=settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS)
+        return self.filter(status=ReferralStatus.PENDING_CONFIRMATION, initiated_date__lt=cutoff)
+
+    def awaiting_confirmation_on_time(self):
+        """Pending referrals still inside the confirmation window."""
+        cutoff = date.today() - timedelta(days=settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS)
+        return self.filter(status=ReferralStatus.PENDING_CONFIRMATION, initiated_date__gte=cutoff)
+
+    def needs_decision(self):
+        """Everything a case manager owns the next move on.
+
+        The union of the three §6.2 conditions: a partner who has not answered
+        in time, a completed referral with no onward step, and a failed one
+        with no replacement.
+
+        The referrals queue used to assemble this in the browser from two list
+        calls plus the prompts endpoint, which meant the definition lived in
+        the client and the page could not be paginated — it fetched the first
+        100 of each and said nothing about the rest.
+        """
+        return (
+            self.confirmation_overdue() | self.awaiting_onward_prompt() | self.awaiting_replacement_prompt()
+        ).distinct()
 
 
 class Referral(BaseModel):

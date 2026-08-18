@@ -6,6 +6,7 @@ import { api, errorMessage } from "../api/client";
 import type { Paginated, Youth } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import ListPage from "../components/ListPage";
+import Paginator from "../components/Paginator";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import YouthDetailModal from "../components/YouthDetailModal";
 import YouthFormModal from "../components/YouthFormModal";
@@ -30,7 +31,7 @@ export default function YouthListPage() {
   const seesNoCaseRecords = user?.access.case_scope === "LINKED";
   const { message } = App.useApp();
   const { t } = useLang();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
 
   const [rows, setRows] = useState<Youth[]>([]);
@@ -46,16 +47,6 @@ export default function YouthListPage() {
   const page = Number(params.get("page") ?? 1);
   const canWrite = user?.access.case_write ?? false;
 
-  const setParam = useCallback(
-    (key: string, value: string) => {
-      const next = new URLSearchParams(params);
-      if (value) next.set(key, value);
-      else next.delete(key);
-      if (key !== "page") next.delete("page");
-      setParams(next, { replace: true });
-    },
-    [params, setParams],
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -211,19 +202,7 @@ export default function YouthListPage() {
         ))}
       </div>
 
-      {count > PAGE_SIZE && (
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Button size="sm" disabled={page <= 1} onClick={() => setParam("page", String(page - 1))}>
-            Previous
-          </Button>
-          <span className="t-meta">
-            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, count)} of {count}
-          </span>
-          <Button size="sm" disabled={page * PAGE_SIZE >= count} onClick={() => setParam("page", String(page + 1))}>
-            Next
-          </Button>
-        </div>
-      )}
+      <Paginator total={count} pageSize={PAGE_SIZE} />
 
       <YouthDetailModal
         youth={viewing}

@@ -6,6 +6,7 @@ import { api, errorMessage } from "../api/client";
 import type { Alert, AlertSummary, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import FilterChips from "../components/FilterChips";
+import Paginator from "../components/Paginator";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { Button, CapsLabel, Card, PageHeader } from "../components/ui";
 import { ALERT_TONE } from "../design/status";
@@ -38,6 +39,9 @@ import { useLang } from "../i18n/LanguageContext";
  * about why the system raised them.
  */
 
+/** Matches the caseload and registry screens. */
+const PAGE_SIZE = 25;
+
 export default function AlertsPage() {
   const scope = useScope();
   const { user } = useAuth();
@@ -45,6 +49,8 @@ export default function AlertsPage() {
   const { t } = useLang();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const page = Math.max(1, Number(params.get("page") ?? 1));
+  const [count, setCount] = useState(0);
 
   const [rows, setRows] = useState<Alert[]>([]);
   const [summary, setSummary] = useState<AlertSummary | null>(null);
@@ -64,20 +70,22 @@ export default function AlertsPage() {
           params: {
             status: "OPEN",
             alert_type__in: filter || undefined,
-            page_size: 100,
+            page,
+            page_size: PAGE_SIZE,
             ...scopeParam(scope.woreda, "case__woreda"),
           },
         }),
         api.get<AlertSummary>("/alerts/summary/", { params: scopeParam(scope.woreda, "case__woreda") }),
       ]);
       setRows(list.data.results);
+      setCount(list.data.count);
       setSummary(summaryResponse.data);
     } catch (error) {
       message.error(errorMessage(error, "Could not load alerts."));
     } finally {
       setLoading(false);
     }
-  }, [filter, message, scope.woreda]);
+  }, [filter, page, message, scope.woreda]);
 
   useEffect(() => {
     void load();
@@ -154,6 +162,8 @@ export default function AlertsPage() {
           );
         })}
       </div>
+
+      <Paginator total={count} pageSize={PAGE_SIZE} />
 
       <Modal
         open={Boolean(resolving)}

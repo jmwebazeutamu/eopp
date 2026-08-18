@@ -3,10 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
-import type { Paginated, ProgrammeRules, Referral, ReferralPrompts } from "../api/types";
+import type { Paginated, ProgrammeRules, Referral } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import ReferralActionModal, { ACTION_LABELS, actionsFor, type ReferralAction } from "../components/ReferralActions";
 import ListPage from "../components/ListPage";
+import Paginator from "../components/Paginator";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { referralRef } from "../components/ReferralPanel";
 import { Button, CapsLabel, Card, CountBadge, ReferralStatusChip, WaitBadge } from "../components/ui";
@@ -32,20 +33,29 @@ const REFERRAL_COUNTER_TONES = REFERRAL_TONE;
 interface Group {
   key: string;
   titleKey: "queue.needsDecision" | "queue.awaiting" | "queue.active";
-  rows: Referral[];
+  /** Rows on the current page of this queue. */
+  results: Referral[];
+  /** Rows in the whole queue, so each can page independently. */
+  count: number;
+  /** Query parameter holding this queue's page number. */
+  pageParam: string;
 }
+
+/** Each queue pages separately; one `?page=` could not say which it meant. */
+const PAGE_SIZE = 25;
 
 export default function ReferralsPage() {
   const scope = useScope();
+  const empty = { count: 0, results: [] as Referral[] };
+  const [decide, setDecide] = useState<{ count: number; results: Referral[] }>(empty);
+  const [awaiting, setAwaiting] = useState<{ count: number; results: Referral[] }>(empty);
+  const [active, setActive] = useState<{ count: number; results: Referral[] }>(empty);
   const { user } = useAuth();
   const { message } = App.useApp();
   const { t } = useLang();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
-  const [pending, setPending] = useState<Referral[]>([]);
-  const [active, setActive] = useState<Referral[]>([]);
-  const [prompts, setPrompts] = useState<ReferralPrompts>({ onward: [], replacement: [] });
   const [rules, setRules] = useState<ProgrammeRules | null>(null);
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<ReferralAction | null>(null);
@@ -58,40 +68,54 @@ export default function ReferralsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // The counters filter by status, so a chosen status narrows both lists
-      // to it and empties the other — which is what "show me only the failed
-      // ones" should do to a queue grouped by urgency.
-      // `status__in` is what the chip row writes — the parameter the server
-      // names on its own counters — and it carries a comma-separated list
-      // because the chips multi-select.
-      const chosen = (params.get("status__in") ?? "").split(",").filter(Boolean);
-      const wants = (status: string) => chosen.length === 0 || chosen.includes(status);
+      // Three queues, three queries, each paginated on its own parameter.
+      //
+      // "Needs a decision" used to be assembled here from the pending list
+      // plus the prompts endpoint, which put a §6.2 definition in the browser
+      // and made the screen impossible to paginate — it asked for the first
+      // 100 of each and said nothing about the rest. With 266 active referrals
+      // and 345 open prompts, most of the queue was simply invisible.
       const search = params.get("q") || undefined;
-      const [pendingResponse, activeResponse, promptsResponse, rulesResponse] = await Promise.all([
+      const chosen = (params.get("status__in") ?? "").split(",").filter(Boolean);
+      const wants = (...statuses: string[]) =>
+        chosen.length === 0 || statuses.some((status) => chosen.includes(status));
+
+      const ask = (extra: Record<string, unknown>, pageParam: string) =>
+        api.get<Paginated<Referral>>("/referrals/", {
+          params: {
+            page: Number(params.get(pageParam) ?? 1),
+            page_size: PAGE_SIZE,
+            search,
+            ...scopeParam(scope.woreda, "case__woreda"),
+            ...extra,
+          },
+        });
+      const none = Promise.resolve({ data: { count: 0, results: [] as Referral[] } });
+
+      const [decideResponse, awaitingResponse, activeResponse, rulesResponse] = await Promise.all([
+        // Anything the case manager owns the next move on: overdue
+        // confirmations, completed referrals with no onward step, failed ones
+        // with no replacement.
+        wants("PENDING_CONFIRMATION", "COMPLETED", "FAILED")
+          ? ask({ needs_decision: true }, "decide")
+          : none,
         wants("PENDING_CONFIRMATION")
-          ? api.get<Paginated<Referral>>("/referrals/", {
-              params: { status: "PENDING_CONFIRMATION", page_size: 100, search },
-            })
-          : Promise.resolve({ data: { results: [] as Referral[] } }),
-        wants("ACTIVE")
-          ? api.get<Paginated<Referral>>("/referrals/", { params: { status: "ACTIVE", page_size: 100, search } })
-          : Promise.resolve({ data: { results: [] as Referral[] } }),
-        // The prompt conditions are querysets on the server (§6.2); asking for
-        // them rather than recomputing "completed with no child" here keeps one
-        // definition, the same one the Sprint 4 alert jobs materialise.
-        api.get<ReferralPrompts>("/referrals/prompts/"),
+          ? ask({ status: "PENDING_CONFIRMATION", confirmation_overdue: false }, "awaiting")
+          : none,
+        wants("ACTIVE") ? ask({ status: "ACTIVE" }, "active") : none,
         api.get<ProgrammeRules>("/referrals/rules/"),
       ]);
-      setPending(pendingResponse.data.results);
-      setActive(activeResponse.data.results);
-      setPrompts(promptsResponse.data);
+
+      setDecide(decideResponse.data);
+      setAwaiting(awaitingResponse.data);
+      setActive(activeResponse.data);
       setRules(rulesResponse.data);
     } catch (error) {
       message.error(errorMessage(error, "Could not load referrals."));
     } finally {
       setLoading(false);
     }
-  }, [params, message]);
+  }, [params, scope.woreda, message]);
 
   useEffect(() => {
     void load();
@@ -99,27 +123,18 @@ export default function ReferralsPage() {
 
   const overdueDays = rules?.referral_confirmation_overdue_days ?? 7;
 
-  const groups: Group[] = useMemo(() => {
-    const promptRows = [...prompts.onward, ...prompts.replacement];
-    const promptIds = new Set(promptRows.map((row) => row.id));
+  const groups: Group[] = useMemo(
+    () => [
+      { key: "decide", titleKey: "queue.needsDecision", pageParam: "decide", ...decide },
+      { key: "awaiting", titleKey: "queue.awaiting", pageParam: "awaiting", ...awaiting },
+      { key: "active", titleKey: "queue.active", pageParam: "active", ...active },
+    ],
+    [decide, awaiting, active],
+  );
 
-    // "Needs a decision" is anything the case manager owns a next move on: a
-    // referral past the confirmation threshold, and every open prompt.
-    const overdue = pending.filter((row) => daysSince(row.initiated_date) >= overdueDays);
-    const overdueIds = new Set(overdue.map((row) => row.id));
-
-    return [
-      { key: "decide", titleKey: "queue.needsDecision", rows: [...overdue, ...promptRows] },
-      {
-        key: "awaiting",
-        titleKey: "queue.awaiting",
-        rows: pending.filter((row) => !overdueIds.has(row.id)),
-      },
-      { key: "active", titleKey: "queue.active", rows: active.filter((row) => !promptIds.has(row.id)) },
-    ];
-  }, [pending, active, prompts, overdueDays]);
-
-  const total = groups.reduce((sum, group) => sum + group.rows.length, 0);
+  // The whole queue, not the loaded page — the subtitle and the empty state
+  // both describe the queue.
+  const total = groups.reduce((sum, group) => sum + group.count, 0);
 
   return (
     <ListPage
@@ -141,12 +156,12 @@ export default function ReferralsPage() {
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 
       {groups
-        .filter((group) => group.rows.length > 0)
+        .filter((group) => group.count > 0)
         .map((group) => (
           <section key={group.key} className="stack" style={{ gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <CapsLabel>{t(group.titleKey)}</CapsLabel>
-              <CountBadge>{group.rows.length}</CountBadge>
+              <CountBadge>{group.count}</CountBadge>
             </div>
 
             {/* Laptop: a table, same shape as the caseload. Phone: cards —
@@ -165,7 +180,7 @@ export default function ReferralsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {group.rows.map((referral) => {
+                    {group.results.map((referral) => {
                       const waiting = daysSince(referral.initiated_date);
                       return (
                         <tr
@@ -221,7 +236,7 @@ export default function ReferralsPage() {
             </div>
 
             <div className="only-phone">
-              {group.rows.map((referral) => {
+              {group.results.map((referral) => {
                 const waiting = daysSince(referral.initiated_date);
                 return (
                   <Card key={referral.id}>
@@ -257,6 +272,13 @@ export default function ReferralsPage() {
                 );
               })}
             </div>
+
+            <Paginator
+              total={group.count}
+              pageSize={PAGE_SIZE}
+              param={group.pageParam}
+              label={t(group.titleKey)}
+            />
           </section>
         ))}
 

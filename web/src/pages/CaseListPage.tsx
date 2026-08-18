@@ -7,6 +7,7 @@ import type { CaseListRow, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import CaseFormModal from "../components/CaseFormModal";
 import ListPage from "../components/ListPage";
+import Paginator from "../components/Paginator";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { Button, CaseStatusChip, Card } from "../components/ui";
 import { CASE_TONE } from "../design/status";
@@ -45,7 +46,7 @@ export default function CaseListPage() {
   const { message } = App.useApp();
   const { t } = useLang();
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
 
   const [rows, setRows] = useState<CaseListRow[]>([]);
   const [count, setCount] = useState(0);
@@ -60,17 +61,6 @@ export default function CaseListPage() {
   const query = params.get("q") ?? "";
   const page = Number(params.get("page") ?? 1);
 
-  const setParam = useCallback(
-    (key: string, value: string) => {
-      const next = new URLSearchParams(params);
-      if (value) next.set(key, value);
-      else next.delete(key);
-      // Any filter change invalidates the page cursor.
-      if (key !== "page") next.delete("page");
-      setParams(next, { replace: true });
-    },
-    [params, setParams],
-  );
 
 
   const canOpenCase = (user?.access.case_write ?? false) && user?.access.case_scope !== "OWN_CASELOAD";
@@ -196,19 +186,7 @@ export default function CaseListPage() {
         </>
       )}
 
-      {count > PAGE_SIZE && (
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Button size="sm" disabled={page <= 1} onClick={() => setParam("page", String(page - 1))}>
-            Previous
-          </Button>
-          <span className="t-meta">
-            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, count)} of {count}
-          </span>
-          <Button size="sm" disabled={page * PAGE_SIZE >= count} onClick={() => setParam("page", String(page + 1))}>
-            Next
-          </Button>
-        </div>
-      )}
+      <Paginator total={count} pageSize={PAGE_SIZE} />
 
       <CaseFormModal open={formOpen} record={null} onClose={() => setFormOpen(false)} onSaved={() => load()} />
         </>
