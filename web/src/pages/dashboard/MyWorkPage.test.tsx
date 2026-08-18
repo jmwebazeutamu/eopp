@@ -1,6 +1,8 @@
 import { App } from "antd";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+
+import { TestAuth } from "../../test/authHarness";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { MyWork } from "../../api/types";
@@ -57,11 +59,13 @@ function renderPage(data = payload()) {
   get.mockResolvedValue({ data });
   return render(
     <MemoryRouter>
+      <TestAuth>
       <LanguageProvider>
         <App>
           <MyWorkPage />
         </App>
       </LanguageProvider>
+    </TestAuth>
     </MemoryRouter>,
   );
 }

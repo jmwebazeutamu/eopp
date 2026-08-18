@@ -3,6 +3,8 @@ import type React from "react";
 import { App } from "antd";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+
+import { TestAuth } from "../../test/authHarness";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n/LanguageContext";
@@ -47,11 +49,13 @@ function renderWith(Page: () => React.ReactNode, data: unknown) {
   get.mockResolvedValue({ data });
   return render(
     <MemoryRouter>
+      <TestAuth>
       <LanguageProvider>
         <App>
           <Page />
         </App>
       </LanguageProvider>
+    </TestAuth>
     </MemoryRouter>,
   );
 }

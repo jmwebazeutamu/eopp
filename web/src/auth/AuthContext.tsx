@@ -10,7 +10,11 @@ interface AuthState {
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthState | null>(null);
+// Exported so tests can supply a signed-in user without standing up the real
+// provider, which would fetch /users/me/. `useAuth` still throws outside a
+// provider — that guard catches a component mounted in the wrong place, and
+// weakening it to make a test pass would remove the only thing that does.
+export const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);

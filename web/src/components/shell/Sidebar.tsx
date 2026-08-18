@@ -21,11 +21,12 @@ import { ALERT_BADGE_ATTENTION_AT, isActivePath, type NavSection } from "./navMo
  *  - collapsed items keep their accessible name through the tooltip's
  *    `aria-label`, so the rail stays usable by keyboard at either width.
  *
- * The rail is sticky and owns its own scroll. It used to stretch to the height
- * of the page, which on a 145-row case list made it 2,203px tall and put the
- * signed-in user's block — and the only sign-out button in the application —
- * 2,153px down, reachable only by scrolling past every case. `align-self` stops
- * the flex row stretching it, which is what defeats `position: sticky` here.
+ * The rail fills the shell row and owns its own scroll. It used to stretch to
+ * the height of the *page*, which on a 145-row case list made it 2,203px tall
+ * and put the signed-in user's block — and the only sign-out button in the
+ * application — 2,153px down, reachable only by scrolling past every case.
+ * `AppLayout` now pins the shell to the viewport and scrolls `main` instead, so
+ * this is simply full height.
  */
 
 export const RAIL_EXPANDED = 240;
@@ -64,10 +65,7 @@ export default function Sidebar({
         padding: "12px 8px",
         gap: 2,
         transition: "width 120ms ease",
-        position: "sticky",
-        top: 0,
-        alignSelf: "flex-start",
-        height: "100vh",
+        height: "100%",
         // Its own scrollbar, so a long nav scrolls inside the rail rather than
         // pushing the footer off the bottom of the document.
         overflowY: "auto",

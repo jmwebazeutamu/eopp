@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 
 import type { CaseStatus, MyWork } from "../../api/types";
-import { CapsLabel, CaseStatusChip, Card, MutedChip, PageHeader } from "../../components/ui";
+import { CapsLabel, CaseStatusChip, Card, MutedChip } from "../../components/ui";
 import { useLang } from "../../i18n/LanguageContext";
+import TierPage from "./TierPage";
 import { useTier } from "./useTier";
 
 /**
@@ -79,19 +80,17 @@ export default function MyWorkPage() {
   if (!data) return null;
 
   return (
-    <>
-      <PageHeader
-        title={t("tier.myWorkFull")}
-        subtitle={
-          <>
-            {t("tier.myWorkWhy")}
-            {data.woredas.length > 0 && <> · {data.woredas.join(", ")}</>}
-            {" · "}
-            {t("cm.freshness", { when: freshness(data.generated_at, t) })}
-          </>
-        }
-      />
-
+    <TierPage
+      title={t("tier.myWorkFull")}
+      subtitle={
+        <>
+          {t("tier.myWorkWhy")}
+          {data.woredas.length > 0 && <> · {data.woredas.join(", ")}</>}
+          {" · "}
+          {t("cm.freshness", { when: freshness(data.generated_at, t) })}
+        </>
+      }
+    >
       <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
         <Tile
           label={t("cm.needsAction")}
@@ -313,6 +312,6 @@ export default function MyWorkPage() {
           </div>
         </Card>
       </div>
-    </>
+    </TierPage>
   );
 }

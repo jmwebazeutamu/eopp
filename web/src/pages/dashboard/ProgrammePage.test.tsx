@@ -3,7 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FunnelStage, ProgrammeTier, Rate } from "../../api/types";
+import { MemoryRouter } from "react-router-dom";
+
 import { LanguageProvider } from "../../i18n/LanguageContext";
+import { TestAuth } from "../../test/authHarness";
 
 /**
  * The dashboard's job is to be honest, so that is what is tested.
@@ -141,11 +144,15 @@ function payload(overrides: Partial<ProgrammeTier> = {}): ProgrammeTier {
 function renderDashboard(data = payload()) {
   get.mockResolvedValue({ data });
   return render(
-    <LanguageProvider>
-      <App>
-        <ProgrammePage />
-      </App>
-    </LanguageProvider>,
+    <MemoryRouter>
+      <TestAuth>
+        <LanguageProvider>
+          <App>
+            <ProgrammePage />
+          </App>
+        </LanguageProvider>
+      </TestAuth>
+    </MemoryRouter>,
   );
 }
 

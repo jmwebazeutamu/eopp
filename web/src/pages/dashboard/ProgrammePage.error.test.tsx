@@ -2,7 +2,10 @@ import { App } from "antd";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { MemoryRouter } from "react-router-dom";
+
 import { LanguageProvider } from "../../i18n/LanguageContext";
+import { TestAuth } from "../../test/authHarness";
 
 /**
  * The dashboard's failure path, in its own file.
@@ -27,11 +30,15 @@ describe("ProgrammePage, when the figures cannot be loaded", () => {
     get.mockImplementation(() => Promise.reject(new Error("network")));
 
     render(
-      <LanguageProvider>
-        <App>
-          <ProgrammePage />
-        </App>
-      </LanguageProvider>,
+      <MemoryRouter>
+        <TestAuth>
+          <LanguageProvider>
+            <App>
+              <ProgrammePage />
+            </App>
+          </LanguageProvider>
+        </TestAuth>
+      </MemoryRouter>,
     );
 
     // What the user sees is the whole point: a dashboard that failed to load

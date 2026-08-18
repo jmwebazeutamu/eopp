@@ -18,6 +18,13 @@ export const STRINGS = {
   "app.name": "PSNP Youth Employment and Referral Platform",
   "app.subtitle": "Case Management",
   "nav.dashboard": "Dashboard",
+  "tier.unavailableTitle": "Dashboard",
+  "tier.unavailableRole": "Not available for your role: {role}",
+  "tier.unavailableBody":
+    "This dashboard is built for a different job. Your role does not cover it, so there is nothing here to show you.",
+  "tier.unavailableAlternatives": "Dashboards available to you: {tiers}.",
+  "tier.unavailableNone":
+    "Your role has no dashboard. The screens you work from are the case, referral and alert lists.",
   "nav.myWork": "My work",
   "nav.primary": "Main navigation",
   "nav.sectionWork": "Work",

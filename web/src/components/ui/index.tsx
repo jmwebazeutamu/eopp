@@ -209,6 +209,11 @@ export const ICON_PATHS = {
   registry: "M5 3h11l3 3v15H5V3zM8 8h8M8 12h8M8 16h5",
   partners: "M3 20V9l5-4 5 4v11M13 20V12h8v8",
   users: "M8 11a3 3 0 100-6 3 3 0 000 6zm8 0a3 3 0 100-6 3 3 0 000 6zM2 20c0-3 3-5 6-5s6 2 6 5m2-5c3 0 6 2 6 5",
+  // Dashboard tiers. Distinct silhouettes, because at 64px the label is gone
+  // and the icon is the only thing telling four dashboards apart.
+  woreda: "M3 20h18M6 20V10M12 20V4M18 20v-7",
+  programme: "M4 19h16M7 16l3.5-4.5 3 2.5L18 8",
+  results: "M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z",
   // Rail collapse chevrons. Two paths rather than one rotated, so the icon
   // reads correctly in a right-to-left layout if one is ever added.
   railCollapse: "M15 6l-6 6 6 6",

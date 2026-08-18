@@ -2,9 +2,12 @@ import { App as AntApp, ConfigProvider } from "antd";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AppLayout from "./components/AppLayout";
+import type { ReactNode } from "react";
+
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { LanguageProvider } from "./i18n/LanguageContext";
-import { visibleTiers } from "./pages/dashboard/DashboardLayout";
+import { canSeeTier, landingTier } from "./pages/dashboard/tierAccess";
+import TierUnavailablePage from "./pages/dashboard/TierUnavailablePage";
 import AlertsPage from "./pages/AlertsPage";
 import CaseDetailPage from "./pages/CaseDetailPage";
 import CaseListPage from "./pages/CaseListPage";
@@ -53,15 +56,22 @@ function Home() {
  */
 function DashboardHome() {
   const { user } = useAuth();
-  const tiers = visibleTiers(user?.access.case_scope ?? "", user?.access.case_write ?? false);
-  const preferred =
-    user?.access.case_scope === "ALL"
-      ? "results"
-      : user && !user.access.case_write
-        ? "programme"
-        : "my-work";
-  const target = tiers.find((tier) => tier.path === preferred) ?? tiers[0];
-  return <Navigate to={target ? target.path : "my-work"} replace />;
+  const target = landingTier(user);
+  // A role with no dashboard is sent to its own work rather than to a tier that
+  // would immediately refuse it. Partner staff and trainers land here.
+  return <Navigate to={target ? `/dashboard/${target.path}` : "/referrals"} replace />;
+}
+
+/**
+ * A tier route, refused politely rather than blankly.
+ *
+ * The guard renders an explanation in place, never a redirect: bouncing someone
+ * off a link a colleague sent them, silently, reads as a broken link, and the
+ * tier they would be bounced to may redirect in turn.
+ */
+function Tier({ path, children }: { path: string; children: ReactNode }) {
+  const { user } = useAuth();
+  return canSeeTier(user, path) ? <>{children}</> : <TierUnavailablePage />;
 }
 
 /**
@@ -109,14 +119,15 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route element={<AppLayout />}>
                 <Route index element={<Home />} />
-                {/* Four tiers as submenus. The index picks the one this role
-                    is actually for, rather than showing everyone tier 1. */}
+                {/* The four tiers. Each is a first-class sidebar destination;
+                    the index picks the one this role is actually for, rather
+                    than showing everyone tier 1. */}
                 <Route path="/dashboard" element={<DashboardLayout />}>
                   <Route index element={<DashboardHome />} />
-                  <Route path="my-work" element={<MyWorkPage />} />
-                  <Route path="woreda" element={<WoredaPage />} />
-                  <Route path="programme" element={<ProgrammePage />} />
-                  <Route path="results" element={<ResultsPage />} />
+                  <Route path="my-work" element={<Tier path="my-work"><MyWorkPage /></Tier>} />
+                  <Route path="woreda" element={<Tier path="woreda"><WoredaPage /></Tier>} />
+                  <Route path="programme" element={<Tier path="programme"><ProgrammePage /></Tier>} />
+                  <Route path="results" element={<Tier path="results"><ResultsPage /></Tier>} />
                 </Route>
                 <Route path="/cases" element={<CaseListPage />} />
                 <Route path="/cases/:caseId" element={<CaseDetailPage />} />

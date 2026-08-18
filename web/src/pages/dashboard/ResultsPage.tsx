@@ -1,9 +1,10 @@
 import type { DonorDashboard } from "../../api/types";
-import { CapsLabel, Card, PageHeader } from "../../components/ui";
+import { CapsLabel, Card } from "../../components/ui";
 import { NotYet } from "../../components/dashboard/panels";
 import { RateValue } from "../../components/dashboard/Figure";
 import { barPercent } from "../../components/dashboard/dashboardLayout";
 import { useLang } from "../../i18n/LanguageContext";
+import TierPage from "./TierPage";
 import { formatAsOf } from "../../i18n/asOf";
 import { useTier } from "./useTier";
 
@@ -29,12 +30,10 @@ export default function ResultsPage() {
   const peak = Math.max(1, ...data.cumulative.series.map((row) => row.cumulative));
 
   return (
-    <>
-      <PageHeader
-        title={t("tier.resultsFull")}
-        subtitle={`${data.scope_label} · ${t("tier.asOf", { when: formatAsOf(data.as_of) })}`}
-      />
-
+    <TierPage
+      title={t("tier.resultsFull")}
+      subtitle={`${data.scope_label} · ${t("tier.asOf", { when: formatAsOf(data.as_of) })}`}
+    >
       <Card>
         <CapsLabel style={{ marginBottom: 10 }}>{t("me.framework")}</CapsLabel>
         <table className="table">
@@ -178,6 +177,6 @@ export default function ResultsPage() {
           ))}
         </ul>
       </Card>
-    </>
+    </TierPage>
   );
 }

@@ -41,7 +41,14 @@ describe("buildNav", () => {
   it("groups a case manager's items into Work and Directory", () => {
     const sections = buildNav(userWith("CASE_MANAGER", {}), { openAlerts: 3 });
     expect(sections.map((s) => s.titleKey)).toEqual(["nav.sectionWork", "nav.sectionDirectory"]);
-    expect(sections[0].items.map((i) => i.path)).toEqual(["/dashboard", "/cases", "/referrals", "/alerts"]);
+    // The dashboard tier is a destination of its own, not a "Dashboard" entry
+    // concealing four pages.
+    expect(sections[0].items.map((i) => i.path)).toEqual([
+      "/dashboard/my-work",
+      "/cases",
+      "/referrals",
+      "/alerts",
+    ]);
     expect(sections[1].items.map((i) => i.path)).toEqual(["/youth", "/partners"]);
   });
 
@@ -67,10 +74,20 @@ describe("buildNav", () => {
     expect(sections.map((s) => s.titleKey)).toEqual(["nav.sectionDirectory"]);
   });
 
-  it("withholds the dashboard from a scope with no case population", () => {
+  it("withholds every dashboard tier from a role with no case population", () => {
     // A LINKED referral scope sees individual referrals, never a denominator,
     // so a programme total would be meaningless rather than merely empty.
-    expect(paths(userWith("TRAINER", { case_scope: "LINKED", referral_scope: "LINKED" }))).not.toContain("/dashboard");
+    const trainer = paths(userWith("TRAINER", { case_scope: "LINKED", referral_scope: "LINKED" }));
+    expect(trainer.filter((path) => path.startsWith("/dashboard"))).toEqual([]);
+  });
+
+  it("gives a programme manager the comparative tiers and no personal one", () => {
+    const pm = paths(userWith("PROGRAMME_MANAGER", { case_scope: "ALL", case_write: false, referral_scope: "ALL" }));
+    expect(pm.filter((path) => path.startsWith("/dashboard"))).toEqual([
+      "/dashboard/woreda",
+      "/dashboard/programme",
+      "/dashboard/results",
+    ]);
   });
 
   it("carries the live alert count on the alerts item only", () => {

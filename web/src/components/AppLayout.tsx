@@ -76,7 +76,12 @@ export default function AppLayout() {
   const active = (path: string) => isActivePath(path, location.pathname);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--paper)" }}>
+    // The shell owns the viewport and does not scroll; `main` is the scroll
+    // container. Previously the document scrolled, which made the rail either
+    // stretch to the height of the page (2,203px on a full case list) or, once
+    // it was pinned to 100vh, hang 60px past the bottom of the window because
+    // it starts *below* the header — clipping the only sign-out button.
+    <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--paper)" }}>
       {/* Utility bar */}
       <header
         style={{
@@ -165,7 +170,7 @@ export default function AppLayout() {
           />
         )}
 
-        <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
           <div style={{ flex: 1 }}>
             <Outlet />
           </div>

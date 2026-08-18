@@ -1,6 +1,7 @@
 import type { CompletenessRow, WoredaDashboard } from "../../api/types";
-import { CapsLabel, Card, MutedChip, PageHeader } from "../../components/ui";
+import { CapsLabel, Card, MutedChip } from "../../components/ui";
 import { useLang } from "../../i18n/LanguageContext";
+import TierPage from "./TierPage";
 import { NotYet } from "../../components/dashboard/panels";
 import { formatAsOf } from "../../i18n/asOf";
 import { useTier } from "./useTier";
@@ -92,11 +93,10 @@ export default function WoredaPage() {
   const biggest = Math.max(1, ...data.team_caseload.map((row) => row.total));
 
   return (
-    <>
-      <PageHeader
-        title={t("tier.woredaFull")}
-        subtitle={`${t("tier.woredaWhy")} · ${data.scope_label} · ${t("ws.asOf", { when: formatAsOf(data.as_of) })}`}
-      />
+    <TierPage
+      title={t("tier.woredaFull")}
+      subtitle={`${t("tier.woredaWhy")} · ${data.scope_label} · ${t("ws.asOf", { when: formatAsOf(data.as_of) })}`}
+    >
 
       {/* W-5. Four of these were already computed further down the page and
           only needed surfacing; the fifth is the ceiling nobody was reading. */}
@@ -297,6 +297,6 @@ export default function WoredaPage() {
           <Completeness rows={data.data_completeness} />
         </Card>
       </div>
-    </>
+    </TierPage>
   );
 }

@@ -1,5 +1,6 @@
 import type { CurrentUser } from "../../api/types";
 import type { StringKey } from "../../i18n/strings";
+import { visibleTiers } from "../../pages/dashboard/tierAccess";
 import { ICON_PATHS } from "../ui";
 
 /**
@@ -46,13 +47,18 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
   const hasCases = user.access.case_scope !== "NONE";
   const hasReferrals = user.access.referral_scope !== "NONE";
 
-  // The programme dashboard totals a case population, so it is offered to the
-  // scopes that have one. A LINKED role — partner staff, trainers — has none,
-  // and the API refuses it rather than serving a screen of zeroes.
-  const hasCasePopulation = ["ALL", "OWN_WOREDA", "OWN_CASELOAD"].includes(user.access.case_scope);
+  // Each dashboard tier is a destination of its own rather than four pages
+  // behind one "Dashboard" entry. Nothing used to reveal that Results existed.
+  // A role offered none — the LINKED roles, which see individual referrals but
+  // never a denominator — contributes no items at all.
+  const tiers: NavItem[] = visibleTiers(user).map((tier) => ({
+    path: `/dashboard/${tier.path}`,
+    labelKey: tier.labelKey,
+    icon: TIER_ICONS[tier.path] ?? ICON_PATHS.dashboard,
+  }));
 
   const work: NavItem[] = [
-    ...(hasCasePopulation ? [item("/dashboard", "nav.myWork", ICON_PATHS.dashboard)] : []),
+    ...tiers,
     ...(hasCases ? [item("/cases", "nav.cases", ICON_PATHS.cases)] : []),
     ...(hasReferrals ? [item("/referrals", "nav.referrals", ICON_PATHS.queue)] : []),
     ...(hasCases ? [{ ...item("/alerts", "nav.alerts", ICON_PATHS.alerts), badgeCount: options.openAlerts }] : []),
@@ -73,6 +79,17 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
     { titleKey: "nav.sectionDirectory" as StringKey, items: directory },
   ].filter((section) => section.items.length > 0);
 }
+
+/**
+ * One icon per tier, so the collapsed 64px rail can still tell them apart.
+ * Four identical dashboard glyphs would be four blank squares.
+ */
+const TIER_ICONS: Record<string, string> = {
+  "my-work": ICON_PATHS.dashboard,
+  woreda: ICON_PATHS.woreda,
+  programme: ICON_PATHS.programme,
+  results: ICON_PATHS.results,
+};
 
 function item(path: string, labelKey: StringKey, icon: string): NavItem {
   return { path, labelKey, icon };
