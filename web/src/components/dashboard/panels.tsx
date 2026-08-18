@@ -155,7 +155,7 @@ export function LagPanel({ standardDays, partners }: { standardDays: number; par
   // Only the means that survived banding can be scaled against; a withheld mean
   // has no bar, which is the point.
   const scale = lagScale(
-    partners.map((row) => row.lag.days).filter((days): days is number => days !== null),
+    partners.map((row) => row.median_days).filter((days): days is number => days !== null),
     standardDays,
   );
   const mark = standardMarkPercent(standardDays, scale);
@@ -176,14 +176,14 @@ export function LagPanel({ standardDays, partners }: { standardDays: number; par
             <div key={row.partner}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
                 <span style={{ fontSize: 14 }}>{row.partner}</span>
-                <MeanValue mean={row.lag} />
+                <MeanValue mean={{ days: row.median_days, n: row.n, band: row.band, note: "" }} />
               </div>
 
               <div className="track" style={{ height: 12, marginTop: 4, position: "relative" }}>
-                {row.lag.days !== null && (
+                {row.median_days !== null && (
                   <div
                     className="track__fill"
-                    style={{ width: `${barPercent(row.lag.days, scale)}%`, background: "var(--gold-500)" }}
+                    style={{ width: `${barPercent(row.median_days, scale)}%`, background: "var(--gold-500)" }}
                   />
                 )}
                 {/* The standard as a reference line, not a second colour: a
@@ -201,11 +201,12 @@ export function LagPanel({ standardDays, partners }: { standardDays: number; par
                 />
               </div>
               <div className="t-meta" style={{ marginTop: 2 }}>
-                {t("dash.lagReferrals", { count: row.lag.n })}
+                {t("dash.lagReferrals", { count: row.n })}
+                {row.staff_recorded > 0 && <> · {t("ws.staffRecorded", { count: row.staff_recorded })}</>}
               </div>
             </div>
           ))}
-          <ProvisionalNote shown={partners.some((row) => row.lag.band === "provisional")} />
+          <ProvisionalNote shown={partners.some((row) => row.band === "provisional")} />
         </div>
       )}
     </Panel>

@@ -496,9 +496,24 @@ export interface FunnelStage {
   reason: string;
 }
 
+/**
+ * One partner's confirmation lag, exactly as `/dashboard/programme/` and
+ * `/dashboard/woreda/` both return it — they share one server-side helper.
+ *
+ * This used to be `{ partner, lag: MeanDays }` and the server stopped sending
+ * that shape without the type being updated, so `row.lag.days` threw and the
+ * Programme page rendered blank. The hand-written fixture matched the stale
+ * type rather than the API, which is why nothing caught it.
+ */
 export interface PartnerLag {
   partner: string;
-  lag: MeanDays;
+  /** Median over the partner's own answers. Null when the band withholds it. */
+  median_days: number | null;
+  /** Confirmations the partner entered themselves — what the median is over. */
+  n: number;
+  /** Confirmations staff recorded on their behalf. Not responsiveness. */
+  staff_recorded: number;
+  band: Band;
 }
 
 export interface WoredaRow {

@@ -2,7 +2,7 @@ import { App } from "antd";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FunnelStage, MeanDays, ProgrammeTier, Rate } from "../../api/types";
+import type { FunnelStage, ProgrammeTier, Rate } from "../../api/types";
 import { LanguageProvider } from "../../i18n/LanguageContext";
 
 /**
@@ -63,10 +63,6 @@ function lost(count: number, of: number, toLabel = "Referred", medianDays: numbe
   };
 }
 
-function mean(days: number, n: number): MeanDays {
-  return { days, n, band: "report", note: "" };
-}
-
 function payload(overrides: Partial<ProgrammeTier> = {}): ProgrammeTier {
   return {
     period: { label: "Q3 2026", start: "2026-07-01", end: "2026-10-01" },
@@ -111,8 +107,11 @@ function payload(overrides: Partial<ProgrammeTier> = {}): ProgrammeTier {
     confirmation_lag: {
       standard_days: 14,
       partners: [
-        { partner: "Adama Polytechnic College", lag: mean(19, 112) },
-        { partner: "Adama Health Centre 03", lag: mean(2, 48) },
+        // Copied from a live `/api/v1/dashboard/programme/` response. The
+        // fixture used to carry a `{ lag: MeanDays }` shape the server had
+        // stopped sending, which is how the page reached production blank.
+        { partner: "Adama Polytechnic College", median_days: 19, n: 112, staff_recorded: 4, band: "report" },
+        { partner: "Adama Health Centre 03", median_days: 2, n: 48, staff_recorded: 0, band: "report" },
       ],
     },
     woredas: [
@@ -338,7 +337,8 @@ describe("ProgrammePage", () => {
     const names = screen.getAllByText(/Adama (Polytechnic College|Health Centre 03)/).map((n) => n.textContent);
     // The slower partner leads, because 112 referrals beat 48.
     expect(names[0]).toBe("Adama Polytechnic College");
-    expect(screen.getByText("from 112 confirmed referrals")).toBeInTheDocument();
+    // The count now shares its element with the staff-recorded fragment.
+    expect(screen.getByText(/from 112 confirmed referrals/)).toBeInTheDocument();
   });
 });
 

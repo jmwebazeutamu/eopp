@@ -1,0 +1,489 @@
+{
+    "scope_label": "All woredas",
+    "indicators": [
+        {
+            "code": "wage_or_business",
+            "label": "Youth clients with business plans financed or enrolled in wage employment",
+            "framework": "PSNP 5 / SEASN (P172479)",
+            "kind": "count",
+            "value": 50,
+            "rate": null,
+            "available": true,
+            "reason": ""
+        },
+        {
+            "code": "training_completion",
+            "label": "Share of beneficiaries completing training",
+            "framework": "World Bank Jobs M&E Toolkit (2017)",
+            "kind": "rate",
+            "value": null,
+            "rate": null,
+            "available": false,
+            "reason": "Not measurable yet: training enrolments are not recorded in the system."
+        },
+        {
+            "code": "employed",
+            "label": "Number of self- and/or wage employed beneficiaries",
+            "framework": "Jobs M&E Toolkit, PDO-level",
+            "kind": "count",
+            "value": 50,
+            "rate": null,
+            "available": true,
+            "reason": "Gross, not net of deadweight or displacement. Not 'jobs created'."
+        },
+        {
+            "code": "confirmed_within_threshold",
+            "label": "Referrals confirmed within threshold",
+            "framework": "Adapted from PSNP '% of transfers within 45 days'",
+            "kind": "rate",
+            "value": null,
+            "rate": {
+                "percent": 54,
+                "n": 375,
+                "d": 699,
+                "band": "report",
+                "note": ""
+            },
+            "available": true,
+            "reason": "Referrals raised in the last 30 days are excluded \u2014 not yet decidable."
+        },
+        {
+            "code": "loop_closure",
+            "label": "Referral loop closure rate",
+            "framework": "Adapted from CMS50 'Closing the Referral Loop'",
+            "kind": "rate",
+            "value": null,
+            "rate": {
+                "percent": 39,
+                "n": 121,
+                "d": 309,
+                "band": "report",
+                "note": ""
+            },
+            "available": true,
+            "reason": "Outcome verified by someone other than the youth, over mature closed referrals. The recorded rate beside it counts every outcome, verified or not.",
+            "recorded": {
+                "percent": 54,
+                "n": 166,
+                "d": 309,
+                "band": "report",
+                "note": ""
+            },
+            "unit": "referrals"
+        }
+    ],
+    "cumulative": {
+        "series": [
+            {
+                "month": "2025-08-01",
+                "placed": 2,
+                "cumulative": 4,
+                "unit": "youth"
+            },
+            {
+                "month": "2025-09-01",
+                "placed": 2,
+                "cumulative": 6,
+                "unit": "youth"
+            },
+            {
+                "month": "2025-10-01",
+                "placed": 3,
+                "cumulative": 9,
+                "unit": "youth"
+            },
+            {
+                "month": "2025-11-01",
+                "placed": 1,
+                "cumulative": 10,
+                "unit": "youth"
+            },
+            {
+                "month": "2025-12-01",
+                "placed": 2,
+                "cumulative": 12,
+                "unit": "youth"
+            },
+            {
+                "month": "2026-01-01",
+                "placed": 3,
+                "cumulative": 15,
+                "unit": "youth"
+            },
+            {
+                "month": "2026-02-01",
+                "placed": 2,
+                "cumulative": 17,
+                "unit": "youth"
+            },
+            {
+                "month": "2026-03-01",
+                "placed": 4,
+                "cumulative": 21,
+                "unit": "youth"
+            },
+            {
+                "month": "2026-04-01",
+                "placed": 5,
+                "cumulative": 26,
+                "unit": "youth"
+            },
+            {
+                "month": "2026-05-01",
+                "placed": 4,
+                "cumulative": 30,
+                "unit": "youth"
+            },
+            {
+                "month": "2026-06-01",
+                "placed": 4,
+                "cumulative": 34,
+                "unit": "youth"
+            },
+            {
+                "month": "2026-07-01",
+                "placed": 3,
+                "cumulative": 37,
+                "unit": "youth"
+            },
+            {
+                "month": "2026-08-01",
+                "placed": 13,
+                "cumulative": 50,
+                "unit": "youth"
+            }
+        ],
+        "opening_balance": 2,
+        "unit": "youth"
+    },
+    "disaggregation": [
+        {
+            "label": "Sex",
+            "rows": [
+                {
+                    "value": "Female",
+                    "registered": 274,
+                    "placed": 24,
+                    "rate": {
+                        "percent": 9,
+                        "n": 24,
+                        "d": 274,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Male",
+                    "registered": 234,
+                    "placed": 18,
+                    "rate": {
+                        "percent": 8,
+                        "n": 18,
+                        "d": 234,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Other",
+                    "registered": 106,
+                    "placed": 8,
+                    "rate": {
+                        "percent": 8,
+                        "n": 8,
+                        "d": 106,
+                        "band": "report",
+                        "note": ""
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Age band",
+            "rows": [
+                {
+                    "value": "18-24",
+                    "registered": 290,
+                    "placed": 28,
+                    "rate": {
+                        "percent": 10,
+                        "n": 28,
+                        "d": 290,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "25-29",
+                    "registered": 211,
+                    "placed": 11,
+                    "rate": {
+                        "percent": 5,
+                        "n": 11,
+                        "d": 211,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "15-17",
+                    "registered": 112,
+                    "placed": 11,
+                    "rate": {
+                        "percent": 10,
+                        "n": 11,
+                        "d": 112,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "under 15",
+                    "registered": 1,
+                    "placed": 0,
+                    "rate": {
+                        "percent": null,
+                        "n": 0,
+                        "d": 1,
+                        "band": "suppressed",
+                        "note": "Too few to assess."
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Woreda",
+            "rows": [
+                {
+                    "value": "Adama",
+                    "registered": 212,
+                    "placed": 19,
+                    "rate": {
+                        "percent": 9,
+                        "n": 19,
+                        "d": 212,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Bishoftu",
+                    "registered": 202,
+                    "placed": 13,
+                    "rate": {
+                        "percent": 6,
+                        "n": 13,
+                        "d": 202,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Lume",
+                    "registered": 200,
+                    "placed": 18,
+                    "rate": {
+                        "percent": 9,
+                        "n": 18,
+                        "d": 200,
+                        "band": "report",
+                        "note": ""
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Disability",
+            "rows": [
+                {
+                    "value": "No disability",
+                    "registered": 433,
+                    "placed": 42,
+                    "rate": {
+                        "percent": 10,
+                        "n": 42,
+                        "d": 433,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Not disclosed",
+                    "registered": 47,
+                    "placed": 1,
+                    "rate": {
+                        "percent": 2,
+                        "n": 1,
+                        "d": 47,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Physical / mobility",
+                    "registered": 42,
+                    "placed": 5,
+                    "rate": {
+                        "percent": 12,
+                        "n": 5,
+                        "d": 42,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Visual",
+                    "registered": 40,
+                    "placed": 0,
+                    "rate": {
+                        "percent": 0,
+                        "n": 0,
+                        "d": 40,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Hearing",
+                    "registered": 39,
+                    "placed": 0,
+                    "rate": {
+                        "percent": 0,
+                        "n": 0,
+                        "d": 39,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Not recorded",
+                    "registered": 13,
+                    "placed": 2,
+                    "rate": {
+                        "percent": 15,
+                        "n": 2,
+                        "d": 13,
+                        "band": "provisional",
+                        "note": "Provisional \u2014 fewer than 30 cases. Not for comparison or ranking."
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Settlement type",
+            "rows": [
+                {
+                    "value": "Rural",
+                    "registered": 320,
+                    "placed": 29,
+                    "rate": {
+                        "percent": 9,
+                        "n": 29,
+                        "d": 320,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Peri-urban",
+                    "registered": 115,
+                    "placed": 11,
+                    "rate": {
+                        "percent": 10,
+                        "n": 11,
+                        "d": 115,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Urban",
+                    "registered": 112,
+                    "placed": 5,
+                    "rate": {
+                        "percent": 4,
+                        "n": 5,
+                        "d": 112,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Not recorded",
+                    "registered": 67,
+                    "placed": 5,
+                    "rate": {
+                        "percent": 7,
+                        "n": 5,
+                        "d": 67,
+                        "band": "report",
+                        "note": ""
+                    }
+                }
+            ]
+        },
+        {
+            "label": "PSNP status",
+            "rows": [
+                {
+                    "value": "Enrolled",
+                    "registered": 376,
+                    "placed": 30,
+                    "rate": {
+                        "percent": 8,
+                        "n": 30,
+                        "d": 376,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Graduated",
+                    "registered": 191,
+                    "placed": 16,
+                    "rate": {
+                        "percent": 8,
+                        "n": 16,
+                        "d": 191,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Not PSNP",
+                    "registered": 39,
+                    "placed": 3,
+                    "rate": {
+                        "percent": 8,
+                        "n": 3,
+                        "d": 39,
+                        "band": "report",
+                        "note": ""
+                    }
+                },
+                {
+                    "value": "Not recorded",
+                    "registered": 8,
+                    "placed": 1,
+                    "rate": {
+                        "percent": null,
+                        "n": 1,
+                        "d": 8,
+                        "band": "suppressed",
+                        "note": "Too few to assess."
+                    }
+                }
+            ]
+        }
+    ],
+    "retention": {
+        "available": false,
+        "reason": "Not measurable yet: placements and their follow-up checks are not recorded in the system."
+    },
+    "caveats": [
+        "Placements are gross. They are not 'jobs created' \u2014 that claim needs deadweight and displacement netted out, which this platform cannot do.",
+        "The headline counts every recorded outcome. Report the externally-verified subset separately; a self-reported placement rate is an aspiration.",
+        "Retention is not yet measurable: nothing records whether a youth stays in their placement."
+    ],
+    "as_of": "2026-08-18T12:10:05.362253+00:00"
+}

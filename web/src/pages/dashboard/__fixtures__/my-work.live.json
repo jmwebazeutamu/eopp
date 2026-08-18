@@ -1,0 +1,162 @@
+{
+  "needs_action": [],
+  "needs_action_count": 0,
+  "awaiting_partner": [
+    {
+      "id": "4f9316b5-77b0-48cc-b1df-3b960e050d12",
+      "case": "234257a6-3f89-5259-a545-6a24f8cf0e46",
+      "youth_name": "Youth 1",
+      "partner": "Adama Health Centre",
+      "days_waiting": 37
+    },
+    {
+      "id": "8bf820cd-407c-406c-8e40-e76365d3fbf6",
+      "case": "2fca2941-8766-5c92-a2ee-d32e2ac495cb",
+      "youth_name": "Youth 2",
+      "partner": "Adama Skills Hub",
+      "days_waiting": 35
+    },
+    {
+      "id": "7c729b7b-a69a-41b7-b6f1-b77791f36b4f",
+      "case": "0bb4ce1e-9500-50bb-82d4-3be9191d8c2a",
+      "youth_name": "Youth 3",
+      "partner": "Adama Health Centre",
+      "days_waiting": 33
+    },
+    {
+      "id": "0a4e1136-958e-445b-8274-e8abf2d89d23",
+      "case": "5e3121a7-e006-53e0-b49f-e25fb5a9c4a3",
+      "youth_name": "Youth 4",
+      "partner": "Rift Valley Enterprise Agency",
+      "days_waiting": 32
+    },
+    {
+      "id": "e545a539-d066-4c33-b326-f398f591a135",
+      "case": "75873a34-2658-5998-b9e9-dbae2da390ee",
+      "youth_name": "Youth 5",
+      "partner": "Adama Skills Hub",
+      "days_waiting": 17
+    },
+    {
+      "id": "2ca63163-e4ac-4aaf-96a6-1ea29ca0dc34",
+      "case": "237b18a4-7aef-5cae-a6e2-b28194de5a5b",
+      "youth_name": "Youth 6",
+      "partner": "Adama Skills Hub",
+      "days_waiting": 17
+    }
+  ],
+  "awaiting_partner_count": 13,
+  "at_risk": [
+    {
+      "case": "8ac25c31-1985-5864-a833-29479089ccf9",
+      "youth_name": "Youth 1",
+      "reason": "No activity for 120 days",
+      "badge": "120d"
+    },
+    {
+      "case": "9bb76074-66f5-5d93-9d54-564eb827e753",
+      "youth_name": "Youth 2",
+      "reason": "No activity for 117 days",
+      "badge": "117d"
+    },
+    {
+      "case": "0b514fbf-28a7-5479-96c6-46b44bc6a053",
+      "youth_name": "Youth 3",
+      "reason": "No activity for 112 days",
+      "badge": "112d"
+    },
+    {
+      "case": "a947afa0-cb76-53d0-a414-364eb0e36467",
+      "youth_name": "Youth 4",
+      "reason": "No activity for 111 days",
+      "badge": "111d"
+    },
+    {
+      "case": "c086eabd-2931-5e7d-b8cd-b0b809dbe6f3",
+      "youth_name": "Youth 5",
+      "reason": "No activity for 110 days",
+      "badge": "110d"
+    },
+    {
+      "case": "90777603-a696-5c96-9ec4-b617e2dba65b",
+      "youth_name": "Youth 6",
+      "reason": "No activity for 109 days",
+      "badge": "109d"
+    }
+  ],
+  "at_risk_count": 57,
+  "awaiting_over_threshold": 6,
+  "open_alerts_in_scope": 408,
+  "confirmation_threshold": 14,
+  "active": {
+    "referrals": 266,
+    "youth": 222
+  },
+  "uninstrumented_risk": [
+    "3 consecutive training absences \u2014 training attendance is not recorded yet",
+    "Left a placement with no exit reason \u2014 placements are not recorded yet",
+    "4+ failed contact attempts \u2014 follow-up calls are not recorded yet"
+  ],
+  "caseload_by_status": [
+    {
+      "status": "ACTIVE",
+      "label": "Active",
+      "n": 249,
+      "oldest_days": 112,
+      "slug": "active",
+      "unit": "cases",
+      "basis": "recorded status"
+    },
+    {
+      "status": "REFERRAL_PENDING",
+      "label": "Referral Pending",
+      "n": 108,
+      "oldest_days": 25,
+      "slug": "referral_pending",
+      "unit": "cases",
+      "basis": "recorded status"
+    },
+    {
+      "status": "STALLED",
+      "label": "Stalled",
+      "n": 54,
+      "oldest_days": 120,
+      "slug": "stalled",
+      "unit": "cases",
+      "basis": "recorded status"
+    },
+    {
+      "status": "PLACED",
+      "label": "Placed",
+      "n": 85,
+      "oldest_days": 25,
+      "slug": "placed",
+      "unit": "cases",
+      "basis": "recorded status"
+    },
+    {
+      "status": "EXITED",
+      "label": "Exited",
+      "n": 50,
+      "oldest_days": 25,
+      "slug": "exited",
+      "unit": "cases",
+      "basis": "recorded status"
+    }
+  ],
+  "caseload_basis": {
+    "own": false,
+    "label": "Caseload, all woredas"
+  },
+  "at_risk_basis": "threshold reached",
+  "week": {
+    "opened": 1,
+    "closed": 10
+  },
+  "outcomes_verified": {
+    "verified": 35,
+    "recorded": 52
+  },
+  "woredas": [],
+  "generated_at": "2026-08-18T12:10:05.404913+00:00"
+}

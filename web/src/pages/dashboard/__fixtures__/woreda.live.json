@@ -1,0 +1,174 @@
+{
+    "scope_label": "All woredas",
+    "tiles": {
+        "open_cases": 496,
+        "registered_without_case": 68,
+        "overdue_actions": 408,
+        "median_days_to_confirm": null,
+        "outcomes_verified": 35,
+        "outcomes_recorded": 52,
+        "over_ceiling": 4,
+        "caseload_ceiling": 50
+    },
+    "awaiting_partner_alerts": 6,
+    "as_of": "2026-08-18T12:10:05.299867+00:00",
+    "team_caseload": [
+        {
+            "case_manager": "78638cad-f41b-4abc-82be-e2ed47dd20b5",
+            "name": "Case Manager One",
+            "total": 145,
+            "segments": {
+                "on_track": 77,
+                "awaiting_partner": 24,
+                "stalled": 7,
+                "closed": 37
+            },
+            "overdue": 110,
+            "over_ceiling": true
+        },
+        {
+            "case_manager": "a59b7206-34ce-40e7-a8c5-134603c96134",
+            "name": "Case Manager Four",
+            "total": 137,
+            "segments": {
+                "on_track": 56,
+                "awaiting_partner": 35,
+                "stalled": 16,
+                "closed": 30
+            },
+            "overdue": 97,
+            "over_ceiling": true
+        },
+        {
+            "case_manager": "5b80254d-60fa-4499-a972-793389f0594e",
+            "name": "Case Manager Two",
+            "total": 134,
+            "segments": {
+                "on_track": 65,
+                "awaiting_partner": 25,
+                "stalled": 8,
+                "closed": 36
+            },
+            "overdue": 95,
+            "over_ceiling": true
+        },
+        {
+            "case_manager": "739320e1-b793-4c3a-bed7-37c52128ccd6",
+            "name": "Case Manager Three",
+            "total": 130,
+            "segments": {
+                "on_track": 51,
+                "awaiting_partner": 24,
+                "stalled": 23,
+                "closed": 32
+            },
+            "overdue": 106,
+            "over_ceiling": true
+        }
+    ],
+    "segments": [
+        {
+            "key": "on_track",
+            "label": "On track"
+        },
+        {
+            "key": "awaiting_partner",
+            "label": "Awaiting partner"
+        },
+        {
+            "key": "stalled",
+            "label": "Stalled"
+        },
+        {
+            "key": "closed",
+            "label": "Placed or exited"
+        }
+    ],
+    "unassigned_youth": {
+        "available": false,
+        "reason": "Not measurable yet: every case must have a case manager, so a youth cannot be left unassigned."
+    },
+    "registered_without_case": 68,
+    "partner_response": [
+        {
+            "partner": "Adama Polytechnic College",
+            "median_days": null,
+            "n": 7,
+            "staff_recorded": 108,
+            "band": "suppressed"
+        },
+        {
+            "partner": "Adama Skills Hub",
+            "median_days": null,
+            "n": 5,
+            "staff_recorded": 107,
+            "band": "suppressed"
+        },
+        {
+            "partner": "Bishoftu Automotive Plc",
+            "median_days": null,
+            "n": 5,
+            "staff_recorded": 83,
+            "band": "suppressed"
+        },
+        {
+            "partner": "Oromia Credit and Savings",
+            "median_days": null,
+            "n": 3,
+            "staff_recorded": 108,
+            "band": "suppressed"
+        },
+        {
+            "partner": "Adama Health Centre",
+            "median_days": null,
+            "n": 3,
+            "staff_recorded": 85,
+            "band": "suppressed"
+        },
+        {
+            "partner": "Rift Valley Enterprise Agency",
+            "median_days": null,
+            "n": 1,
+            "staff_recorded": 103,
+            "band": "suppressed"
+        }
+    ],
+    "confirmation_threshold": 14,
+    "data_completeness": [
+        {
+            "field": "Phone number",
+            "missing": 11,
+            "of": 614,
+            "has_records": true,
+            "cost": "Follow-up calls cannot be made."
+        },
+        {
+            "field": "Consent date",
+            "missing": 0,
+            "of": 614,
+            "has_records": true,
+            "cost": "Consent is the basis for holding the record at all."
+        },
+        {
+            "field": "Profiling record",
+            "missing": 76,
+            "of": 614,
+            "has_records": true,
+            "cost": "No pathway can be justified without it."
+        },
+        {
+            "field": "Outcome type on a completed referral",
+            "missing": 0,
+            "of": 189,
+            "has_records": true,
+            "cost": "The outcome breakdown loses the referral."
+        },
+        {
+            "field": "Failure reason on a failed referral",
+            "missing": 0,
+            "of": 161,
+            "has_records": true,
+            "cost": "Breaks the replacement prompt and the partner failure breakdown at once."
+        }
+    ]
+}

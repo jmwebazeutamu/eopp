@@ -1,0 +1,1116 @@
+{
+    "period": {
+        "label": "Q3 2026",
+        "start": "2026-07-01",
+        "end": "2026-10-01"
+    },
+    "scope_label": "All woredas",
+    "metrics": {
+        "placements_this_quarter": {
+            "available": true,
+            "value": 16,
+            "unit": "youth",
+            "target": null,
+            "percent": null,
+            "quarter_elapsed_percent": 52
+        },
+        "retained_six_months": {
+            "available": false,
+            "reason": "Not measurable yet: nothing records whether a youth is still employed three months after leaving the programme."
+        },
+        "gender_split": {
+            "available": true,
+            "placed_total": 50,
+            "unit": "youth",
+            "female": {
+                "percent": 48,
+                "n": 24,
+                "d": 50,
+                "band": "report",
+                "note": ""
+            },
+            "male": {
+                "percent": 36,
+                "n": 18,
+                "d": 50,
+                "band": "report",
+                "note": ""
+            },
+            "other": {
+                "percent": 16,
+                "n": 8,
+                "d": 50,
+                "band": "report",
+                "note": ""
+            },
+            "registration_female": {
+                "percent": 45,
+                "n": 274,
+                "d": 614,
+                "band": "report",
+                "note": ""
+            }
+        }
+    },
+    "funnel": [
+        {
+            "key": "registered",
+            "label": "Registered",
+            "sublabel": "Youth record created",
+            "count": 614,
+            "share": {
+                "percent": 100,
+                "n": 614,
+                "d": 614,
+                "band": "report",
+                "note": ""
+            },
+            "median_days_in_prev_stage": null,
+            "available": true,
+            "reason": "",
+            "lost": {
+                "count": 68,
+                "share": {
+                    "percent": 11,
+                    "n": 68,
+                    "d": 614,
+                    "band": "report",
+                    "note": ""
+                },
+                "to_stage": "case_opened",
+                "to_label": "Case opened",
+                "median_days": 13
+            },
+            "gating": true,
+            "unit": "youth"
+        },
+        {
+            "key": "case_opened",
+            "label": "Case opened",
+            "sublabel": "Case file opened",
+            "count": 546,
+            "share": {
+                "percent": 89,
+                "n": 546,
+                "d": 614,
+                "band": "report",
+                "note": ""
+            },
+            "median_days_in_prev_stage": 13,
+            "available": true,
+            "reason": "",
+            "lost": {
+                "count": 88,
+                "share": {
+                    "percent": 16,
+                    "n": 88,
+                    "d": 546,
+                    "band": "report",
+                    "note": ""
+                },
+                "to_stage": "referred",
+                "to_label": "Referred",
+                "median_days": 23
+            },
+            "gating": true,
+            "unit": "youth"
+        },
+        {
+            "key": "profiled",
+            "label": "Profiled and eligible",
+            "sublabel": "Profiling record complete",
+            "count": 538,
+            "share": {
+                "percent": 88,
+                "n": 538,
+                "d": 614,
+                "band": "report",
+                "note": ""
+            },
+            "median_days_in_prev_stage": 0,
+            "available": true,
+            "reason": "",
+            "lost": null,
+            "gating": false,
+            "unit": "youth"
+        },
+        {
+            "key": "pathway",
+            "label": "Pathway assigned",
+            "sublabel": "Current pathway set",
+            "count": 538,
+            "share": {
+                "percent": 88,
+                "n": 538,
+                "d": 614,
+                "band": "report",
+                "note": ""
+            },
+            "median_days_in_prev_stage": 0,
+            "available": true,
+            "reason": "",
+            "lost": null,
+            "gating": false,
+            "unit": "youth"
+        },
+        {
+            "key": "referred",
+            "label": "Referred",
+            "sublabel": "First referral raised",
+            "count": 458,
+            "share": {
+                "percent": 75,
+                "n": 458,
+                "d": 614,
+                "band": "report",
+                "note": ""
+            },
+            "median_days_in_prev_stage": 23,
+            "available": true,
+            "reason": "",
+            "lost": {
+                "count": 129,
+                "share": {
+                    "percent": 28,
+                    "n": 129,
+                    "d": 458,
+                    "band": "report",
+                    "note": ""
+                },
+                "to_stage": "partner_confirmed",
+                "to_label": "Partner confirmed",
+                "median_days": 10
+            },
+            "gating": true,
+            "unit": "youth"
+        },
+        {
+            "key": "partner_confirmed",
+            "label": "Partner confirmed",
+            "sublabel": "Referral accepted",
+            "count": 329,
+            "share": {
+                "percent": 54,
+                "n": 329,
+                "d": 614,
+                "band": "report",
+                "note": ""
+            },
+            "median_days_in_prev_stage": 10,
+            "available": true,
+            "reason": "",
+            "lost": {
+                "count": 18,
+                "share": {
+                    "percent": 5,
+                    "n": 18,
+                    "d": 329,
+                    "band": "report",
+                    "note": ""
+                },
+                "to_stage": "service_attended",
+                "to_label": "Service attended",
+                "median_days": 28
+            },
+            "gating": true,
+            "unit": "youth"
+        },
+        {
+            "key": "service_attended",
+            "label": "Service attended",
+            "sublabel": "Youth presented to the partner",
+            "count": 311,
+            "share": {
+                "percent": 51,
+                "n": 311,
+                "d": 614,
+                "band": "report",
+                "note": ""
+            },
+            "median_days_in_prev_stage": 28,
+            "available": true,
+            "reason": "",
+            "lost": {
+                "count": 139,
+                "share": {
+                    "percent": 45,
+                    "n": 139,
+                    "d": 311,
+                    "band": "report",
+                    "note": ""
+                },
+                "to_stage": "closed_successfully",
+                "to_label": "First referral closed successfully",
+                "median_days": 41
+            },
+            "gating": true,
+            "unit": "youth"
+        },
+        {
+            "key": "closed_successfully",
+            "label": "First referral closed successfully",
+            "sublabel": "An outcome was recorded",
+            "count": 172,
+            "share": {
+                "percent": 28,
+                "n": 172,
+                "d": 614,
+                "band": "report",
+                "note": ""
+            },
+            "median_days_in_prev_stage": 41,
+            "available": true,
+            "reason": "",
+            "lost": null,
+            "gating": true,
+            "unit": "youth"
+        },
+        {
+            "key": "retained",
+            "label": "Retained 3 months after exit",
+            "sublabel": "Still in the same placement",
+            "count": null,
+            "share": null,
+            "median_days_in_prev_stage": null,
+            "available": false,
+            "reason": "Not measurable yet: nothing records whether a youth is still employed three months after leaving the programme.",
+            "lost": null,
+            "gating": true,
+            "unit": "youth"
+        }
+    ],
+    "confirmation_lag": {
+        "standard_days": 14,
+        "partners": [
+            {
+                "partner": "Adama Polytechnic College",
+                "median_days": null,
+                "n": 7,
+                "staff_recorded": 108,
+                "band": "suppressed"
+            },
+            {
+                "partner": "Adama Skills Hub",
+                "median_days": null,
+                "n": 5,
+                "staff_recorded": 107,
+                "band": "suppressed"
+            },
+            {
+                "partner": "Bishoftu Automotive Plc",
+                "median_days": null,
+                "n": 5,
+                "staff_recorded": 83,
+                "band": "suppressed"
+            },
+            {
+                "partner": "Oromia Credit and Savings",
+                "median_days": null,
+                "n": 3,
+                "staff_recorded": 108,
+                "band": "suppressed"
+            },
+            {
+                "partner": "Adama Health Centre",
+                "median_days": null,
+                "n": 3,
+                "staff_recorded": 85,
+                "band": "suppressed"
+            },
+            {
+                "partner": "Rift Valley Enterprise Agency",
+                "median_days": null,
+                "n": 1,
+                "staff_recorded": 103,
+                "band": "suppressed"
+            }
+        ]
+    },
+    "woredas": [
+        {
+            "woreda": "Adama",
+            "unit": "youth",
+            "registered": 212,
+            "placed": 19,
+            "rate": {
+                "percent": 9,
+                "n": 19,
+                "d": 212,
+                "band": "report",
+                "note": ""
+            }
+        },
+        {
+            "woreda": "Bishoftu",
+            "unit": "youth",
+            "registered": 202,
+            "placed": 13,
+            "rate": {
+                "percent": 6,
+                "n": 13,
+                "d": 202,
+                "band": "report",
+                "note": ""
+            }
+        },
+        {
+            "woreda": "Lume",
+            "unit": "youth",
+            "registered": 200,
+            "placed": 18,
+            "rate": {
+                "percent": 9,
+                "n": 18,
+                "d": 200,
+                "band": "report",
+                "note": ""
+            }
+        }
+    ],
+    "alerts": {
+        "open_total": 408,
+        "by_type": [
+            {
+                "type": "ONWARD_REFERRAL_PROMPT",
+                "count": 184
+            },
+            {
+                "type": "REPLACEMENT_REFERRAL_PROMPT",
+                "count": 161
+            },
+            {
+                "type": "STALL",
+                "count": 57
+            },
+            {
+                "type": "REFERRAL_CONFIRMATION_OVERDUE",
+                "count": 6
+            }
+        ],
+        "stalled_cases": 57
+    },
+    "as_of": "2026-08-18T12:10:05.127852+00:00",
+    "outcome_matrix": {
+        "categories": [
+            {
+                "code": "TRAINING",
+                "label": "Training"
+            },
+            {
+                "code": "EMPLOYMENT",
+                "label": "Employment / Placement"
+            },
+            {
+                "code": "APPRENTICESHIP",
+                "label": "Apprenticeship"
+            },
+            {
+                "code": "ENTERPRISE",
+                "label": "Enterprise"
+            },
+            {
+                "code": "FINANCE_ACCESS",
+                "label": "Finance Access"
+            },
+            {
+                "code": "MARKET_LINKAGE",
+                "label": "Market Linkage"
+            },
+            {
+                "code": "COMPLEMENTARY_SERVICE",
+                "label": "Complementary Service"
+            },
+            {
+                "code": "COACHING",
+                "label": "Coaching"
+            },
+            {
+                "code": "OTHER",
+                "label": "Other"
+            }
+        ],
+        "outcomes": [
+            {
+                "code": "SERVICE_UPTAKE",
+                "label": "Service Uptake"
+            },
+            {
+                "code": "TRAINING_COMPLETION",
+                "label": "Training Completion"
+            },
+            {
+                "code": "JOB_PLACEMENT",
+                "label": "Job Placement"
+            },
+            {
+                "code": "APPRENTICESHIP_START",
+                "label": "Apprenticeship Start"
+            },
+            {
+                "code": "ENTERPRISE_ENROLMENT",
+                "label": "Enterprise Enrolment"
+            },
+            {
+                "code": "FINANCE_ACCESS",
+                "label": "Finance Access"
+            },
+            {
+                "code": "MARKET_LINKAGE_ESTABLISHED",
+                "label": "Market Linkage Established"
+            },
+            {
+                "code": "OTHER",
+                "label": "Other"
+            }
+        ],
+        "permitted": [
+            "APPRENTICESHIP:APPRENTICESHIP_START",
+            "APPRENTICESHIP:JOB_PLACEMENT",
+            "APPRENTICESHIP:OTHER",
+            "APPRENTICESHIP:SERVICE_UPTAKE",
+            "APPRENTICESHIP:TRAINING_COMPLETION",
+            "COACHING:OTHER",
+            "COACHING:SERVICE_UPTAKE",
+            "COMPLEMENTARY_SERVICE:OTHER",
+            "COMPLEMENTARY_SERVICE:SERVICE_UPTAKE",
+            "EMPLOYMENT:JOB_PLACEMENT",
+            "EMPLOYMENT:OTHER",
+            "ENTERPRISE:ENTERPRISE_ENROLMENT",
+            "ENTERPRISE:FINANCE_ACCESS",
+            "ENTERPRISE:MARKET_LINKAGE_ESTABLISHED",
+            "ENTERPRISE:OTHER",
+            "ENTERPRISE:SERVICE_UPTAKE",
+            "FINANCE_ACCESS:ENTERPRISE_ENROLMENT",
+            "FINANCE_ACCESS:FINANCE_ACCESS",
+            "FINANCE_ACCESS:OTHER",
+            "FINANCE_ACCESS:SERVICE_UPTAKE",
+            "MARKET_LINKAGE:MARKET_LINKAGE_ESTABLISHED",
+            "MARKET_LINKAGE:OTHER",
+            "OTHER:OTHER",
+            "TRAINING:APPRENTICESHIP_START",
+            "TRAINING:ENTERPRISE_ENROLMENT",
+            "TRAINING:JOB_PLACEMENT",
+            "TRAINING:OTHER",
+            "TRAINING:SERVICE_UPTAKE",
+            "TRAINING:TRAINING_COMPLETION"
+        ],
+        "crossovers_possible": true,
+        "cells": [
+            {
+                "category": "TRAINING",
+                "outcome": "SERVICE_UPTAKE",
+                "n_referrals": 5,
+                "n_youth": 5
+            },
+            {
+                "category": "TRAINING",
+                "outcome": "TRAINING_COMPLETION",
+                "n_referrals": 11,
+                "n_youth": 10
+            },
+            {
+                "category": "TRAINING",
+                "outcome": "JOB_PLACEMENT",
+                "n_referrals": 4,
+                "n_youth": 4
+            },
+            {
+                "category": "TRAINING",
+                "outcome": "APPRENTICESHIP_START",
+                "n_referrals": 1,
+                "n_youth": 1
+            },
+            {
+                "category": "TRAINING",
+                "outcome": "ENTERPRISE_ENROLMENT",
+                "n_referrals": 3,
+                "n_youth": 3
+            },
+            {
+                "category": "TRAINING",
+                "outcome": "FINANCE_ACCESS",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "TRAINING",
+                "outcome": "MARKET_LINKAGE_ESTABLISHED",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "TRAINING",
+                "outcome": "OTHER",
+                "n_referrals": 1,
+                "n_youth": 1
+            },
+            {
+                "category": "EMPLOYMENT",
+                "outcome": "SERVICE_UPTAKE",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "EMPLOYMENT",
+                "outcome": "TRAINING_COMPLETION",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "EMPLOYMENT",
+                "outcome": "JOB_PLACEMENT",
+                "n_referrals": 17,
+                "n_youth": 17
+            },
+            {
+                "category": "EMPLOYMENT",
+                "outcome": "APPRENTICESHIP_START",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "EMPLOYMENT",
+                "outcome": "ENTERPRISE_ENROLMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "EMPLOYMENT",
+                "outcome": "FINANCE_ACCESS",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "EMPLOYMENT",
+                "outcome": "MARKET_LINKAGE_ESTABLISHED",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "EMPLOYMENT",
+                "outcome": "OTHER",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "APPRENTICESHIP",
+                "outcome": "SERVICE_UPTAKE",
+                "n_referrals": 6,
+                "n_youth": 6
+            },
+            {
+                "category": "APPRENTICESHIP",
+                "outcome": "TRAINING_COMPLETION",
+                "n_referrals": 7,
+                "n_youth": 7
+            },
+            {
+                "category": "APPRENTICESHIP",
+                "outcome": "JOB_PLACEMENT",
+                "n_referrals": 5,
+                "n_youth": 5
+            },
+            {
+                "category": "APPRENTICESHIP",
+                "outcome": "APPRENTICESHIP_START",
+                "n_referrals": 5,
+                "n_youth": 5
+            },
+            {
+                "category": "APPRENTICESHIP",
+                "outcome": "ENTERPRISE_ENROLMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "APPRENTICESHIP",
+                "outcome": "FINANCE_ACCESS",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "APPRENTICESHIP",
+                "outcome": "MARKET_LINKAGE_ESTABLISHED",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "APPRENTICESHIP",
+                "outcome": "OTHER",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "ENTERPRISE",
+                "outcome": "SERVICE_UPTAKE",
+                "n_referrals": 7,
+                "n_youth": 6
+            },
+            {
+                "category": "ENTERPRISE",
+                "outcome": "TRAINING_COMPLETION",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "ENTERPRISE",
+                "outcome": "JOB_PLACEMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "ENTERPRISE",
+                "outcome": "APPRENTICESHIP_START",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "ENTERPRISE",
+                "outcome": "ENTERPRISE_ENROLMENT",
+                "n_referrals": 5,
+                "n_youth": 5
+            },
+            {
+                "category": "ENTERPRISE",
+                "outcome": "FINANCE_ACCESS",
+                "n_referrals": 3,
+                "n_youth": 3
+            },
+            {
+                "category": "ENTERPRISE",
+                "outcome": "MARKET_LINKAGE_ESTABLISHED",
+                "n_referrals": 7,
+                "n_youth": 7
+            },
+            {
+                "category": "ENTERPRISE",
+                "outcome": "OTHER",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "FINANCE_ACCESS",
+                "outcome": "SERVICE_UPTAKE",
+                "n_referrals": 5,
+                "n_youth": 5
+            },
+            {
+                "category": "FINANCE_ACCESS",
+                "outcome": "TRAINING_COMPLETION",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "FINANCE_ACCESS",
+                "outcome": "JOB_PLACEMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "FINANCE_ACCESS",
+                "outcome": "APPRENTICESHIP_START",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "FINANCE_ACCESS",
+                "outcome": "ENTERPRISE_ENROLMENT",
+                "n_referrals": 11,
+                "n_youth": 11
+            },
+            {
+                "category": "FINANCE_ACCESS",
+                "outcome": "FINANCE_ACCESS",
+                "n_referrals": 7,
+                "n_youth": 7
+            },
+            {
+                "category": "FINANCE_ACCESS",
+                "outcome": "MARKET_LINKAGE_ESTABLISHED",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "FINANCE_ACCESS",
+                "outcome": "OTHER",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "MARKET_LINKAGE",
+                "outcome": "SERVICE_UPTAKE",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "MARKET_LINKAGE",
+                "outcome": "TRAINING_COMPLETION",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "MARKET_LINKAGE",
+                "outcome": "JOB_PLACEMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "MARKET_LINKAGE",
+                "outcome": "APPRENTICESHIP_START",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "MARKET_LINKAGE",
+                "outcome": "ENTERPRISE_ENROLMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "MARKET_LINKAGE",
+                "outcome": "FINANCE_ACCESS",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "MARKET_LINKAGE",
+                "outcome": "MARKET_LINKAGE_ESTABLISHED",
+                "n_referrals": 19,
+                "n_youth": 19
+            },
+            {
+                "category": "MARKET_LINKAGE",
+                "outcome": "OTHER",
+                "n_referrals": 1,
+                "n_youth": 1
+            },
+            {
+                "category": "COMPLEMENTARY_SERVICE",
+                "outcome": "SERVICE_UPTAKE",
+                "n_referrals": 21,
+                "n_youth": 21
+            },
+            {
+                "category": "COMPLEMENTARY_SERVICE",
+                "outcome": "TRAINING_COMPLETION",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COMPLEMENTARY_SERVICE",
+                "outcome": "JOB_PLACEMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COMPLEMENTARY_SERVICE",
+                "outcome": "APPRENTICESHIP_START",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COMPLEMENTARY_SERVICE",
+                "outcome": "ENTERPRISE_ENROLMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COMPLEMENTARY_SERVICE",
+                "outcome": "FINANCE_ACCESS",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COMPLEMENTARY_SERVICE",
+                "outcome": "MARKET_LINKAGE_ESTABLISHED",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COMPLEMENTARY_SERVICE",
+                "outcome": "OTHER",
+                "n_referrals": 1,
+                "n_youth": 1
+            },
+            {
+                "category": "COACHING",
+                "outcome": "SERVICE_UPTAKE",
+                "n_referrals": 13,
+                "n_youth": 13
+            },
+            {
+                "category": "COACHING",
+                "outcome": "TRAINING_COMPLETION",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COACHING",
+                "outcome": "JOB_PLACEMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COACHING",
+                "outcome": "APPRENTICESHIP_START",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COACHING",
+                "outcome": "ENTERPRISE_ENROLMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COACHING",
+                "outcome": "FINANCE_ACCESS",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COACHING",
+                "outcome": "MARKET_LINKAGE_ESTABLISHED",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "COACHING",
+                "outcome": "OTHER",
+                "n_referrals": 1,
+                "n_youth": 1
+            },
+            {
+                "category": "OTHER",
+                "outcome": "SERVICE_UPTAKE",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "OTHER",
+                "outcome": "TRAINING_COMPLETION",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "OTHER",
+                "outcome": "JOB_PLACEMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "OTHER",
+                "outcome": "APPRENTICESHIP_START",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "OTHER",
+                "outcome": "ENTERPRISE_ENROLMENT",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "OTHER",
+                "outcome": "FINANCE_ACCESS",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "OTHER",
+                "outcome": "MARKET_LINKAGE_ESTABLISHED",
+                "n_referrals": 0,
+                "n_youth": 0
+            },
+            {
+                "category": "OTHER",
+                "outcome": "OTHER",
+                "n_referrals": 23,
+                "n_youth": 23
+            }
+        ],
+        "not_recorded": 0,
+        "other": {
+            "percent": 14,
+            "n": 27,
+            "d": 189,
+            "band": "report",
+            "note": ""
+        }
+    },
+    "partner_performance": {
+        "overall_rate": {
+            "percent": 54,
+            "n": 189,
+            "d": 350,
+            "band": "report",
+            "note": ""
+        },
+        "partners": [
+            {
+                "partner": "Adama Polytechnic College",
+                "partner_type": "TVET_INSTITUTION",
+                "closed": 70,
+                "completed": 43,
+                "rate": {
+                    "percent": 61,
+                    "n": 43,
+                    "d": 70,
+                    "band": "report",
+                    "note": ""
+                },
+                "ci": {
+                    "lower": 50,
+                    "upper": 72
+                },
+                "verdict": "as_expected",
+                "verdict_label": "\u25ac as expected"
+            },
+            {
+                "partner": "Oromia Credit and Savings",
+                "partner_type": "FINANCE_INSTITUTION",
+                "closed": 65,
+                "completed": 36,
+                "rate": {
+                    "percent": 55,
+                    "n": 36,
+                    "d": 65,
+                    "band": "report",
+                    "note": ""
+                },
+                "ci": {
+                    "lower": 43,
+                    "upper": 67
+                },
+                "verdict": "as_expected",
+                "verdict_label": "\u25ac as expected"
+            },
+            {
+                "partner": "Rift Valley Enterprise Agency",
+                "partner_type": "ENTERPRISE_DEVELOPMENT_AGENCY",
+                "closed": 56,
+                "completed": 25,
+                "rate": {
+                    "percent": 45,
+                    "n": 25,
+                    "d": 56,
+                    "band": "report",
+                    "note": ""
+                },
+                "ci": {
+                    "lower": 32,
+                    "upper": 58
+                },
+                "verdict": "as_expected",
+                "verdict_label": "\u25ac as expected"
+            },
+            {
+                "partner": "Adama Skills Hub",
+                "partner_type": "TVET_INSTITUTION",
+                "closed": 55,
+                "completed": 33,
+                "rate": {
+                    "percent": 60,
+                    "n": 33,
+                    "d": 55,
+                    "band": "report",
+                    "note": ""
+                },
+                "ci": {
+                    "lower": 47,
+                    "upper": 72
+                },
+                "verdict": "as_expected",
+                "verdict_label": "\u25ac as expected"
+            },
+            {
+                "partner": "Bishoftu Automotive Plc",
+                "partner_type": "EMPLOYER",
+                "closed": 52,
+                "completed": 26,
+                "rate": {
+                    "percent": 50,
+                    "n": 26,
+                    "d": 52,
+                    "band": "report",
+                    "note": ""
+                },
+                "ci": {
+                    "lower": 37,
+                    "upper": 63
+                },
+                "verdict": "as_expected",
+                "verdict_label": "\u25ac as expected"
+            },
+            {
+                "partner": "Adama Health Centre",
+                "partner_type": "HEALTH_SERVICE",
+                "closed": 52,
+                "completed": 26,
+                "rate": {
+                    "percent": 50,
+                    "n": 26,
+                    "d": 52,
+                    "band": "report",
+                    "note": ""
+                },
+                "ci": {
+                    "lower": 37,
+                    "upper": 63
+                },
+                "verdict": "as_expected",
+                "verdict_label": "\u25ac as expected"
+            }
+        ]
+    },
+    "parallel_load": {
+        "cases_with_parallel": 42,
+        "breaches_cap": 0,
+        "cases_total": 458
+    },
+    "data_completeness": [
+        {
+            "field": "Phone number",
+            "missing": 11,
+            "of": 614,
+            "has_records": true,
+            "cost": "Follow-up calls cannot be made."
+        },
+        {
+            "field": "Consent date",
+            "missing": 0,
+            "of": 614,
+            "has_records": true,
+            "cost": "Consent is the basis for holding the record at all."
+        },
+        {
+            "field": "Profiling record",
+            "missing": 76,
+            "of": 614,
+            "has_records": true,
+            "cost": "No pathway can be justified without it."
+        },
+        {
+            "field": "Outcome type on a completed referral",
+            "missing": 0,
+            "of": 189,
+            "has_records": true,
+            "cost": "The outcome breakdown loses the referral."
+        },
+        {
+            "field": "Failure reason on a failed referral",
+            "missing": 0,
+            "of": 161,
+            "has_records": true,
+            "cost": "Breaks the replacement prompt and the partner failure breakdown at once."
+        }
+    ],
+    "cohort_retention": {
+        "available": false,
+        "reason": "Not measurable yet: placements and their follow-up checks are not recorded in the system."
+    },
+    "disposition_90_day": {
+        "available": false,
+        "reason": "Not measurable yet: placements and their follow-up checks are not recorded in the system."
+    }
+}
