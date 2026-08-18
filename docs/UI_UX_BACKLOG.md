@@ -142,7 +142,7 @@ Fixed in `160d947`. Recorded so the reasoning survives.
 | WOR-09 | — | **rejected** | ✔ | "Content off-centre" — measured equal gutters at 1280/1440/1920 once the rail is discounted. |  |
 | WOR-10 | — | **rejected** | ✔ | "Sidebar icons have no labels" — visible labels when expanded, tooltip plus `aria-label` when collapsed. |  |
 | WOR-11 | — | **rejected** | ✔ | "Every bar starts and ends at the same x" — bar length is the deliberate encoding of caseload size. Starts and tracks equalised; ends left proportional. |  |
-| WOR-12 | — | done `fcdda28` | ✔ | Card padding 24px and the 900/640 breakpoints, **applied globally** on the programme's instruction. Supersedes the handoff's single-breakpoint rule; `.claude/skills/design/SKILL.md` and CLAUDE.md were updated so it is not reverted. Nine inline grids across the four tier pages became `.grid-panels`, since an inline reflow width cannot see a media query. |  |
+| WOR-12 | — | done `85152cf` | ✔ | Card padding 24px and the 900/640 breakpoints, **applied globally** on the programme's instruction. Supersedes the handoff's single-breakpoint rule; `.claude/skills/design/SKILL.md` and CLAUDE.md were updated so it is not reverted. Nine inline grids across the four tier pages became `.grid-panels`, since an inline reflow width cannot see a media query. |  |
 
 ## 5. Design system conformance
 
