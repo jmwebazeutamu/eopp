@@ -665,6 +665,26 @@ Screens not built, and why: the **offline/sync strip** is Sprint 8; the
 **programme dashboard** is built — see its section above — with the two figures
 that need Placement (Sprint 5) reported as absent rather than plotted.
 
+## The UI/UX backlog (`docs/UI_UX_BACKLOG.md`)
+
+Findings from the 2026-08-18 review — four parallel audits (visual rendering,
+design-system conformance, accessibility, content) against the rendered screens
+and the source. 67 entries with stable IDs; 42 still open, 9 of them P1.
+
+Read it before touching the web UI: it records what was **rejected** as well as
+what is outstanding, so the same non-issues are not re-opened. Each entry is
+marked `✔` (verified here) or `○` (agent-reported, confirm before acting) —
+several agent claims did not survive checking.
+
+The largest open item is **DS-04**: ~185 hardcoded user-facing strings, with
+five form components entirely un-i18n'd, so a translator delivering Amharic
+still gets English on every screen field staff type into.
+
+Screens are photographed with `scripts/shoot.mjs`, which mints a JWT through
+`manage.py` and injects it into `localStorage` — no password, no account
+mutation. It also reports console errors. Run it before and after UI work;
+jsdom applies no stylesheet, so the test suite cannot see a layout fault.
+
 ## Definition of Done (spec §10.1)
 
 1. Automated tests cover the referral transitions and RBAC boundaries touched.
