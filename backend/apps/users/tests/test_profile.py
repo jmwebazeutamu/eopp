@@ -273,3 +273,66 @@ def test_clearing_an_address_frees_it_for_another_account(person, as_user):
     response = as_user(other).patch("/api/v1/users/me/", {"work_email": "shared@example.com"}, format="json")
     assert response.status_code == 200
     assert response.data["work_email"] == "shared@example.com"
+
+
+# ---------------------------------------------------------------------------
+# The same questions asked of every role
+# ---------------------------------------------------------------------------
+
+
+def _make(role, partner):
+    kwargs = {}
+    if role == Role.PARTNER_STAFF:
+        kwargs["partner"] = partner
+    if role in (Role.OUTREACH_WORKER, Role.CASE_MANAGER, Role.SUPERVISOR):
+        kwargs["woreda_assignment"] = ["Adama"]
+    return User.objects.create_user(f"perm-{role.lower()}", PASSWORD, full_name=f"P {role}", role=role, **kwargs)
+
+
+@pytest.mark.parametrize("role", Role.values)
+def test_every_role_can_read_and_edit_its_own_profile(role, partner, as_user):
+    """The profile is the one screen nobody is scoped out of.
+
+    A trainer and a partner staff account see no case content at all under §7,
+    and still have a name and a password of their own.
+    """
+    user = _make(role, partner)
+    client = as_user(user)
+
+    assert client.get("/api/v1/users/me/").status_code == 200
+    assert client.patch("/api/v1/users/me/", {"full_name": "Renamed"}, format="json").status_code == 200
+    assert (
+        client.post(
+            "/api/v1/users/me/password/",
+            {"current_password": PASSWORD, "new_password": "brand-New-Pass-42"},
+            format="json",
+        ).status_code
+        == 204
+    )
+
+
+@pytest.mark.parametrize("role", Role.values)
+def test_no_role_can_make_itself_an_administrator(role, partner, as_user):
+    """The escalation every role would try, asked of every role.
+
+    A single missing `read_only` on a self-service route hands §7 to whoever
+    notices, so this is asserted for all ten rather than for a representative.
+    """
+    user = _make(role, partner)
+    as_user(user).patch(
+        "/api/v1/users/me/",
+        {"role": Role.SYSTEM_ADMIN, "woreda_assignment": ["Adama", "Bishoftu", "Lume"], "is_superuser": True},
+        format="json",
+    )
+    user.refresh_from_db()
+    assert user.role == role
+    assert user.is_superuser is False
+
+
+@pytest.mark.parametrize("role", Role.values)
+def test_user_administration_stays_with_the_administrator(role, partner, as_user):
+    """§7 grants the account list to the system administrator alone, and the
+    profile routes did not widen it."""
+    user = _make(role, partner)
+    expected = 200 if role == Role.SYSTEM_ADMIN else 403
+    assert as_user(user).get("/api/v1/users/").status_code == expected
