@@ -14,9 +14,9 @@ import {
   type Role,
 } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import FilterChips, { SearchBox } from "../components/FilterChips";
+import ListPage from "../components/ListPage";
 import UserDetailModal from "../components/UserDetailModal";
-import { Button, Card, MutedChip, PageHeader } from "../components/ui";
+import { Button, Card, MutedChip } from "../components/ui";
 import { useLang } from "../i18n/LanguageContext";
 
 /**
@@ -113,20 +113,25 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="page stack">
-      <PageHeader
-        title={t("users.title")}
-        subtitle={`${rows.length} accounts`}
-        action={
+    <ListPage
+      title={t("users.title")}
+      subtitle={`${rows.length} accounts`}
+      action={
           <Button variant="primary" onClick={openCreate}>
             {t("users.add")}
           </Button>
         }
-      />
-
-      <SearchBox placeholder="Search by name, username or email" />
-
-      <FilterChips resource="/users" />
+      searchPlaceholder={t("users.search")}
+      resource="/users"
+      rowDensity={false}
+      empty={{
+        when: !loading && rows.length === 0,
+        title: t("empty.users"),
+        body: t("empty.usersBody"),
+      }}
+    >
+      {() => (
+        <>
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 
@@ -262,6 +267,8 @@ export default function UsersPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+        </>
+      )}
+    </ListPage>
   );
 }

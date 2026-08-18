@@ -53,6 +53,33 @@ export const STRINGS = {
   "search.label": "Search records",
   "filters.label": "Filter the list",
   "filters.all": "All",
+  "queue.search": "Search by youth or partner",
+  "registry.search": "Search by name, phone or ID",
+  "partners.search": "Search by name, contact or email",
+  "users.search": "Search by name, username or email",
+  "list.compact": "Compact rows",
+  "list.comfortable": "Comfortable rows",
+  "list.densityHint": "Row height. Remembered for your account.",
+  "list.emptyFiltered": "No rows match the filters in use.",
+  "list.clearFilters": "Clear filters",
+  "empty.filteredBody":
+    "The list itself is not empty. Clear the filters to see everything in view, or pick different ones.",
+  "empty.cases": "This is your caseload.",
+  "empty.casesBody":
+    "A case appears here once a registered youth is opened as a case. Register a youth first, then open a case for them.",
+  "empty.referrals": "This is the referral decision inbox.",
+  "empty.referralsBody":
+    "A referral appears here once it is sent to a partner from a case. Open a case and refer the youth to a partner.",
+  "empty.alerts": "This is where the scheduled checks report.",
+  "empty.alertsBody":
+    "Alerts are raised by jobs that run on a schedule — a case going quiet, a partner not answering, a checkpoint reached. Nothing is outstanding, which is a good state, not a missing one.",
+  "empty.youth": "This is the youth registry.",
+  "empty.youthBody":
+    "Youth appear here once registered, one at a time or imported from a spreadsheet.",
+  "empty.partners": "These are the institutions referrals can be sent to.",
+  "empty.partnersBody": "A partner has to exist here before a referral can name it as the receiving institution.",
+  "empty.users": "These are the platform accounts.",
+  "empty.usersBody": "Every account here can sign in. Roles decide what each one may read and change.",
   "search.placeholder": "Search youth, cases, partners",
   "search.none": "Nothing found.",
   "search.youth": "Youth",

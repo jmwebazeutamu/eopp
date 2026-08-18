@@ -5,12 +5,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, errorMessage } from "../api/client";
 import type { Paginated, Youth } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import FilterChips, { SearchBox } from "../components/FilterChips";
+import ListPage from "../components/ListPage";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import YouthDetailModal from "../components/YouthDetailModal";
 import YouthFormModal from "../components/YouthFormModal";
 import YouthImportModal from "../components/YouthImportModal";
-import { Button, Card, MutedChip, PageHeader, maskPhone } from "../components/ui";
+import { Button, Card, MutedChip, maskPhone } from "../components/ui";
 import { useLang } from "../i18n/LanguageContext";
 
 /**
@@ -98,11 +98,10 @@ export default function YouthListPage() {
   }
 
   return (
-    <div className="page stack">
-      <PageHeader
-        title={t("registry.title")}
-        subtitle={t("registry.subtitle", { registered: count, withCase, scope: scope.label })}
-        action={
+    <ListPage
+      title={t("registry.title")}
+      subtitle={t("registry.subtitle", { registered: count, withCase, scope: scope.label })}
+      action={
           canWrite ? (
             // Import is secondary to registering one youth: the single form is
             // the daily path, and a register arrives a few times a season.
@@ -120,26 +119,32 @@ export default function YouthListPage() {
             </div>
           ) : undefined
         }
-      />
-
-      <SearchBox placeholder={t("cases.search")} />
-
-      <FilterChips resource="/youth" params={scopeParam(scope.woreda)} />
+      searchPlaceholder={t("registry.search")}
+      resource="/youth"
+      chipParams={scopeParam(scope.woreda)}
+      empty={{
+        when: !loading && rows.length === 0,
+        title: t("empty.youth"),
+        body: t("empty.youthBody"),
+      }}
+    >
+      {(density) => (
+        <>
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 
       {/* Laptop: a table, same shape as the caseload. Phone: cards. */}
       <div className="only-laptop">
-        <Card style={{ padding: 0, overflow: "hidden" }}>
-          <table className="table">
+        <Card className="table-card">
+          <table className={`table ${density}`}>
             <thead>
               <tr>
-                <th>{t("cases.col.name")}</th>
-                <th>{t("registry.col.id")}</th>
-                <th>{t("cases.col.woreda")}</th>
-                <th>{t("case.phone")}</th>
-                <th>{t("registry.consent")}</th>
-                <th>{t("registry.col.case")}</th>
+                <th scope="col">{t("cases.col.name")}</th>
+                <th scope="col">{t("registry.col.id")}</th>
+                <th scope="col">{t("cases.col.woreda")}</th>
+                <th scope="col">{t("case.phone")}</th>
+                <th scope="col">{t("registry.consent")}</th>
+                <th scope="col">{t("registry.col.case")}</th>
               </tr>
             </thead>
             <tbody>
@@ -227,7 +232,9 @@ export default function YouthListPage() {
       />
 
       <YouthImportModal open={importOpen} onClose={() => setImportOpen(false)} onImported={() => void load()} />
-    </div>
+        </>
+      )}
+    </ListPage>
   );
 }
 

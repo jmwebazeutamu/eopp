@@ -5,10 +5,10 @@ import { useSearchParams } from "react-router-dom";
 import { api, errorMessage } from "../api/client";
 import type { Paginated, Partner } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import FilterChips, { SearchBox } from "../components/FilterChips";
+import ListPage from "../components/ListPage";
 import PartnerDetailModal, { MOU_TONE } from "../components/PartnerDetailModal";
 import PartnerFormModal from "../components/PartnerFormModal";
-import { Button, CapsLabel, Card, Field, MutedChip, PageHeader } from "../components/ui";
+import { Button, CapsLabel, Card, Field, MutedChip } from "../components/ui";
 import { useLang } from "../i18n/LanguageContext";
 
 /**
@@ -60,11 +60,10 @@ export default function PartnersPage() {
   }, [load]);
 
   return (
-    <div className="page stack">
-      <PageHeader
-        title={t("partners.title")}
-        subtitle={`${rows.length} partners`}
-        action={
+    <ListPage
+      title={t("partners.title")}
+      subtitle={`${rows.length} partners`}
+      action={
           canWrite ? (
             <Button
               variant="primary"
@@ -77,11 +76,17 @@ export default function PartnersPage() {
             </Button>
           ) : undefined
         }
-      />
-
-      <SearchBox placeholder="Search by name, contact or email" />
-
-      <FilterChips resource="/partners" />
+      searchPlaceholder={t("partners.search")}
+      resource="/partners"
+      rowDensity={false}
+      empty={{
+        when: !loading && rows.length === 0,
+        title: t("empty.partners"),
+        body: t("empty.partnersBody"),
+      }}
+    >
+      {() => (
+        <>
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 
@@ -170,6 +175,8 @@ export default function PartnersPage() {
           void load();
         }}
       />
-    </div>
+        </>
+      )}
+    </ListPage>
   );
 }

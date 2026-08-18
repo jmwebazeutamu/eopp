@@ -6,9 +6,9 @@ import { api, errorMessage } from "../api/client";
 import type { CaseListRow, CaseStatus, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import CaseFormModal from "../components/CaseFormModal";
-import FilterChips, { SearchBox } from "../components/FilterChips";
+import ListPage from "../components/ListPage";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
-import { Button, CaseStatusChip, Card, PageHeader } from "../components/ui";
+import { Button, CaseStatusChip, Card } from "../components/ui";
 import { CASE_TONE } from "../design/status";
 import { useLang } from "../i18n/LanguageContext";
 
@@ -96,64 +96,49 @@ export default function CaseListPage() {
   }, [load]);
 
   return (
-    <div className="page stack">
-      <PageHeader
-        title={t("cases.title")}
-        subtitle={t("cases.subtitle", { count, scope: scope.label })}
-        action={
-          canOpenCase ? (
-            <Button variant="primary" onClick={() => setFormOpen(true)}>
-              {t("cases.new")}
-            </Button>
-          ) : undefined
-        }
-      />
-
-      {/* Sticky so the filters stay reachable while scrolling 200 rows. */}
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 3,
-          background: "var(--paper)",
-          paddingBottom: 8,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        <SearchBox placeholder={t("cases.search")} />
-
-
-
-      </div>
-
-      {/* The counters carry the status filter now — the chip row said the same
-          thing without the numbers. */}
-      <FilterChips resource="/cases" params={scopeParam(scope.woreda)} tones={CASE_COUNTER_TONES} />
-
+    <ListPage
+      title={t("cases.title")}
+      subtitle={t("cases.subtitle", { count, scope: scope.label })}
+      action={
+        canOpenCase ? (
+          <Button variant="primary" onClick={() => setFormOpen(true)}>
+            {t("cases.new")}
+          </Button>
+        ) : undefined
+      }
+      searchPlaceholder={t("cases.search")}
+      resource="/cases"
+      chipParams={scopeParam(scope.woreda)}
+      chipTones={CASE_COUNTER_TONES}
+      empty={{
+        when: !loading && rows.length === 0,
+        title: t("empty.cases"),
+        body: t("empty.casesBody"),
+        action: canOpenCase ? (
+          <Button variant="primary" onClick={() => setFormOpen(true)}>
+            {t("cases.new")}
+          </Button>
+        ) : undefined,
+      }}
+    >
+      {(density) => (
+        <>
       {loading && <div className="t-meta">{t("common.loading")}</div>}
-
-      {!loading && rows.length === 0 && (
-        <Card>
-          <div className="t-meta">{t("cases.none")}</div>
-        </Card>
-      )}
 
       {rows.length > 0 && (
         <>
           {/* Laptop: a table. Phone: purpose-built cards, not a shrunken table. */}
           <div className="only-laptop">
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <table className="table">
+            <Card className="table-card">
+              <table className={`table ${density}`}>
                 <thead>
                   <tr>
-                    <th>{t("cases.col.name")}</th>
-                    <th>{t("cases.col.status")}</th>
-                    <th>{t("cases.col.woreda")}</th>
-                    <th>{t("cases.col.manager")}</th>
-                    <th>{t("cases.col.activity")}</th>
-                    <th>{t("cases.col.next")}</th>
+                    <th scope="col">{t("cases.col.name")}</th>
+                    <th scope="col">{t("cases.col.status")}</th>
+                    <th scope="col">{t("cases.col.woreda")}</th>
+                    <th scope="col">{t("cases.col.manager")}</th>
+                    <th scope="col">{t("cases.col.activity")}</th>
+                    <th scope="col">{t("cases.col.next")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -219,7 +204,9 @@ export default function CaseListPage() {
       )}
 
       <CaseFormModal open={formOpen} record={null} onClose={() => setFormOpen(false)} onSaved={() => load()} />
-    </div>
+        </>
+      )}
+    </ListPage>
   );
 }
 

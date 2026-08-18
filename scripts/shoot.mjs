@@ -123,11 +123,17 @@ for (const size of SIZES) {
       const shown = (sel) =>
         [...document.querySelectorAll(sel)].find((el) => el.getClientRects().length > 0) ?? null;
       const main = shown("main") ?? shown(".page");
+      const page = shown(".page");
       const firstRow = shown("tbody tr") ?? shown(".card");
+      // The brief's target is content top to the *table header*, which is what
+      // a reader has to scroll past before the data starts.
+      const tableHead = shown("thead th") ?? shown("thead");
       const heading = shown("h1");
       return {
         viewportTop: px(main),
+        contentTop: px(page),
         headingTop: px(heading),
+        tableHeadTop: px(tableHead),
         firstRowTop: px(firstRow),
         bodyText: (document.body.innerText || "").slice(0, 160).replace(/\s+/g, " "),
         // A blank page renders almost nothing; this is the guard the
@@ -144,6 +150,12 @@ for (const size of SIZES) {
         measured.firstRowTop != null && measured.headingTop != null
           ? measured.firstRowTop - measured.headingTop
           : null,
+      toTableHead:
+        measured.tableHeadTop != null && measured.contentTop != null
+          ? measured.tableHeadTop - measured.contentTop
+          : null,
+      // "The first table row must be visible without scrolling at 1440x900."
+      firstRowVisible: measured.firstRowTop != null && measured.firstRowTop < size.h,
       file,
     });
   }
@@ -155,11 +167,14 @@ writeFileSync(`${OUT}/measurements.json`, JSON.stringify({ user: USER, rows, con
 
 const pad = (s, n) => String(s ?? "—").padEnd(n);
 console.log(`\nsigned in as ${USER}\n`);
-console.log(pad("route", 24) + pad("size", 10) + pad("h1 top", 9) + pad("row top", 9) + pad("h1→row", 9) + "chars");
+console.log(
+  pad("route", 22) + pad("size", 10) + pad("top→thead", 11) + pad("row top", 9) +
+  pad("row seen", 10) + "chars",
+);
 for (const r of rows) {
   console.log(
-    pad(r.route, 24) + pad(r.size, 10) + pad(r.headingTop, 9) +
-    pad(r.firstRowTop, 9) + pad(r.toFirstRow, 9) + r.renderedChars,
+    pad(r.route, 22) + pad(r.size, 10) + pad(r.toTableHead, 11) + pad(r.firstRowTop, 9) +
+    pad(r.firstRowVisible ? "yes" : "NO", 10) + r.renderedChars,
   );
 }
 if (consoleErrors.length) {

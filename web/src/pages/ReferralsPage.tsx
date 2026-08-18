@@ -6,10 +6,10 @@ import { api, errorMessage } from "../api/client";
 import type { Paginated, ProgrammeRules, Referral, ReferralPrompts } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import ReferralActionModal, { ACTION_LABELS, actionsFor, type ReferralAction } from "../components/ReferralActions";
-import FilterChips, { SearchBox } from "../components/FilterChips";
+import ListPage from "../components/ListPage";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { referralRef } from "../components/ReferralPanel";
-import { Button, CapsLabel, Card, CountBadge, PageHeader, ReferralStatusChip, WaitBadge } from "../components/ui";
+import { Button, CapsLabel, Card, CountBadge, ReferralStatusChip, WaitBadge } from "../components/ui";
 import { REFERRAL_TONE, waitLevel } from "../design/status";
 import { useLang } from "../i18n/LanguageContext";
 
@@ -118,15 +118,21 @@ export default function ReferralsPage() {
   const total = groups.reduce((sum, group) => sum + group.rows.length, 0);
 
   return (
-    <div className="page stack">
-      <PageHeader
-        title={t("queue.title")}
-        subtitle={t("queue.subtitle", { scope: scope.label })}
-      />
-
-      <SearchBox placeholder="Search by youth or partner" />
-
-      <FilterChips resource="/referrals" params={scopeParam(scope.woreda, "case__woreda")} tones={REFERRAL_COUNTER_TONES} />
+    <ListPage
+      title={t("queue.title")}
+      subtitle={t("queue.subtitle", { scope: scope.label })}
+      searchPlaceholder={t("queue.search")}
+      resource="/referrals"
+      chipParams={scopeParam(scope.woreda, "case__woreda")}
+      chipTones={REFERRAL_COUNTER_TONES}
+      empty={{
+        when: !loading && total === 0,
+        title: t("empty.referrals"),
+        body: t("empty.referralsBody"),
+      }}
+    >
+      {(density) => (
+        <>
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 
@@ -148,16 +154,16 @@ export default function ReferralsPage() {
             {/* Laptop: a table, same shape as the caseload. Phone: cards —
                 a six-column table on a 360px screen is unreadable. */}
             <div className="only-laptop">
-              <Card style={{ padding: 0, overflow: "hidden" }}>
-                <table className="table">
+              <Card className="table-card">
+                <table className={`table ${density}`}>
                   <thead>
                     <tr>
-                      <th>{t("queue.col.youth")}</th>
-                      <th>{t("queue.col.referral")}</th>
-                      <th>{t("cases.col.woreda")}</th>
-                      <th>{t("cases.col.status")}</th>
-                      <th>{t("queue.col.waiting")}</th>
-                      <th>{t("queue.col.decision")}</th>
+                      <th scope="col">{t("queue.col.youth")}</th>
+                      <th scope="col">{t("queue.col.referral")}</th>
+                      <th scope="col">{t("cases.col.woreda")}</th>
+                      <th scope="col">{t("cases.col.status")}</th>
+                      <th scope="col">{t("queue.col.waiting")}</th>
+                      <th scope="col">{t("queue.col.decision")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -253,7 +259,9 @@ export default function ReferralsPage() {
         onClose={() => setAction(null)}
         onDone={() => void load()}
       />
-    </div>
+        </>
+      )}
+    </ListPage>
   );
 }
 

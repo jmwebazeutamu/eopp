@@ -243,7 +243,7 @@ p {
 
 .chip-filter {
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 13px;
   border-radius: var(--r-chip);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -255,7 +255,7 @@ p {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   white-space: nowrap;
 }
 
@@ -289,7 +289,7 @@ p {
 .chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .count-badge {
@@ -455,4 +455,61 @@ p {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* -- List page ----------------------------------------------------------- */
+
+/* Tighter than `.stack`'s 16px. The budget is 220px from the top of the
+   content column to the table header at 1440px, and a list screen is dense by
+   nature — someone opening their caseload should see cases, not chrome. */
+.list-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.list-page__controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.list-page__controls .input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Sticky header, so the column names stay while a 145-row caseload scrolls.
+   `main` is the scroll container.
+
+   The card holding the table must not set `overflow: hidden` — that makes the
+   card its own scroll container, and the header then sticks to the top of the
+   card and scrolls away with it. The corners are rounded on the header cells
+   instead, which is what the overflow was clipping. */
+.table-card {
+  padding: 0;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table thead th:first-child {
+  border-top-left-radius: var(--r-card);
+}
+
+.table thead th:last-child {
+  border-top-right-radius: var(--r-card);
+}
+
+/* Compact rows keep a 36px target rather than collapsing to the text height:
+   these rows are tap targets on a phone and click targets everywhere. */
+.table--compact td {
+  padding: 8px 14px;
+}
+
+.table--compact tbody tr {
+  min-height: 36px;
 }
