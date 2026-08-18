@@ -6,6 +6,8 @@ import type { AlertSummary } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useLang } from "../i18n/LanguageContext";
 import { Icon } from "./ui";
+import Header from "./shell/Header";
+import { ScopeProvider } from "./shell/ScopeContext";
 import Sidebar from "./shell/Sidebar";
 import UserMenu from "./shell/UserMenu";
 import { buildNav, isActivePath } from "./shell/navModel";
@@ -82,28 +84,9 @@ export default function AppLayout() {
     // stretch to the height of the page (2,203px on a full case list) or, once
     // it was pinned to 100vh, hang 60px past the bottom of the window because
     // it starts *below* the header — clipping the only sign-out button.
+    <ScopeProvider user={user}>
     <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--paper)" }}>
-      {/* Utility bar */}
-      <header
-        style={{
-          background: "var(--green-900)",
-          color: "var(--on-dark)",
-          padding: "8px 16px",
-          minHeight: 60,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        {/* Sentence case rather than uppercase: at this length, caps plus the
-            0.06em tracking wraps to two lines on a 360px screen. */}
-        <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: "-0.01em" }}>{t("app.name")}</span>
-        <span style={{ color: "var(--on-dark-3)", fontSize: 13 }}>
-          {t("shell.woreda")}: {user.woreda_assignment?.join(", ") || "—"}
-        </span>
-
-      </header>
+      <Header />
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         {!isPhone && (
@@ -166,5 +149,6 @@ export default function AppLayout() {
         </main>
       </div>
     </div>
+    </ScopeProvider>
   );
 }

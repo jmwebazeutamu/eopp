@@ -40,6 +40,12 @@ export interface CurrentUser {
   partner_name: string | null;
   account_status: string;
   access: AccessMatrix;
+  /**
+   * Woredas this account may narrow a screen to — its own assignment, or every
+   * programme woreda for an ALL scope. `woreda_assignment` cannot serve the
+   * purpose: an ALL-scope account carries an empty one.
+   */
+  scopable_woredas: string[];
 }
 
 export interface YouthSummary {

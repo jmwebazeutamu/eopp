@@ -34,7 +34,8 @@ class AlertViewSet(ScopedQuerySetMixin, viewsets.ReadOnlyModelViewSet):
     case_manager_field = "case__case_manager_id"
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["status", "alert_type", "case", "assigned_to"]
+    # `case__woreda` backs the shell's woreda scope selector; see ReferralViewSet.
+    filterset_fields = ["status", "alert_type", "case", "assigned_to", "case__woreda"]
     search_fields = ["case__youth__full_name", "summary"]
     ordering_fields = ["triggered_date", "alert_type"]
     ordering = ["-triggered_date"]

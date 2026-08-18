@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Youth } from "../api/types";
+import { ScopeProvider } from "../components/shell/ScopeContext";
 import { LanguageProvider } from "../i18n/LanguageContext";
 
 /**
@@ -62,10 +63,12 @@ function renderRegistry() {
   return render(
     <MemoryRouter initialEntries={["/youth"]}>
       <LanguageProvider>
+        <ScopeProvider user={null}>
         <Routes>
           <Route path="/youth" element={<YouthListPageWithAuth />} />
           <Route path="/cases/:caseId" element={<div>CASE SCREEN</div>} />
         </Routes>
+        </ScopeProvider>
       </LanguageProvider>
     </MemoryRouter>,
   );

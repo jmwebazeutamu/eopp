@@ -48,6 +48,15 @@ export const STRINGS = {
   "login.submit": "Sign in",
   "shell.language": "Language",
   "shell.allWoredas": "All woredas",
+  "shell.scope": "Woreda scope",
+  "shell.appMark": "PSNP Youth",
+  "search.label": "Search records",
+  "search.placeholder": "Search youth, cases, partners",
+  "search.none": "Nothing found.",
+  "search.youth": "Youth",
+  "search.cases": "Cases",
+  "search.partners": "Partners",
+  "search.referrals": "Referrals",
   "shell.caseload": "{count} cases",
 
   // Dashboard tiers
@@ -210,7 +219,7 @@ export const STRINGS = {
 
   // Cases list
   "cases.title": "Caseload",
-  "cases.subtitle": "{count} results · {name}",
+  "cases.subtitle": "{count} results · {scope}",
   "cases.search": "Search by name, phone or ID",
   "cases.all": "All",
   "cases.col.name": "Name",
@@ -281,7 +290,7 @@ export const STRINGS = {
 
   // Referrals queue
   "queue.title": "Referrals queue",
-  "queue.subtitle": "Decision inbox · {woredas}",
+  "queue.subtitle": "Decision inbox · {scope}",
   "queue.needsDecision": "Needs a decision",
   "queue.awaiting": "Awaiting confirmation",
   "queue.active": "Active",
@@ -293,7 +302,7 @@ export const STRINGS = {
 
   // Alerts
   "alerts.title": "Alerts",
-  "alerts.subtitle": "Tap a counter to filter. {count} open across {woredas} woredas.",
+  "alerts.subtitle": "{count} open · {scope}",
   "alerts.showAll": "Show all alerts",
   "alerts.emptyTitle": "No alerts of this type",
   "alerts.emptyBody": "Nothing here needs attention right now. Alerts are raised by scheduled checks, not by anything you did.",
@@ -304,7 +313,7 @@ export const STRINGS = {
 
   // Youth registry
   "registry.title": "Youth registry",
-  "registry.subtitle": "{registered} registered · {withCase} with an open case. Phone numbers hidden by default.",
+  "registry.subtitle": "{registered} registered · {withCase} with an open case · {scope}. Phone numbers hidden by default.",
   "registry.openCase": "Open case",
   "registry.noCase": "No case",
   "registry.consent": "Consent",

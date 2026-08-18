@@ -71,7 +71,10 @@ class ReferralViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     partner_field = "receiving_partner_id"
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["case", "status", "referral_category", "receiving_partner", "referral_trigger"]
+    # `case__woreda` backs the shell's woreda scope selector. It is the same
+    # column `woreda_field` scopes on, so a narrowed view is always a subset of
+    # what §7 already allows — the filter cannot widen anything.
+    filterset_fields = ["case", "status", "referral_category", "receiving_partner", "referral_trigger", "case__woreda"]
     search_fields = ["case__youth__full_name", "receiving_partner__partner_name"]
     ordering_fields = ["initiated_date", "status"]
     ordering = ["-initiated_date"]

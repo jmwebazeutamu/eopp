@@ -4,6 +4,8 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from apps.locations.models import Location, LocationLevel
+
 from .models import ACCESS_MATRIX, AccountStatus, Role, User
 
 
@@ -90,6 +92,7 @@ class CurrentUserSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     partner_name = serializers.CharField(source="partner.partner_name", read_only=True, default=None)
     access = serializers.SerializerMethodField()
+    scopable_woredas = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -105,8 +108,30 @@ class CurrentUserSerializer(serializers.ModelSerializer):
             "partner_name",
             "account_status",
             "access",
+            "scopable_woredas",
         ]
         read_only_fields = fields
+
+    def get_scopable_woredas(self, obj):
+        """Woredas this account may narrow a screen to.
+
+        The shell's scope selector reads this. `woreda_assignment` cannot serve
+        the purpose on its own: an ALL-scope account — administrator, programme
+        manager, M&E — carries an empty assignment, which is why the header
+        rendered "Woreda: —" for exactly the users who can see every woreda.
+
+        An ALL scope gets the programme's woredas from the location reference
+        data; everyone else gets their own assignment, because that is already
+        the only set `ScopedQuerySetMixin` will return rows for. Offering more
+        would offer a filter that silently returns nothing.
+        """
+        if str(ACCESS_MATRIX.get(obj.role, {}).get("case_scope", "")) == "ALL":
+            return list(
+                Location.objects.filter(level=LocationLevel.WOREDA, is_active=True)
+                .order_by("name")
+                .values_list("name", flat=True)
+            )
+        return list(obj.woreda_assignment or [])
 
     def get_access(self, obj):
         # Scopes are TextChoices and must serialise as their string value;

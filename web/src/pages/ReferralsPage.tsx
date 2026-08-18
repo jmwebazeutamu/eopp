@@ -7,6 +7,7 @@ import type { Paginated, ProgrammeRules, Referral, ReferralPrompts } from "../ap
 import { useAuth } from "../auth/AuthContext";
 import ReferralActionModal, { ACTION_LABELS, actionsFor, type ReferralAction } from "../components/ReferralActions";
 import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { referralRef } from "../components/ReferralPanel";
 import { Button, CapsLabel, Card, CountBadge, PageHeader, ReferralStatusChip, WaitBadge } from "../components/ui";
 import { REFERRAL_TONE, waitLevel } from "../design/status";
@@ -36,6 +37,7 @@ interface Group {
 }
 
 export default function ReferralsPage() {
+  const scope = useScope();
   const { user } = useAuth();
   const { message } = App.useApp();
   const { t } = useLang();
@@ -120,12 +122,12 @@ export default function ReferralsPage() {
     <div className="page stack">
       <PageHeader
         title={t("queue.title")}
-        subtitle={t("queue.subtitle", { woredas: user?.woreda_assignment?.join(", ") || "—" })}
+        subtitle={t("queue.subtitle", { scope: scope.label })}
       />
 
       <SearchBox placeholder="Search by youth or partner" />
 
-      <MiniDashboard resource="/referrals" tones={REFERRAL_COUNTER_TONES} />
+      <MiniDashboard resource="/referrals" params={scopeParam(scope.woreda, "case__woreda")} tones={REFERRAL_COUNTER_TONES} />
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 

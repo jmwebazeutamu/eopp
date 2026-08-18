@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, errorMessage } from "../api/client";
 import type { Alert, AlertSummary, AlertTypeCode, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { Button, CapsLabel, Card, PageHeader } from "../components/ui";
 import { ALERT_REASON, ALERT_TONE } from "../design/status";
 import { useLang } from "../i18n/LanguageContext";
@@ -19,6 +20,7 @@ import { useLang } from "../i18n/LanguageContext";
  */
 
 export default function AlertsPage() {
+  const scope = useScope();
   const { user } = useAuth();
   const { message } = App.useApp();
   const { t } = useLang();
@@ -39,9 +41,9 @@ export default function AlertsPage() {
     try {
       const [list, summaryResponse] = await Promise.all([
         api.get<Paginated<Alert>>("/alerts/", {
-          params: { status: "OPEN", alert_type: filter || undefined, page_size: 100 },
+          params: { status: "OPEN", alert_type: filter || undefined, page_size: 100, ...scopeParam(scope.woreda, "case__woreda") },
         }),
-        api.get<AlertSummary>("/alerts/summary/"),
+        api.get<AlertSummary>("/alerts/summary/", { params: scopeParam(scope.woreda, "case__woreda") }),
       ]);
       setRows(list.data.results);
       setSummary(summaryResponse.data);
@@ -50,7 +52,7 @@ export default function AlertsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, message]);
+  }, [filter, message, scope.woreda]);
 
   useEffect(() => {
     void load();
@@ -80,10 +82,7 @@ export default function AlertsPage() {
     <div className="page stack">
       <PageHeader
         title={t("alerts.title")}
-        subtitle={t("alerts.subtitle", {
-          count: summary?.open_total ?? 0,
-          woredas: user?.woreda_assignment?.length ?? 0,
-        })}
+        subtitle={t("alerts.subtitle", { count: summary?.open_total ?? 0, scope: scope.label })}
       />
 
       <div className="grid-counters">

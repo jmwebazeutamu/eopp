@@ -414,3 +414,18 @@ p {
     display: none;
   }
 }
+
+/* Present to a screen reader, absent to everyone else. Used where a control's
+   visible affordance is a placeholder or an icon and the label would otherwise
+   be the only thing missing. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

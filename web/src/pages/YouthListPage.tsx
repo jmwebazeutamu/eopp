@@ -6,6 +6,7 @@ import { api, errorMessage } from "../api/client";
 import type { Paginated, Youth } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import YouthDetailModal from "../components/YouthDetailModal";
 import YouthFormModal from "../components/YouthFormModal";
 import YouthImportModal from "../components/YouthImportModal";
@@ -24,6 +25,7 @@ import { useLang } from "../i18n/LanguageContext";
 const PAGE_SIZE = 24;
 
 export default function YouthListPage() {
+  const scope = useScope();
   const { user } = useAuth();
   const { message } = App.useApp();
   const { t } = useLang();
@@ -99,7 +101,7 @@ export default function YouthListPage() {
     <div className="page stack">
       <PageHeader
         title={t("registry.title")}
-        subtitle={t("registry.subtitle", { registered: count, withCase })}
+        subtitle={t("registry.subtitle", { registered: count, withCase, scope: scope.label })}
         action={
           canWrite ? (
             // Import is secondary to registering one youth: the single form is
@@ -122,7 +124,7 @@ export default function YouthListPage() {
 
       <SearchBox placeholder={t("cases.search")} />
 
-      <MiniDashboard resource="/youth" />
+      <MiniDashboard resource="/youth" params={scopeParam(scope.woreda)} />
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 

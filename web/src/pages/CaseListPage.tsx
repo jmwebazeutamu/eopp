@@ -1,5 +1,5 @@
 import { App } from "antd";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { api, errorMessage } from "../api/client";
@@ -7,6 +7,7 @@ import type { CaseListRow, CaseStatus, Paginated } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import CaseFormModal from "../components/CaseFormModal";
 import MiniDashboard, { SearchBox } from "../components/MiniDashboard";
+import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { Button, CaseStatusChip, Card, PageHeader } from "../components/ui";
 import { CASE_TONE } from "../design/status";
 import { useLang } from "../i18n/LanguageContext";
@@ -32,6 +33,7 @@ const CASE_COUNTER_TONES = Object.fromEntries(
 );
 
 export default function CaseListPage() {
+  const scope = useScope();
   const { user } = useAuth();
   const { message } = App.useApp();
   const { t } = useLang();
@@ -43,7 +45,6 @@ export default function CaseListPage() {
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
 
-  const woreda = params.get("woreda") ?? "";
   const status = (params.get("case_status") ?? "") as CaseStatus | "";
   const query = params.get("q") ?? "";
   const page = Number(params.get("page") ?? 1);
@@ -60,9 +61,6 @@ export default function CaseListPage() {
     [params, setParams],
   );
 
-  // The user's own woredas are the only ones their scope can return, so they
-  // are the only chips worth offering.
-  const woredas = useMemo(() => user?.woreda_assignment ?? [], [user]);
 
   const canOpenCase = (user?.access.case_write ?? false) && user?.access.case_scope !== "OWN_CASELOAD";
 
@@ -74,7 +72,7 @@ export default function CaseListPage() {
           page,
           page_size: PAGE_SIZE,
           case_status: status || undefined,
-          woreda: woreda || undefined,
+          ...scopeParam(scope.woreda),
           search: query || undefined,
         },
       });
@@ -85,7 +83,7 @@ export default function CaseListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, status, woreda, query, message]);
+  }, [page, status, scope.woreda, query, message]);
 
   useEffect(() => {
     void load();
@@ -95,7 +93,7 @@ export default function CaseListPage() {
     <div className="page stack">
       <PageHeader
         title={t("cases.title")}
-        subtitle={t("cases.subtitle", { count, name: user?.full_name ?? "" })}
+        subtitle={t("cases.subtitle", { count, scope: scope.label })}
         action={
           canOpenCase ? (
             <Button variant="primary" onClick={() => setFormOpen(true)}>
@@ -120,24 +118,13 @@ export default function CaseListPage() {
       >
         <SearchBox placeholder={t("cases.search")} />
 
-        {woredas.length > 1 && (
-          <div className="chip-row">
-            <FilterChip active={!woreda} onClick={() => setParam("woreda", "")}>
-              {t("cases.all")}
-            </FilterChip>
-            {woredas.map((name) => (
-              <FilterChip key={name} active={woreda === name} onClick={() => setParam("woreda", name)}>
-                {name}
-              </FilterChip>
-            ))}
-          </div>
-        )}
+
 
       </div>
 
       {/* The counters carry the status filter now — the chip row said the same
           thing without the numbers. */}
-      <MiniDashboard resource="/cases" params={{ woreda: woreda || undefined }} tones={CASE_COUNTER_TONES} />
+      <MiniDashboard resource="/cases" params={scopeParam(scope.woreda)} tones={CASE_COUNTER_TONES} />
 
       {loading && <div className="t-meta">{t("common.loading")}</div>}
 
@@ -227,14 +214,6 @@ export default function CaseListPage() {
 
       <CaseFormModal open={formOpen} record={null} onClose={() => setFormOpen(false)} onSaved={() => load()} />
     </div>
-  );
-}
-
-function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button type="button" className="chip-filter" aria-pressed={active} onClick={onClick}>
-      {children}
-    </button>
   );
 }
 

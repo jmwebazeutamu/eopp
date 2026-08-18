@@ -24,6 +24,7 @@ function userWith(role: Role, access: Partial<AccessMatrix>): CurrentUser {
     partner: null,
     partner_name: null,
     account_status: "ACTIVE",
+    scopable_woredas: [],
     access: {
       case_scope: "OWN_CASELOAD",
       case_write: true,

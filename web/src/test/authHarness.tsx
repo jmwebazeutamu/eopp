@@ -22,6 +22,7 @@ export function testUser(role: Role = "SYSTEM_ADMIN", overrides: Partial<Current
     partner: null,
     partner_name: null,
     account_status: "ACTIVE",
+    scopable_woredas: [],
     access: { case_scope: "ALL", case_write: true, referral_scope: "ALL", referral_write: true },
     ...overrides,
   };
