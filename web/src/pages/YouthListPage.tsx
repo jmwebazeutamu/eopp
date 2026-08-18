@@ -27,6 +27,7 @@ const PAGE_SIZE = 24;
 export default function YouthListPage() {
   const scope = useScope();
   const { user } = useAuth();
+  const seesNoCaseRecords = user?.access.case_scope === "LINKED";
   const { message } = App.useApp();
   const { t } = useLang();
   const [params, setParams] = useSearchParams();
@@ -124,8 +125,8 @@ export default function YouthListPage() {
       chipParams={scopeParam(scope.woreda)}
       empty={{
         when: !loading && rows.length === 0,
-        title: t("empty.youth"),
-        body: t("empty.youthBody"),
+        title: t(seesNoCaseRecords ? "empty.youthLinked" : "empty.youth"),
+        body: t(seesNoCaseRecords ? "empty.youthLinkedBody" : "empty.youthBody"),
       }}
     >
       {(density) => (

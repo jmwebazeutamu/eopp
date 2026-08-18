@@ -70,6 +70,15 @@ export const STRINGS = {
   "empty.filteredBody":
     "The list itself is not empty. Clear the filters to see everything in view, or pick different ones.",
   "empty.cases": "This is your caseload.",
+  // A LINKED scope — partner staff, trainers, employer liaisons, enterprise
+  // officers — returns no case or youth rows at all. Telling them to register
+  // a youth first promises an action their role cannot perform.
+  "empty.casesLinked": "Your account works from referrals, not case records.",
+  "empty.casesLinkedBody":
+    "Cases stay with the case manager who owns them. The referrals sent to your institution are on the Referrals screen.",
+  "empty.youthLinked": "Your account works from referrals, not the youth registry.",
+  "empty.youthLinkedBody":
+    "Youth records stay with the case manager who registered them. The referrals sent to your institution are on the Referrals screen.",
   "empty.casesBody":
     "A case appears here once a registered youth is opened as a case. Register a youth first, then open a case for them.",
   "empty.referrals": "This is the referral decision inbox.",

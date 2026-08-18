@@ -41,6 +41,7 @@ const CASE_COUNTER_TONES = CASE_TONE;
 export default function CaseListPage() {
   const scope = useScope();
   const { user } = useAuth();
+  const seesNoCaseRecords = user?.access.case_scope === "LINKED";
   const { message } = App.useApp();
   const { t } = useLang();
   const navigate = useNavigate();
@@ -112,8 +113,8 @@ export default function CaseListPage() {
       chipTones={CASE_COUNTER_TONES}
       empty={{
         when: !loading && rows.length === 0,
-        title: t("empty.cases"),
-        body: t("empty.casesBody"),
+        title: t(seesNoCaseRecords ? "empty.casesLinked" : "empty.cases"),
+        body: t(seesNoCaseRecords ? "empty.casesLinkedBody" : "empty.casesBody"),
         action: canOpenCase ? (
           <Button variant="primary" onClick={() => setFormOpen(true)}>
             {t("cases.new")}
