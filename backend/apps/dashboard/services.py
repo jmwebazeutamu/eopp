@@ -137,27 +137,36 @@ def quarter_bounds(today):
 
 
 def _placements(referrals):
-    """Completed referrals whose outcome the admin has flagged as a placement."""
-    return referrals.filter(status=ReferralStatus.COMPLETED, outcome_type__counts_as_placement=True)
+    """Delegates to the one definition. See `ReferralQuerySet.placements`."""
+    return referrals.placements()
 
 
 def metric_cards(youth, referrals, today):
     start, end, _label = quarter_bounds(today)
 
     placed = _placements(referrals)
-    this_quarter = placed.filter(outcome_date__gte=start, outcome_date__lt=end).count()
+    this_quarter = (
+        placed.filter(outcome_date__gte=start, outcome_date__lt=end)
+        .values("case__youth_id")
+        .distinct()
+        .count()
+    )
     target = settings.PLACEMENT_TARGET_PER_QUARTER
 
     # Gender split of placements, over the whole programme rather than the
     # quarter: a quarter of placements in a 500-youth pilot is too few to read a
     # parity trend off. The registration split sits beside it as the baseline
     # the handoff asks for — a placement split only means something against it.
+    # Distinct youth, not referrals. This counted referrals, so a youth placed
+    # twice appeared twice and the card totalled 63 while the woreda table
+    # beneath it totalled 59 — two placement figures contradicting each other on
+    # one screen. Every placement figure is denominated in youth.
     by_sex = dict(
-        placed.values_list("case__youth__sex")
-        .annotate(n=Count("id", distinct=True))
+        placed.values("case__youth__sex")
+        .annotate(n=Count("case__youth_id", distinct=True))
         .values_list("case__youth__sex", "n")
     )
-    placed_total = sum(by_sex.values())
+    placed_total = len(referrals.placed_youth_ids())
     registered_female = youth.filter(sex=Sex.FEMALE).count()
     registered_total = youth.count()
 
@@ -165,6 +174,7 @@ def metric_cards(youth, referrals, today):
         "placements_this_quarter": {
             "available": True,
             "value": this_quarter,
+            "unit": str(UNIT_YOUTH),
             # 0 means "no target agreed" (§11), not "a target of zero" — the UI
             # drops the progress bar rather than drawing 100% of nothing.
             "target": target or None,
@@ -178,6 +188,7 @@ def metric_cards(youth, referrals, today):
         "gender_split": {
             "available": placed_total > 0,
             "placed_total": placed_total,
+            "unit": str(UNIT_YOUTH),
             # Banded: a 67/33 split off three placements is noise, and printing
             # it beside a registration baseline invites exactly the parity
             # conclusion the numbers cannot support.
@@ -229,9 +240,14 @@ STAGES = [
     ),
 ]
 
-# Every figure on the pipeline counts youth. The partner cards count referrals,
-# and a youth holds several — unlabelled, the two read as a contradiction.
-PIPELINE_UNIT = _("youth")
+# Units, stated on the payload rather than left to the reader. Every card that
+# carries a count carries one of these: a figure whose unit is ambiguous is how
+# one screen came to show three different placement totals, each defensible.
+UNIT_YOUTH = _("youth")
+UNIT_CASES = _("cases")
+UNIT_REFERRALS = _("referrals")
+
+PIPELINE_UNIT = UNIT_YOUTH
 
 
 def funnel(youth, cases, referrals):
@@ -404,13 +420,14 @@ def woreda_comparison(youth, referrals):
     registered = dict(youth.values_list("woreda").annotate(n=Count("id")).values_list("woreda", "n"))
     placed = dict(
         _placements(referrals)
-        .values_list("case__woreda")
+        .values("case__woreda")
         .annotate(n=Count("case__youth_id", distinct=True))
         .values_list("case__woreda", "n")
     )
     rows = [
         {
             "woreda": woreda,
+            "unit": str(UNIT_YOUTH),
             "registered": count,
             "placed": placed.get(woreda, 0),
             "rate": rate(placed.get(woreda, 0), count),
