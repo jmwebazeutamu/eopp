@@ -137,7 +137,12 @@ describe("WoredaPage", () => {
     // Averaged together, a partner who never replies would score like one who
     // replies the same day.
     renderPage();
-    expect(await screen.findByText("31 recorded by staff")).toBeInTheDocument();
+    // The count sits in a column of its own now — it used to be stacked under
+    // the confirmed-referral count in the same cell, so one cell carried two
+    // unrelated facts. What matters is unchanged: it is reported beside the
+    // median, never folded into it.
+    expect(await screen.findByRole("columnheader", { name: "Recorded by staff" })).toBeInTheDocument();
+    expect(screen.getByText("31")).toBeInTheDocument();
     expect(screen.getByText(/Medians cover confirmations the partner entered themselves/)).toBeInTheDocument();
   });
 

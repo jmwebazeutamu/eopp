@@ -65,6 +65,7 @@ export const STRINGS = {
   "ws.cost": "What it costs",
   "ws.medianDays": "Median days",
   "ws.confirmedReferrals": "Confirmed referrals",
+  "ws.staffRecordedCol": "Recorded by staff",
   // The anchor OQ-9 settled on. The case screen carried "retained at 6 months",
   // which came from a mockup and was explicitly dropped.
   "case.goal": "Goal: paid work retained 3 months after exit",

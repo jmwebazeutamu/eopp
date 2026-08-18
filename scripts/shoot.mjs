@@ -46,10 +46,10 @@ const ROUTES = arg("routes", "/cases,/referrals,/alerts,/dashboard/my-work").spl
 // so a stored state can be photographed without scripting a click.
 const PREFS = (arg("pref", "") || "").split(",").filter(Boolean).map((pair) => pair.split("="));
 // The brief's two reference sizes: laptop, and a 390px phone.
-const SIZES = [
-  { w: 1440, h: 900, label: "laptop" },
-  { w: 390, h: 844, label: "phone" },
-];
+const SIZES = (arg("sizes", "1440x900,390x844")).split(",").map((pair) => {
+  const [w, h] = pair.split("x").map(Number);
+  return { w, h, label: `${w}` };
+});
 
 /** Mint an access token in the container. No password, no account change. */
 function mintToken(username) {
@@ -108,7 +108,7 @@ for (const size of SIZES) {
 
     const slug = route.replace(/^\//, "").replace(/\//g, "-") || "root";
     const file = `${OUT}/${slug}.${size.w}x${size.h}.png`;
-    await page.screenshot({ path: file, fullPage: false });
+    await page.screenshot({ path: file, fullPage: process.argv.includes("--full") });
 
     /**
      * Content-top to first data row. "Content top" is the top of the main

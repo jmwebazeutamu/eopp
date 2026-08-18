@@ -26,7 +26,34 @@ const SEGMENT_FILL: Record<string, string> = {
   closed: "var(--cancelled-bar)",
 };
 
-/** A tile. `null` renders as an em dash — a withheld median is not a zero. */
+/**
+ * Whether a segment is wide enough to hold its own count.
+ *
+ * Measured against the *track*, not against the manager's own caseload. Every
+ * bar is scaled by `row.total / biggest`, so a segment's rendered width is its
+ * share of the largest caseload — testing its share of its own row put numbers
+ * inside segments a few pixels wide on a small caseload, and the outside-label
+ * fallback was keyed off the same test so it never fired.
+ *
+ * ~6% of the track is about 40px at the widths this card is drawn at.
+ */
+const INLINE_LABEL_MIN_TRACK_PERCENT = 6;
+
+function fitsInline(n: number, biggest: number): boolean {
+  return (n / biggest) * 100 >= INLINE_LABEL_MIN_TRACK_PERCENT;
+}
+
+/**
+ * A KPI tile. `null` renders as an em dash — a withheld median is not a zero.
+ *
+ * Laid out as three fixed rows rather than stacked content, so label, value and
+ * caption share a baseline across the row whatever wraps. Two labels wrap to a
+ * second line ("Registered, no case yet", "Median days to confirm") and one
+ * caption does, which previously pushed each card's number to a different
+ * height — five cards of equal height with nothing lining up inside them.
+ *
+ * `1fr` on the caption row is what pins the captions to a common bottom.
+ */
 function StatTile({
   label,
   value,
@@ -41,9 +68,28 @@ function StatTile({
   const bg = { warn: "var(--gold-100)", good: "var(--green-100)" };
   const bd = { warn: "var(--gold-border)", good: "var(--green-border)" };
   return (
-    <Card style={tone ? { background: bg[tone], borderColor: bd[tone] } : undefined}>
-      <CapsLabel>{label}</CapsLabel>
-      <div className="tabular" style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.1, marginTop: 4 }}>
+    <Card
+      style={{
+        display: "grid",
+        gridTemplateRows: "auto auto 1fr",
+        gap: 4,
+        ...(tone ? { background: bg[tone], borderColor: bd[tone] } : {}),
+      }}
+    >
+      {/* Two lines reserved, so a label that wraps does not move its own
+          number down relative to the card beside it. */}
+      <CapsLabel style={{ minHeight: "2.2em" }}>{label}</CapsLabel>
+      <div
+        className="tabular"
+        style={{
+          fontSize: 30,
+          fontWeight: 700,
+          lineHeight: 1.1,
+          // The withheld case is muted text on the same line box as a number,
+          // not a bare glyph floating between the label and the caption.
+          color: value === null ? "var(--ink-400)" : undefined,
+        }}
+      >
         {value === null ? "—" : value}
       </div>
       <div className="t-meta">{meta}</div>
@@ -54,7 +100,12 @@ function StatTile({
 function Completeness({ rows }: { rows: CompletenessRow[] }) {
   const { t } = useLang();
   return (
-    <table className="table">
+    <table className="table table--fixed">
+      <colgroup>
+        <col style={{ width: "30%" }} />
+        <col style={{ width: "20%" }} />
+        <col style={{ width: "50%" }} />
+      </colgroup>
       <thead>
         <tr>
           <th scope="col">{t("me.indicator")}</th>
@@ -72,7 +123,12 @@ function Completeness({ rows }: { rows: CompletenessRow[] }) {
               ) : row.missing === 0 ? (
                 <MutedChip>{t("ws.complete")}</MutedChip>
               ) : (
-                t("ws.missing", { missing: row.missing, of: row.of })
+                <span
+                  className="chip"
+                  style={{ color: "var(--gold-700)", background: "var(--gold-100)", borderColor: "transparent" }}
+                >
+                  {t("ws.missing", { missing: row.missing, of: row.of })}
+                </span>
               )}
             </td>
             <td className="t-meta">{row.cost}</td>
@@ -100,7 +156,7 @@ export default function WoredaPage() {
 
       {/* W-5. Four of these were already computed further down the page and
           only needed surfacing; the fifth is the ceiling nobody was reading. */}
-      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+      <div className="kpi-row">
         <StatTile label={t("ws.openCases")} value={data.tiles.open_cases} meta={data.scope_label} />
         <StatTile
           label={t("ws.overdueActions")}
@@ -128,20 +184,40 @@ export default function WoredaPage() {
         />
       </div>
 
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
+      <div className="dash-grid">
         <Card style={{ gridColumn: "1 / -1" }}>
           <CapsLabel>{t("ws.team")}</CapsLabel>
-          <div className="t-meta" style={{ margin: "2px 0 12px" }}>
+          <div className="t-meta" style={{ margin: "2px 0 8px" }}>
             {t("ws.teamWhy")}
+          </div>
+          <div className="t-meta" style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "0 0 12px" }}>
+            {data.segments.map((segment) => (
+              <span key={segment.key}>
+                <span
+                  aria-hidden
+                  style={{
+                    display: "inline-block",
+                    width: 10,
+                    height: 10,
+                    borderRadius: 2,
+                    background: SEGMENT_FILL[segment.key],
+                    marginInlineEnd: 5,
+                  }}
+                />
+                {segment.label}
+              </span>
+            ))}
           </div>
 
           <div className="stack" style={{ gap: 12 }}>
             {data.team_caseload.map((row) => (
               <div key={row.case_manager ?? row.name}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
+                <div className="team-row__head">
                   <span className="t-body-strong">{row.name}</span>
-                  <span className="t-meta tabular">
+                  <span className="t-meta tabular team-row__fact">
                     {t("ws.caseload")} {row.total}
+                  </span>
+                  <span className="team-row__fact">
                     {row.over_ceiling && (
                       <span
                         className="chip"
@@ -149,7 +225,6 @@ export default function WoredaPage() {
                           color: "var(--terra-700)",
                           background: "var(--terra-100)",
                           borderColor: "transparent",
-                          marginInlineStart: 8,
                         }}
                       >
                         <span className="chip__mark" aria-hidden>
@@ -158,9 +233,23 @@ export default function WoredaPage() {
                         {t("ws.ceilingFlag")}
                       </span>
                     )}
+                  </span>
+                  {/* Both warnings on this row are chips now. One was a chip
+                      and the other bare red bold text, on the same line. */}
+                  <span className="team-row__fact">
                     {row.overdue > 0 && (
-                      <span style={{ color: "var(--red-700)", fontWeight: 700, marginInlineStart: 10 }}>
-                        ▲ {row.overdue} {t("ws.overdue").toLowerCase()}
+                      <span
+                        className="chip"
+                        style={{
+                          color: "var(--red-700)",
+                          background: "var(--red-100)",
+                          borderColor: "transparent",
+                        }}
+                      >
+                        <span className="chip__mark" aria-hidden>
+                          ▲
+                        </span>
+                        {row.overdue} {t("ws.overdue").toLowerCase()}
                       </span>
                     )}
                   </span>
@@ -168,7 +257,7 @@ export default function WoredaPage() {
 
                 {/* Scaled against the largest caseload, so two managers are
                     compared by length as well as by number. */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                <div className="team-row__bar">
                   <div
                     style={{
                       display: "flex",
@@ -197,7 +286,7 @@ export default function WoredaPage() {
                             overflow: "hidden",
                           }}
                         >
-                          {(n / row.total) * 100 >= 12 ? n : ""}
+                          {fitsInline(n, biggest) ? n : ""}
                         </span>
                       );
                     })}
@@ -208,7 +297,7 @@ export default function WoredaPage() {
                     {data.segments
                       .filter((segment) => {
                         const n = row.segments[segment.key] ?? 0;
-                        return n > 0 && (n / row.total) * 100 < 12;
+                        return n > 0 && !fitsInline(n, biggest);
                       })
                       .map((segment) => `${segment.label} ${row.segments[segment.key]}`)
                       .join(" · ")}
@@ -218,49 +307,29 @@ export default function WoredaPage() {
             ))}
           </div>
 
-          <div className="t-meta" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10 }}>
-            {data.segments.map((segment) => (
-              <span key={segment.key}>
-                <span
-                  aria-hidden
-                  style={{
-                    display: "inline-block",
-                    width: 10,
-                    height: 10,
-                    borderRadius: 2,
-                    background: SEGMENT_FILL[segment.key],
-                    marginInlineEnd: 5,
-                  }}
-                />
-                {segment.label}
-              </span>
-            ))}
-          </div>
         </Card>
 
-        <Card>
-          <CapsLabel>{t("ws.unassigned")}</CapsLabel>
-          <div style={{ marginTop: 8 }}>
-            <NotYet reason={data.unassigned_youth.reason} />
-          </div>
-          <div className="card__rule" style={{ margin: "12px 0" }} />
-          <CapsLabel>{t("ws.noCaseYet")}</CapsLabel>
-          <div className="tabular" style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.1 }}>
-            {data.registered_without_case}
-          </div>
-        </Card>
 
-        <Card>
+        <Card style={{ gridColumn: "1 / -1" }}>
           <CapsLabel>{t("ws.response")}</CapsLabel>
           <div className="t-meta" style={{ margin: "2px 0 10px" }}>
             {t("ws.responseWhy")}
           </div>
-          <table className="table">
+          <table className="table table--fixed">
+            <colgroup>
+              <col style={{ width: "40%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "20%" }} />
+            </colgroup>
             <thead>
               <tr>
                 <th scope="col">{t("partners.one")}</th>
                 <th scope="col">{t("ws.medianDays")}</th>
                 <th scope="col">{t("ws.confirmedReferrals")}</th>
+                {/* Was stacked under the count above, so one cell carried two
+                    unrelated facts and wrapped under its own header. */}
+                <th scope="col">{t("ws.staffRecordedCol")}</th>
               </tr>
             </thead>
             <tbody>
@@ -269,17 +338,13 @@ export default function WoredaPage() {
                   <td>{row.partner}</td>
                   <td className="tabular">
                     {row.median_days === null ? (
-                      <span style={{ color: "var(--ink-400)" }}>— {t("dash.tooFew")}</span>
+                      <span style={{ color: "var(--ink-400)", whiteSpace: "nowrap" }}>— {t("dash.tooFew")}</span>
                     ) : (
                       `${row.median_days}d${row.band === "provisional" ? "*" : ""}`
                     )}
                   </td>
-                  <td className="tabular t-meta">
-                    {row.n}
-                    {row.staff_recorded > 0 && (
-                      <div style={{ color: "var(--ink-400)" }}>{t("ws.staffRecorded", { count: row.staff_recorded })}</div>
-                    )}
-                  </td>
+                  <td className="tabular">{row.n}</td>
+                  <td className="tabular t-meta">{row.staff_recorded > 0 ? row.staff_recorded : "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -295,6 +360,17 @@ export default function WoredaPage() {
             {t("ws.completenessWhy")}
           </div>
           <Completeness rows={data.data_completeness} />
+
+          {/* Folded in from the "Unassigned youth" card, which held only this
+              message plus a copy of the "Registered, no case yet" tile at the
+              top of the page. Both panels answer the same question — what this
+              dashboard cannot tell you — and the card it came from stretched to
+              match the table beside it, leaving ~500px of white. */}
+          <div className="card__rule" style={{ margin: "16px 0 12px" }} />
+          <CapsLabel>{t("ws.unassigned")}</CapsLabel>
+          <div style={{ marginTop: 8 }}>
+            <NotYet reason={data.unassigned_youth.reason} />
+          </div>
         </Card>
       </div>
     </TierPage>

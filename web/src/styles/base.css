@@ -581,3 +581,76 @@ button.row-link {
 .skip-link:focus-visible {
   left: 0;
 }
+
+/* -- Dashboard layout ----------------------------------------------------
+ *
+ * Spacing follows the 4px scale already in tokens.css: 16px between cards,
+ * 24px between sections.
+ *
+ * These grids reflow with `auto-fit` rather than at named widths. The design
+ * system fixes one breakpoint, 780px, and adding the 900px and 640px the
+ * layout brief asks for would put three in the stylesheet. `auto-fit` reaches
+ * the same arrangements continuously, and is the pattern the programme
+ * dashboard already uses.
+ */
+
+.kpi-row {
+  display: grid;
+  gap: var(--s4);
+  /* 176px keeps all five across at 1280, 1440 and 1920 — the three widths the
+     brief checks — and drops to three, then two, then one as it narrows. */
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  align-items: start;
+}
+
+.dash-grid {
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* A card is as tall as its content. Stretching one to match its neighbour is
+     what left ~500px of white under "Unassigned youth". */
+  align-items: start;
+}
+
+.dash-sections {
+  display: grid;
+  gap: var(--s5);
+}
+
+/* Team caseload row: name on the left, then three right-hand facts in fixed
+   columns so caseload, ceiling flag and overdue count line up down every row
+   instead of each sitting wherever its neighbour's text ended. */
+.team-row__head {
+  display: grid;
+  grid-template-columns: 1fr auto 108px 104px;
+  gap: var(--s2);
+  align-items: baseline;
+}
+
+.team-row__fact {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* The bar and its outside labels. A fixed final column means every bar starts
+   and ends at the same x, whatever spills out of it. */
+.team-row__bar {
+  display: grid;
+  grid-template-columns: 1fr 132px;
+  gap: var(--s2);
+  align-items: center;
+  margin-top: 4px;
+}
+
+/* Table column widths, so a header does not wrap while its neighbour has
+   surplus room. */
+.table--fixed {
+  table-layout: fixed;
+}
+
+@media (max-width: 779px) {
+  /* Fixed widths cannot hold four columns of prose on a phone. */
+  .table--fixed {
+    table-layout: auto;
+  }
+}
