@@ -1,4 +1,4 @@
-# Economic Opportunities Pathway Platform (EEPP)
+# Economic Opportunities Pathway Platform (EOPP)
 
 Guidance for Claude Code working in this repository.
 

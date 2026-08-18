@@ -1,5 +1,5 @@
 """
-Shared settings for the Economic Opportunities Pathway Platform (EEPP).
+Shared settings for the Economic Opportunities Pathway Platform (EOPP).
 
 Spec: docs/YOUTH_EMPLOYMENT_PLATFORM_DEV_SPEC.md
 Environment-specific overrides live in development.py and production.py.

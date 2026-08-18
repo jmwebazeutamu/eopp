@@ -54,7 +54,7 @@ export const STRINGS = {
   "shell.language": "Language",
   "shell.allWoredas": "All woredas",
   "shell.scope": "Woreda scope",
-  "shell.appMark": "EEPP",
+  "shell.appMark": "EOPP",
   "common.close": "Close",
   "search.label": "Search records",
   "filters.label": "Filter the list",

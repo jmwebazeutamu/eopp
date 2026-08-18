@@ -14,7 +14,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 # taxonomy under the system administrator, who edits it here. Unbranded it
 # still read "Django administration".
 admin.site.site_header = "Economic Opportunities Pathway Platform"
-admin.site.site_title = "EEPP"
+admin.site.site_title = "EOPP"
 admin.site.index_title = "Administration"
 
 api_v1_patterns = [

@@ -1,4 +1,4 @@
-# Economic Opportunities Pathway Platform (EEPP)
+# Economic Opportunities Pathway Platform (EOPP)
 
 Case management and referral engine for the World Bank Ethiopia youth employment
 pilot. Django + DRF backend, React web client, Flutter field app.
