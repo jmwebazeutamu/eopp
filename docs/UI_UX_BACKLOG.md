@@ -197,6 +197,14 @@ Recorded so they are not re-opened.
 - **Dashboard bar charts relying on colour.** Every bar carries its count and label as text. Not a violation.
 - **The banded-figure copy** — "too few to assess", the provisional asterisk, the `NotYet` reasons, `empty.casesLinked`. Reviewed and deliberately left alone; it is the strongest writing in the app.
 
+- **A handoff's hex values, where they near-miss the tokens.** Confirmed
+  2026-08-19: `tokens.css` wins. The page ground is quoted as `#f7f4ee`,
+  `#f6f2ea` and `#f7f2e7` across three handoffs, and the rail as `#173629` and
+  `#1b3a30`; these are traced from screen captures, not three decisions. The
+  design comes from the handoff, the colour from the token layer. Also not
+  adopted: the results handoff's 26px title, against the 22px the partners
+  handoff set and which was confirmed.
+
 ## Known limits of this review
 
 - Only **Chromium** was available. No Firefox, Safari or a real Android device.

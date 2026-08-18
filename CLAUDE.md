@@ -660,6 +660,21 @@ faults that have already shipped here once.
   still reserved for genuine failure, and gold still carries waiting.
 - **The rail is 232px expanded, 60px collapsed**, and the global search sits
   in the rail rather than a top bar.
+- **`tokens.css` wins over a handoff's hex values.** Confirmed 2026-08-19.
+  The later handoffs were traced from screen captures, so each quotes the same
+  surfaces at slightly different values — the page ground appears as `#f7f4ee`
+  (tokens), `#f6f2ea` (partners) and `#f7f2e7` (results); the rail as `#173629`
+  and `#1b3a30`. Those are tracing drift, not three decisions. Build the
+  *design* — layout, type scale, spacing, component structure — from the
+  handoff, and take every colour from the token layer. Each of these handoffs
+  says so itself: "recreate using the codebase's existing design system where
+  equivalents exist."
+
+  Two literals that reached components this way were both unreadable, which is
+  the practical reason as well as the tidiness one: `#9b9282` for muted text is
+  3.07:1 on white, and the partners handoff's 65%-opacity pill count is 2.95:1.
+  A token has its contrast checked once; a traced hex has not been checked at
+  all.
 - **Phone numbers are masked by default** (`maskPhone`). The case screen has a
   per-view, never-persisted Reveal; the registry has none at all.
 - **Strings go through `i18n/`.** English is populated; Amharic and Afaan Oromo
