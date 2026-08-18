@@ -21,10 +21,13 @@ export default function UserMenu({
   user,
   collapsed,
   onSignOut,
+  onOpenProfile,
 }: {
   user: CurrentUser;
   collapsed: boolean;
   onSignOut: () => void;
+  /** Opens the profile modal; the menu closes first so focus is not trapped. */
+  onOpenProfile?: () => void;
 }) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
@@ -84,6 +87,29 @@ export default function UserMenu({
             </div>
             <LanguageSwitch />
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onOpenProfile?.();
+            }}
+            style={{
+              marginTop: 12,
+              minHeight: 44,
+              width: "100%",
+              borderRadius: "var(--r-button)",
+              border: "1px solid var(--line)",
+              background: "transparent",
+              color: "var(--ink-900)",
+              font: "inherit",
+              fontFamily: "var(--font-body)",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {t("profile.open")}
+          </button>
 
           <button
             type="button"

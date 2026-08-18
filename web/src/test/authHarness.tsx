@@ -31,7 +31,7 @@ export function testUser(role: Role = "SYSTEM_ADMIN", overrides: Partial<Current
 export function TestAuth({ user, children }: { user?: CurrentUser | null; children: ReactNode }) {
   return (
     <AuthContext.Provider
-      value={{ user: user === undefined ? testUser() : user, loading: false, login: async () => {}, logout: () => {} }}
+      value={{ user: user === undefined ? testUser() : user, loading: false, login: async () => {}, logout: () => {}, setUser: () => {} }}
     >
       {children}
     </AuthContext.Provider>

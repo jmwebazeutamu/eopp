@@ -9,6 +9,7 @@ import Header from "./shell/Header";
 import { ScopeProvider } from "./shell/ScopeContext";
 import MobileTabBar from "./shell/MobileTabBar";
 import Sidebar from "./shell/Sidebar";
+import ProfileModal from "./ProfileModal";
 import UserMenu from "./shell/UserMenu";
 import { buildNav } from "./shell/navModel";
 import { usePreference } from "./shell/preferences";
@@ -46,6 +47,7 @@ export default function AppLayout() {
   const { t } = useLang();
   const isPhone = useIsPhone();
   const [openAlerts, setOpenAlerts] = useState(0);
+  const [profileOpen, setProfileOpen] = useState(false);
   // Per user, not per browser: these are shared office machines.
   const [railCollapsed, setRailCollapsed] = usePreference("rail.collapsed", user?.id, false);
 
@@ -101,7 +103,12 @@ export default function AppLayout() {
             onToggleCollapse={() => setRailCollapsed(!railCollapsed)}
             footer={
               <div style={{ paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.15)" }}>
-                <UserMenu user={user} collapsed={railCollapsed} onSignOut={logout} />
+                <UserMenu
+                  user={user}
+                  collapsed={railCollapsed}
+                  onSignOut={logout}
+                  onOpenProfile={() => setProfileOpen(true)}
+                />
               </div>
             }
           />
@@ -118,6 +125,7 @@ export default function AppLayout() {
         </main>
       </div>
     </div>
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </ScopeProvider>
   );
 }

@@ -3,7 +3,7 @@
 from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
-from rest_framework import filters, viewsets
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.permissions import IsAuthenticated
@@ -18,6 +18,8 @@ from .permissions import CanAccessCases, HasRole, IsOperational
 from .serializers import (
     AssignableUserSerializer,
     CurrentUserSerializer,
+    PasswordChangeSerializer,
+    ProfileSerializer,
     ScopedTokenObtainPairSerializer,
     UserSerializer,
 )
@@ -115,11 +117,54 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(AssignableUserSerializer(queryset.order_by("full_name"), many=True).data)
 
     @extend_schema(responses=CurrentUserSerializer)
-    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated], serializer_class=CurrentUserSerializer)
+    @action(
+        detail=False,
+        methods=["get", "patch"],
+        permission_classes=[IsAuthenticated],
+        serializer_class=CurrentUserSerializer,
+    )
     def me(self, request):
-        """The requesting user's own record.
+        """The requesting user's own record, and the parts of it they may change.
 
         Open to any authenticated role — including system administrators, who are
         otherwise barred from case content but still need their own profile.
+
+        PATCH goes through `ProfileSerializer`, which carries only `full_name`
+        and `email`. Role, woreda assignment, partner and account status are not
+        writable there because they are not fields on it — §7 is the
+        administrator's to set, and a self-service route that could touch it
+        would be an escalation path. The response is the full `/me/` shape so
+        the client can refresh its context in one round trip.
         """
+        if request.method == "PATCH":
+            serializer = ProfileSerializer(request.user, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            request.user.refresh_from_db()
         return Response(CurrentUserSerializer(request.user).data)
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="me/password",
+        permission_classes=[IsAuthenticated],
+        serializer_class=PasswordChangeSerializer,
+    )
+    def change_password(self, request):
+        """A user changing their own password.
+
+        Requires the current password: an access token lasts an hour and these
+        are shared machines, so an unlocked screen must not be enough to take
+        the account over.
+
+        Note what this does *not* do. simplejwt is configured without the
+        blacklist app, so refresh tokens already issued stay valid for their
+        full window — changing a password does not sign other devices out.
+        Closing that needs either the blacklist app or a `password_changed_at`
+        stamp checked during authentication; it is deliberately out of scope
+        here and recorded in the UI backlog.
+        """
+        serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)

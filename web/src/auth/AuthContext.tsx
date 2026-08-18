@@ -8,6 +8,14 @@ interface AuthState {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  /**
+   * Replace the cached user after a self-service profile edit.
+   *
+   * `PATCH /users/me/` returns the full `/me/` shape for this reason: the rail
+   * renders the name, the initials and the role, and they would otherwise
+   * carry the old values until the next reload.
+   */
+  setUser: (user: CurrentUser) => void;
 }
 
 // Exported so tests can supply a signed-in user without standing up the real
@@ -48,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading, login, logout]);
+  const value = useMemo(() => ({ user, loading, login, logout, setUser }), [user, loading, login, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

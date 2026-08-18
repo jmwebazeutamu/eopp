@@ -1,6 +1,7 @@
 """Serializers for User (spec §4.12)."""
 
 from django.contrib.auth.password_validation import validate_password
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -176,3 +177,81 @@ class AssignableUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id", "full_name", "woreda_assignment"]
         read_only_fields = fields
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    """What a user may change about their own account.
+
+    Deliberately a separate serializer from `UserSerializer` rather than a
+    permission check on it. `UserSerializer` writes `role`, `woreda_assignment`,
+    `partner` and `account_status`; exposing it on a self-service route would
+    make privilege escalation a matter of adding one field to a request body.
+    Here those fields are not writable because they are not present, which is
+    the difference between a rule and a boundary.
+
+    §7 stays the administrator's to set. §9's trail comes from
+    `HistoricalRecords` on the model, so a self-edit is attributed like any
+    other.
+    """
+
+    class Meta:
+        model = User
+        fields = ["full_name", "email"]
+
+    def validate_email(self, value):
+        """Normalised, and not already claimed by another account.
+
+        The column carries no unique constraint, so two accounts can hold one
+        address. That is tolerable while sign-in is by username, and would stop
+        being tolerable the moment a password reset is sent to an address — so
+        it is refused here rather than discovered then.
+        """
+        if not value:
+            return value
+        value = User.objects.normalize_email(value).strip()
+        clash = User.objects.filter(email__iexact=value)
+        if self.instance is not None:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError(_("Another account already uses this email address."))
+        return value
+
+    def validate_full_name(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError(_("A name is required."))
+        return value
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """A user changing their own password.
+
+    `current_password` is required even though the caller is authenticated:
+    an access token lasts an hour and these are shared machines, so a screen
+    left unlocked must not be enough to take the account over.
+    """
+
+    current_password = serializers.CharField(write_only=True, style={"input_type": "password"})
+    new_password = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+    def validate_current_password(self, value):
+        if not self.context["request"].user.check_password(value):
+            raise serializers.ValidationError(_("That is not your current password."))
+        return value
+
+    def validate_new_password(self, value):
+        # Django's configured validators — length, common passwords, similarity
+        # to the username. Passing the user is what enables the last of those.
+        validate_password(value, user=self.context["request"].user)
+        return value
+
+    def validate(self, attrs):
+        if attrs["current_password"] == attrs["new_password"]:
+            raise serializers.ValidationError({"new_password": _("The new password must be different.")})
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return user
