@@ -9,7 +9,7 @@ import Paginator from "../components/Paginator";
 import { scopeParam, useScope } from "../components/shell/ScopeContext";
 import { Button, CapsLabel, Card, PageHeader } from "../components/ui";
 import { ALERT_TONE } from "../design/status";
-import { useLang } from "../i18n/LanguageContext";
+import { useLang, type Translate } from "../i18n/LanguageContext";
 
 const PAGE_SIZE = 25;
 
@@ -327,7 +327,7 @@ export default function AlertsPage() {
 
 function buildFilterOptions(
   summary: AlertSummary | null,
-  t: (key: string, vars?: Record<string, string | number>) => string,
+  t: Translate,
 ) {
   const counts = new Map(summary?.by_type.map((row) => [row.alert_type, row.count]) ?? []);
   return [

@@ -36,11 +36,22 @@ export const LANGUAGES: LanguageDefinition[] = [
 
 const STORAGE_KEY = "yep.lang";
 
+/**
+ * The translate function's signature, exported so a helper that takes `t` as a
+ * parameter states it once rather than restating it.
+ *
+ * A helper that widened the key to `string` did not compile: parameters are
+ * contravariant, so a function accepting only `StringKey` cannot be passed
+ * where any `string` is allowed. Widening it is also the wrong direction — the
+ * union is what stops a typo becoming a missing translation at runtime.
+ */
+export type Translate = (key: StringKey, vars?: Record<string, string | number>) => string;
+
 interface LanguageValue {
   lang: Language;
   setLang: (lang: Language) => void;
   /** Translate, with `{placeholder}` interpolation. */
-  t: (key: StringKey, vars?: Record<string, string | number>) => string;
+  t: Translate;
 }
 
 const LanguageContext = createContext<LanguageValue | null>(null);

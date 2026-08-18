@@ -215,7 +215,10 @@ export default function PartnersPage() {
             </Card>
           </div>
 
-          <div className="only-phone" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* `.only-phone` owns `display` and `flex-direction` in base.css. Setting
+              `display` here beats the media query, so the table and these cards
+              both rendered at 1440 and every partner appeared twice. */}
+          <div className="only-phone" style={{ gap: 12 }}>
             {rows.map((partner) => {
               const tone = MOU_TONE[partner.mou_status];
               return (
