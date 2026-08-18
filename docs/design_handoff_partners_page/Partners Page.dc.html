@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  @font-face { font-family: 'Inter'; src: local('Inter'); }
+  body { margin:0; }
+  ::placeholder { color: #9b9282; }
+</style>
+</helmet>
+<div style="display:flex;width:1440px;min-height:900px;background:#f6f2ea;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#22281f;">
+
+  <!-- Sidebar -->
+  <div style="width:232px;flex:0 0 232px;background:#173629;color:#eef2ea;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 18px 14px 20px;">
+      <div style="font-size:15px;font-weight:700;letter-spacing:0.04em;color:#ffffff;">EOPP</div>
+      <div style="width:24px;height:24px;border:1px solid rgba(255,255,255,0.25);border-radius:6px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.6);font-size:12px;cursor:pointer;">‹</div>
+    </div>
+
+    <div style="padding:0 14px 6px;">
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;">
+        <span style="font-size:13px;color:rgba(255,255,255,0.55);">⌕</span>
+        <span style="font-size:13px;color:rgba(255,255,255,0.55);">Search youth, cases, partners</span>
+      </div>
+    </div>
+
+    <div style="padding:18px 20px 6px;font-size:11px;font-weight:600;letter-spacing:0.08em;color:rgba(255,255,255,0.4);">WORK</div>
+    <nav style="display:flex;flex-direction:column;padding:2px 10px;gap:1px;">
+      <sc-for list="{{ workItems }}" as="item" hint-placeholder-count="7">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;font-size:13.5px;color:rgba(255,255,255,0.82);cursor:pointer;">
+          <span style="width:15px;text-align:center;font-size:13px;opacity:0.85;">{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+        </div>
+      </sc-for>
+    </nav>
+
+    <div style="height:1px;background:rgba(255,255,255,0.1);margin:12px 20px;"></div>
+
+    <div style="padding:2px 20px 6px;font-size:11px;font-weight:600;letter-spacing:0.08em;color:rgba(255,255,255,0.4);">DIRECTORY</div>
+    <nav style="display:flex;flex-direction:column;padding:2px 10px;gap:1px;">
+      <sc-for list="{{ directoryItems }}" as="item" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;font-size:13.5px;cursor:pointer;background:{{ item.active }};color:{{ item.color }};font-weight:{{ item.weight }};">
+          <span style="width:15px;text-align:center;font-size:13px;opacity:0.9;">{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+        </div>
+      </sc-for>
+    </nav>
+
+    <div style="flex:1;"></div>
+
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-top:1px solid rgba(255,255,255,0.1);">
+      <div style="width:30px;height:30px;border-radius:50%;background:#d9a441;color:#173629;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">PA</div>
+      <div style="line-height:1.25;">
+        <div style="font-size:13px;font-weight:600;color:#fff;">Platform Admin</div>
+        <div style="font-size:11.5px;color:rgba(255,255,255,0.5);">System administrator</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+
+    <!-- Top bar -->
+    <div style="height:56px;flex:0 0 56px;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 24px;border-bottom:1px solid #e9e2d3;background:#f6f2ea;">
+      <div style="display:flex;align-items:center;gap:6px;background:#ffffff;border:1px solid #e2dbc8;border-radius:8px;padding:6px 12px;font-size:13px;color:#4a4438;">
+        <span>All woredas</span><span style="font-size:10px;color:#9b9282;">▾</span>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div style="padding:28px 32px 40px;flex:1;overflow:auto;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div style="font-size:22px;font-weight:700;letter-spacing:-0.01em;color:#1c2118;">Partners and providers</div>
+          <div style="font-size:13px;color:#8c8474;margin-top:3px;">{{ partnerCount }} partners</div>
+        </div>
+        <button style="background:#173629;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13.5px;font-weight:600;cursor:pointer;">Add partner</button>
+      </div>
+
+      <div style="position:relative;margin-bottom:16px;">
+        <input placeholder="Search by name, contact or email" style="width:100%;box-sizing:border-box;background:#ffffff;border:1px solid #e2dbc8;border-radius:9px;padding:10px 14px;font-size:13.5px;color:#22281f;outline:none;" />
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+        <sc-for list="{{ filters }}" as="f" hint-placeholder-count="6">
+          <div onClick="{{ f.onClick }}" style="padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;background:{{ f.bg }};color:{{ f.color }};border:1px solid {{ f.border }};">{{ f.label }} <span style="opacity:0.65;font-weight:500;">{{ f.count }}</span></div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <sc-for list="{{ partners }}" as="p" hint-placeholder-count="6">
+          <div style="background:#ffffff;border:1px solid #ece6d6;border-radius:12px;padding:18px 20px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;">
+              <div>
+                <div style="font-size:11px;font-weight:600;letter-spacing:0.07em;color:#9b9282;margin-bottom:3px;">{{ p.category }}</div>
+                <div style="font-size:16px;font-weight:700;color:#1c2118;">{{ p.name }}</div>
+              </div>
+              <div style="padding:3px 11px;border-radius:999px;font-size:12px;font-weight:600;background:{{ p.statusBg }};color:{{ p.statusColor }};">{{ p.mou }}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;border-top:1px solid #f0ebdd;padding-top:12px;">
+              <div>
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:0.06em;color:#a39a89;margin-bottom:7px;">COVERAGE</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <sc-for list="{{ p.coverage }}" as="c" hint-placeholder-count="2">
+                    <span style="background:#f1ece0;border-radius:999px;padding:3px 10px;font-size:12px;color:#4a4438;">{{ c }}</span>
+                  </sc-for>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:0.06em;color:#a39a89;margin-bottom:7px;">CONTACT</div>
+                <div style="font-size:13.5px;color:#1c2118;font-weight:600;">{{ p.contact }}</div>
+                <div style="font-size:12.5px;color:#8c8474;margin-top:2px;">{{ p.phone }}</div>
+              </div>
+              <div>
+                <div style="font-size:10.5px;font-weight:600;letter-spacing:0.06em;color:#a39a89;margin-bottom:7px;">STATUS</div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#1f7a4d;">
+                  <span style="width:6px;height:6px;border-radius:50%;background:#1f7a4d;"></span>{{ p.status }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'All' };
+
+    this.partnersData = [
+      { category: 'HEALTH SERVICE', name: 'Adama Health Centre', mou: 'No MOU', mouType: 'no-mou', coverage: ['Adama'], contact: 'Dr Hailu', phone: '+251911000003', status: 'Accepting referrals' },
+      { category: 'TVET INSTITUTION', name: 'Adama Polytechnic College', mou: 'Signed', mouType: 'signed', coverage: ['Adama', 'Lume'], contact: 'Tigist Bekele', phone: '+251911000000', status: 'Accepting referrals' },
+      { category: 'TVET INSTITUTION', name: 'Adama Skills Hub', mou: 'No MOU', mouType: 'no-mou', coverage: ['Adama'], contact: 'Test Contact', phone: '+251911999999', status: 'Accepting referrals' },
+      { category: 'EMPLOYER', name: 'Bishoftu Automotive Plc', mou: 'Signed', mouType: 'signed', coverage: ['Bishoftu'], contact: 'Solomon Girma', phone: '+251911000001', status: 'Accepting referrals' },
+      { category: 'FINANCE INSTITUTION', name: 'Oromia Credit and Savings', mou: 'Draft', mouType: 'draft', coverage: ['Adama', 'Bishoftu'], contact: 'Almaz Tesfaye', phone: '+251911000002', status: 'Accepting referrals' },
+      { category: 'ENTERPRISE DEVELOPMENT AGENCY', name: 'Rift Valley Enterprise Agency', mou: 'Signed', mouType: 'signed', coverage: ['Adama', 'Bishoftu', 'Lume'], contact: 'Bekele Wolde', phone: '+251911000004', status: 'Accepting referrals' }
+    ];
+
+    this.mouColors = {
+      'no-mou': { bg: '#fbe6e2', color: '#b3452f' },
+      'signed': { bg: '#e2f0e6', color: '#1f7a4d' },
+      'draft': { bg: '#fbeed9', color: '#a1701f' }
+    };
+
+    this.workItems = [
+      { icon: '\u25A6', label: 'My work' },
+      { icon: '\u25A4', label: 'Woreda' },
+      { icon: '\u2933', label: 'Programme' },
+      { icon: '\u2605', label: 'Results' },
+      { icon: '\u25A2', label: 'Cases' },
+      { icon: '\u21C4', label: 'Referrals' },
+      { icon: '\u25CF', label: 'Alerts' }
+    ];
+
+    this.directoryItems = [
+      { icon: '\u25A4', label: 'Youth registry', active: 'transparent', color: 'rgba(255,255,255,0.82)', weight: 400 },
+      { icon: '\u2302', label: 'Partners', active: '#2a5240', color: '#ffffff', weight: 600 },
+      { icon: '\u25D0', label: 'Users', active: 'transparent', color: 'rgba(255,255,255,0.82)', weight: 400 }
+    ];
+  }
+
+  setFilter(f) { this.setState({ filter: f }); }
+
+  renderVals() {
+    const filter = this.state.filter;
+    const counts = { All: this.partnersData.length, 'Accepting referrals': 6, Paused: 0, 'No MOU': 2, Draft: 1, Signed: 3 };
+    const filtered = filter === 'All' ? this.partnersData
+      : filter === 'Accepting referrals' ? this.partnersData.filter(p => p.status === 'Accepting referrals')
+      : this.partnersData.filter(p => p.mou === filter);
+
+    const partners = filtered.map(function(p) {
+      return Object.assign({}, p, {
+        statusBg: this.mouColors[p.mouType].bg,
+        statusColor: this.mouColors[p.mouType].color,
+      });
+    }, this);
+
+    const filterDefs = ['All', 'Accepting referrals', 'Paused', 'No MOU', 'Draft', 'Signed'];
+    const filters = filterDefs.map(label => ({
+      label, count: counts[label],
+      onClick: () => this.setFilter(label),
+      bg: filter === label ? '#173629' : '#ffffff',
+      color: filter === label ? '#ffffff' : '#4a4438',
+      border: filter === label ? '#173629' : '#e2dbc8',
+    }));
+
+    return {
+      workItems: this.workItems,
+      directoryItems: this.directoryItems,
+      partnerCount: this.partnersData.length,
+      filters,
+      partners,
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import type { CurrentUser } from "../../api/types";
 import { useLang } from "../../i18n/LanguageContext";
+import GlobalSearch from "./GlobalSearch";
 import { Icon, ICON_PATHS } from "../ui";
 import { ALERT_BADGE_ATTENTION_AT, isActivePath, type NavSection } from "./navModel";
 
@@ -29,8 +30,8 @@ import { ALERT_BADGE_ATTENTION_AT, isActivePath, type NavSection } from "./navMo
  * this is simply full height.
  */
 
-export const RAIL_EXPANDED = 240;
-export const RAIL_COLLAPSED = 64;
+export const RAIL_EXPANDED = 232;
+export const RAIL_COLLAPSED = 60;
 
 interface SidebarProps {
   user: CurrentUser;
@@ -59,42 +60,77 @@ export default function Sidebar({
       style={{
         width: collapsed ? RAIL_COLLAPSED : RAIL_EXPANDED,
         flexShrink: 0,
-        background: "var(--green-700)",
+        background: "#173629",
         color: "var(--on-dark)",
         display: "flex",
         flexDirection: "column",
-        padding: "12px 8px",
-        gap: 2,
+        padding: 0,
+        gap: 0,
         transition: "width 120ms ease",
         height: "100%",
-        // Its own scrollbar, so a long nav scrolls inside the rail rather than
-        // pushing the footer off the bottom of the document.
         overflowY: "auto",
       }}
     >
-      <button
-        type="button"
-        onClick={onToggleCollapse}
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? t("nav.expand") : t("nav.collapse")}
-        title={collapsed ? t("nav.expand") : t("nav.collapse")}
-        style={{
-          alignSelf: collapsed ? "center" : "flex-end",
-          width: 40,
-          height: 40,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: "var(--r-button)",
-          border: "none",
-          background: "transparent",
-          color: "var(--on-dark-2)",
-          cursor: "pointer",
-          marginBottom: 4,
-        }}
-      >
-        <Icon path={collapsed ? ICON_PATHS.railExpand : ICON_PATHS.railCollapse} size={20} />
-      </button>
+      {!collapsed ? (
+        <div style={{ padding: "14px 16px 10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.01em", color: "#ffffff", lineHeight: 1.2, maxWidth: 150 }}>
+            {t("app.name")}
+          </div>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-expanded={!collapsed}
+            aria-label={t("nav.collapse")}
+            title={t("nav.collapse")}
+            style={{
+              width: 24,
+              height: 24,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 6,
+              border: "1px solid rgba(255,255,255,0.25)",
+              background: "transparent",
+              color: "rgba(255,255,255,0.6)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            <Icon path={ICON_PATHS.railCollapse} size={14} />
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 10px" }}>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-expanded={!collapsed}
+            aria-label={t("nav.expand")}
+            title={t("nav.expand")}
+            style={{
+              width: 24,
+              height: 24,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 6,
+              border: "1px solid rgba(255,255,255,0.25)",
+              background: "transparent",
+              color: "rgba(255,255,255,0.6)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            <Icon path={ICON_PATHS.railExpand} size={14} />
+          </button>
+        </div>
+      )}
+
+      {!collapsed && (
+        <div style={{ padding: "0 12px 4px" }}>
+          <GlobalSearch />
+        </div>
+      )}
 
       {sections.map((section, index) => (
         <div key={section.titleKey} style={{ display: "contents" }}>
@@ -102,24 +138,21 @@ export default function Sidebar({
             <hr
               style={{
                 border: 0,
-                borderTop: "1px solid rgba(255,255,255,.15)",
-                margin: "10px 8px 6px",
-                width: "calc(100% - 16px)",
+                borderTop: "1px solid rgba(255,255,255,.1)",
+                margin: "8px 16px",
+                width: "calc(100% - 40px)",
               }}
             />
           )}
-          {/* The heading is dropped rather than hidden when collapsed: at 64px
-              there is no width for it, and an ellipsised section label reads as
-              a broken nav item. The divider still separates the groups. */}
           {!collapsed && (
             <div
               style={{
-                padding: "6px 12px 4px",
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
+                padding: index === 0 ? "10px 16px 4px" : "0 16px 4px",
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: "var(--on-dark-3)",
+                color: "rgba(255,255,255,0.4)",
               }}
             >
               {t(section.titleKey)}
@@ -138,18 +171,18 @@ export default function Sidebar({
                 aria-label={collapsed ? label : undefined}
                 style={{
                   position: "relative",
-                  minHeight: 44,
+                  minHeight: 28,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: collapsed ? "center" : "flex-start",
-                  gap: 12,
-                  padding: collapsed ? 0 : "0 12px",
-                  borderRadius: "var(--r-button)",
+                  gap: 9,
+                  padding: collapsed ? "7px 0" : "6px 9px",
+                  borderRadius: 6,
                   border: "none",
-                  background: active ? "var(--green-500)" : "transparent",
-                  color: "var(--on-dark)",
+                  background: active ? "#2a5240" : "transparent",
+                  color: active ? "#ffffff" : "rgba(255,255,255,0.82)",
                   font: "inherit",
-                  fontSize: 15,
+                  fontSize: 12.5,
                   fontWeight: active ? 600 : 400,
                   fontFamily: "var(--font-body)",
                   cursor: "pointer",
@@ -158,21 +191,7 @@ export default function Sidebar({
                   overflow: "hidden",
                 }}
               >
-                {/* The third channel: colour, weight and this rule. */}
-                {active && (
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      insetBlock: 6,
-                      left: 0,
-                      width: 3,
-                      borderRadius: "0 2px 2px 0",
-                      background: "var(--on-dark)",
-                    }}
-                  />
-                )}
-                <Icon path={entry.icon} />
+                <Icon path={entry.icon} size={15} />
                 {!collapsed && (
                   <>
                     <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -181,8 +200,6 @@ export default function Sidebar({
                     {entry.badgeCount ? <NavBadge count={entry.badgeCount} /> : null}
                   </>
                 )}
-                {/* Collapsed, a count has nowhere to sit, so it becomes a dot.
-                    Losing the number is acceptable; losing the signal is not. */}
                 {collapsed && entry.badgeCount ? (
                   <span
                     aria-hidden="true"
@@ -193,8 +210,7 @@ export default function Sidebar({
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      background:
-                        entry.badgeCount > ALERT_BADGE_ATTENTION_AT ? "var(--gold-500)" : "var(--on-dark-3)",
+                      background: entry.badgeCount > ALERT_BADGE_ATTENTION_AT ? "var(--gold-500)" : "var(--on-dark-3)",
                     }}
                   />
                 ) : null}
@@ -206,7 +222,7 @@ export default function Sidebar({
                 {button}
               </Tooltip>
             ) : (
-              button
+              <div key={entry.path} style={{ padding: "0 8px 1px" }}>{button}</div>
             );
           })}
         </div>
@@ -234,6 +250,9 @@ function NavBadge({ count }: { count: number }) {
       style={{
         background: loud ? "var(--gold-300)" : "rgba(255,255,255,.18)",
         color: loud ? "var(--gold-700)" : "var(--on-dark-2)",
+        minWidth: 20,
+        height: 20,
+        fontSize: 11,
       }}
     >
       {count}

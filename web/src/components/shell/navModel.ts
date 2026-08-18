@@ -57,8 +57,9 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
     icon: TIER_ICONS[tier.path] ?? ICON_PATHS.dashboard,
   }));
 
+  const dashboard: NavItem[] = [...tiers];
+
   const work: NavItem[] = [
-    ...tiers,
     ...(hasCases ? [item("/cases", "nav.cases", ICON_PATHS.cases)] : []),
     ...(hasReferrals ? [item("/referrals", "nav.referrals", ICON_PATHS.queue)] : []),
     ...(hasCases ? [{ ...item("/alerts", "nav.alerts", ICON_PATHS.alerts), badgeCount: options.openAlerts }] : []),
@@ -75,6 +76,7 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
   // An empty section would otherwise draw a heading and a divider over nothing:
   // a partner staff account is offered no Work items at all.
   return [
+    { titleKey: "nav.sectionDashboard" as StringKey, items: dashboard },
     { titleKey: "nav.sectionWork" as StringKey, items: work },
     { titleKey: "nav.sectionDirectory" as StringKey, items: directory },
   ].filter((section) => section.items.length > 0);

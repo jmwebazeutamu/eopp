@@ -25,22 +25,26 @@ export default function Header({ isPhone = false }: { isPhone?: boolean }) {
 
   return (
     <header
-      className="on-dark"
+      className={isPhone ? "on-dark" : undefined}
       style={{
         height: isPhone ? HEADER_HEIGHT_PHONE : HEADER_HEIGHT,
         flexShrink: 0,
-        background: "var(--green-900)",
-        color: "var(--on-dark)",
-        padding: isPhone ? "0 10px" : "0 16px",
+        background: isPhone ? "var(--green-900)" : "var(--paper)",
+        color: isPhone ? "var(--on-dark)" : "var(--ink-900)",
+        padding: isPhone ? "0 10px" : "0 24px",
         display: "flex",
         alignItems: "center",
         gap: isPhone ? 8 : 16,
         position: "relative",
+        justifyContent: isPhone ? undefined : "flex-end",
+        borderBottom: isPhone ? "none" : "1px solid #e9e2d3",
       }}
     >
-      <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
-        {t("shell.appMark")}
-      </span>
+      {isPhone && (
+        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
+          {t("shell.appMark")}
+        </span>
+      )}
 
       {/* At 390px a 480px search field and a scope selector cannot both sit in
           the bar; the field truncated its own placeholder to "Searc". The
@@ -89,9 +93,7 @@ export default function Header({ isPhone = false }: { isPhone?: boolean }) {
             <Icon path={ICON_PATHS.search} size={20} />
           </button>
         )
-      ) : (
-        <GlobalSearch />
-      )}
+      ) : null}
 
       <div style={{ marginLeft: isPhone ? 0 : "auto", display: "flex", alignItems: "center", gap: 8 }}>
         {scope.selectable ? (
@@ -107,9 +109,7 @@ export default function Header({ isPhone = false }: { isPhone?: boolean }) {
             ]}
           />
         ) : (
-          // A single-woreda account has no choice to make, but still needs to
-          // know which woreda it is reading. Stating it beats an inert control.
-          <span style={{ color: "var(--on-dark-2)", fontSize: 13, whiteSpace: "nowrap" }}>{scope.label}</span>
+          <span style={{ color: isPhone ? "var(--on-dark-2)" : "var(--ink-600)", fontSize: 13, whiteSpace: "nowrap" }}>{scope.label}</span>
         )}
       </div>
     </header>

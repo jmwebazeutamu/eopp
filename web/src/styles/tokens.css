@@ -38,6 +38,14 @@
   --red-100: #fae6e4; /* 13.7:1 with ink */
   --red-border: #dca6a2;
 
+  /* -- Supporting hues for the alerts inbox ----------------------------- */
+  --blue-700: #2f5fb3;
+  --blue-100: #e7eefb;
+  --teal-700: #1f7a6a;
+  --teal-100: #e2f2ed;
+  --slate-700: #5b6b63;
+  --slate-100: #e8ece9;
+
   /* -- Ink and surfaces ------------------------------------------------- */
   --ink-900: #1a1915; /* 15.9:1 on paper */
   --ink-600: #4e4a42; /* 8.7:1 */
@@ -80,7 +88,7 @@
   /* -- Layout ----------------------------------------------------------- */
   /* The rail has two widths; Sidebar.tsx owns them (RAIL_EXPANDED /
      RAIL_COLLAPSED). Kept for anything still reading the old single value. */
-  --rail-width: 240px;
+  --rail-width: 232px;
   --tabbar-height: 56px;
   --touch: 48px; /* minimum touch target, low-end Android */
 

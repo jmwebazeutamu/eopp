@@ -83,7 +83,7 @@ type ButtonVariant = "primary" | "secondary" | "destructive" | "destructive-soft
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
-  size?: "md" | "sm";
+  size?: "md" | "sm" | "compact";
   /** Visibly present but refusing — the parallel-limit case, which must explain itself. */
   blocked?: boolean;
 }
@@ -95,8 +95,14 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   "destructive-soft": "btn--destructive-soft",
 };
 
-export function Button({ variant = "secondary", size = "md", blocked, className, ...props }: ButtonProps) {
-  const classes = ["btn", VARIANT_CLASS[variant], size === "sm" ? "btn--sm" : "", blocked ? "btn--blocked" : ""];
+export function Button({ variant = "secondary", size = "compact", blocked, className, ...props }: ButtonProps) {
+  const classes = [
+    "btn",
+    VARIANT_CLASS[variant],
+    size === "sm" ? "btn--sm" : "",
+    size === "compact" ? "btn--compact" : "",
+    blocked ? "btn--blocked" : "",
+  ];
   return <button type="button" className={[...classes, className].filter(Boolean).join(" ")} {...props} />;
 }
 

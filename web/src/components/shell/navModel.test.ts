@@ -39,18 +39,12 @@ const paths = (user: CurrentUser) =>
   buildNav(user, { openAlerts: 0 }).flatMap((section) => section.items.map((item) => item.path));
 
 describe("buildNav", () => {
-  it("groups a case manager's items into Work and Directory", () => {
+  it("groups a case manager's items into Dashboard, Work and Directory", () => {
     const sections = buildNav(userWith("CASE_MANAGER", {}), { openAlerts: 3 });
-    expect(sections.map((s) => s.titleKey)).toEqual(["nav.sectionWork", "nav.sectionDirectory"]);
-    // The dashboard tier is a destination of its own, not a "Dashboard" entry
-    // concealing four pages.
-    expect(sections[0].items.map((i) => i.path)).toEqual([
-      "/dashboard/my-work",
-      "/cases",
-      "/referrals",
-      "/alerts",
-    ]);
-    expect(sections[1].items.map((i) => i.path)).toEqual(["/youth", "/partners"]);
+    expect(sections.map((s) => s.titleKey)).toEqual(["nav.sectionDashboard", "nav.sectionWork", "nav.sectionDirectory"]);
+    expect(sections[0].items.map((i) => i.path)).toEqual(["/dashboard/my-work"]);
+    expect(sections[1].items.map((i) => i.path)).toEqual(["/cases", "/referrals", "/alerts"]);
+    expect(sections[2].items.map((i) => i.path)).toEqual(["/youth", "/partners"]);
   });
 
   it("offers user administration to the system administrator alone", () => {

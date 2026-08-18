@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<![CDATA[
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body{margin:0;background:#efece4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;}
+  .dv-turn{padding:40px 44px 32px;}
+  .dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px;}
+  .dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none;}
+  .dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a;}
+  .dv-opts{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;}
+  .dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;}
+  .dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none;}
+  .dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55);}
+  .dv-card{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden;}
+  .dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5);}
+  .row-hover:hover{background:#f7f4ec !important;}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Alerts as a mail/inbox interface — two directions</span></div>
+  <div class="dv-opts">
+
+    <!-- OPTION 1A -->
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Split view — list + reading pane (Gmail-style)</div>
+      <div class="dv-card" style="width:1360px;">
+        <div style="display:flex;width:1360px;height:820px;">
+          <!-- sidebar -->
+          <div style="width:200px;flex:0 0 200px;background:#173629;color:#eef2ea;display:flex;flex-direction:column;">
+            <div style="padding:16px 16px 12px 18px;font-size:14px;font-weight:700;letter-spacing:0.04em;color:#fff;">EOPP</div>
+            <div style="padding:14px 18px 4px;font-size:10px;font-weight:600;letter-spacing:0.08em;color:rgba(255,255,255,0.4);">WORK</div>
+            <div style="display:flex;flex-direction:column;padding:2px 8px;gap:1px;font-size:12.5px;">
+              <div style="padding:7px 10px;color:rgba(255,255,255,0.75);">My work</div>
+              <div style="padding:7px 10px;color:rgba(255,255,255,0.75);">Referrals</div>
+              <div style="padding:7px 10px;border-radius:6px;background:#2a5240;color:#fff;font-weight:600;">Alerts</div>
+            </div>
+          </div>
+          <!-- label rail -->
+          <div style="width:190px;flex:0 0 190px;background:#faf7f0;border-right:1px solid #ece6d6;padding:16px 12px;">
+            <div style="font-size:15px;font-weight:700;color:#1c2118;padding:0 8px 12px;">Alerts</div>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <div style="display:flex;justify-content:space-between;padding:7px 8px;border-radius:6px;background:#173629;color:#fff;font-size:12.5px;font-weight:600;"><span>All</span><span>408</span></div>
+              <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;font-size:12.5px;color:#4a4438;"><span style="color:#a1701f;">▲</span><span style="flex:1;">Stall Alert</span><span style="color:#9b9282;">57</span></div>
+              <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;font-size:12.5px;color:#4a4438;"><span style="color:#b3452f;">⟲</span><span style="flex:1;">Referral Confirmation Overdue</span><span style="color:#9b9282;">6</span></div>
+              <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;font-size:12.5px;color:#4a4438;"><span style="color:#5b6b63;">●</span><span style="flex:1;">Follow-Up Due</span><span style="color:#9b9282;">0</span></div>
+              <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;font-size:12.5px;color:#4a4438;"><span style="color:#2f5fb3;">●</span><span style="flex:1;">Onward Referral Prompt</span><span style="color:#9b9282;">184</span></div>
+              <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;font-size:12.5px;color:#4a4438;background:#f1ece0;"><span style="color:#b3452f;">▲</span><span style="flex:1;font-weight:600;color:#1c2118;">Replacement Referral Prompt</span><span style="color:#9b9282;">161</span></div>
+              <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;font-size:12.5px;color:#4a4438;"><span style="color:#1f7a6a;">⟲</span><span style="flex:1;">Retention Check Due</span><span style="color:#9b9282;">0</span></div>
+            </div>
+          </div>
+          <!-- message list -->
+          <div style="width:430px;flex:0 0 430px;border-right:1px solid #ece6d6;display:flex;flex-direction:column;background:#fff;">
+            <div style="padding:12px 16px;border-bottom:1px solid #ece6d6;display:flex;align-items:center;gap:8px;">
+              <input placeholder="Search alerts" style="flex:1;border:1px solid #e2dbc8;border-radius:7px;padding:7px 10px;font-size:12.5px;outline:none;">
+            </div>
+            <div style="overflow:auto;flex:1;">
+              <div class="row-hover" style="display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #f0ebdd;background:#f1ece0;cursor:pointer;">
+                <span style="color:#b3452f;font-size:12px;margin-top:2px;">▲</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;justify-content:space-between;"><span style="font-size:13.5px;font-weight:700;color:#1c2118;">Ebisa Bulti</span><span style="font-size:11px;color:#9b9282;">today</span></div>
+                  <div style="font-size:12px;color:#8c8474;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Enterprise referral failed (Other). Consider a replacement. · Lume</div>
+                </div>
+              </div>
+              <div class="row-hover" style="display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #f0ebdd;cursor:pointer;">
+                <span style="color:#a1701f;font-size:12px;margin-top:2px;">▲</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;justify-content:space-between;"><span style="font-size:13.5px;font-weight:600;color:#1c2118;">Feven Haile</span><span style="font-size:11px;color:#9b9282;">2d</span></div>
+                  <div style="font-size:12px;color:#8c8474;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">No activity for 21 days on case. · Adama</div>
+                </div>
+              </div>
+              <div class="row-hover" style="display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #f0ebdd;cursor:pointer;">
+                <span style="color:#b3452f;font-size:12px;margin-top:2px;">⟲</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;justify-content:space-between;"><span style="font-size:13.5px;font-weight:600;color:#1c2118;">Hawi Wondimu</span><span style="font-size:11px;color:#9b9282;">1d</span></div>
+                  <div style="font-size:12px;color:#8c8474;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Partner has not confirmed referral after 5 days. · Bishoftu</div>
+                </div>
+              </div>
+              <div class="row-hover" style="display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #f0ebdd;cursor:pointer;">
+                <span style="color:#2f5fb3;font-size:12px;margin-top:2px;">●</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;justify-content:space-between;"><span style="font-size:13.5px;font-weight:600;color:#1c2118;">Lensa Feyisa</span><span style="font-size:11px;color:#9b9282;">today</span></div>
+                  <div style="font-size:12px;color:#8c8474;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Training complete; ready for job placement referral. · Bishoftu</div>
+                </div>
+              </div>
+              <div class="row-hover" style="display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #f0ebdd;cursor:pointer;">
+                <span style="color:#1f7a6a;font-size:12px;margin-top:2px;">⟲</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;justify-content:space-between;"><span style="font-size:13.5px;font-weight:600;color:#1c2118;">Tolosa Gutema</span><span style="font-size:11px;color:#9b9282;">3d</span></div>
+                  <div style="font-size:12px;color:#8c8474;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">90-day retention check due for placement. · Lume</div>
+                </div>
+              </div>
+              <div class="row-hover" style="display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #f0ebdd;cursor:pointer;">
+                <span style="color:#b3452f;font-size:12px;margin-top:2px;">▲</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;justify-content:space-between;"><span style="font-size:13.5px;font-weight:600;color:#1c2118;">Selam Dinku</span><span style="font-size:11px;color:#9b9282;">today</span></div>
+                  <div style="font-size:12px;color:#8c8474;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Coaching referral failed (Eligibility mismatch). · Bishoftu</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- reading pane -->
+          <div style="flex:1;padding:24px 28px;background:#fdfcf9;overflow:auto;">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.07em;color:#b3452f;margin-bottom:6px;">REPLACEMENT REFERRAL PROMPT</div>
+            <div style="font-size:21px;font-weight:700;color:#1c2118;margin-bottom:4px;">Ebisa Bulti</div>
+            <div style="font-size:12.5px;color:#9b9282;margin-bottom:20px;">Lume · today</div>
+            <div style="font-size:14px;line-height:1.6;color:#3a3428;padding-bottom:20px;border-bottom:1px solid #ece6d6;margin-bottom:20px;">
+              Enterprise referral failed (Other). Consider a replacement referral for this youth so the case does not stall.
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button style="background:#173629;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13.5px;font-weight:600;cursor:pointer;">Mark actioned</button>
+              <button style="background:#fff;color:#4a4438;border:1px solid #e2dbc8;border-radius:8px;padding:10px 18px;font-size:13.5px;font-weight:600;cursor:pointer;">Dismiss</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPTION 1B -->
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Dense table + bulk select + side preview drawer</div>
+      <div class="dv-card" style="width:1360px;">
+        <div style="width:1360px;height:820px;display:flex;flex-direction:column;background:#fff;">
+          <div style="padding:20px 28px 0;">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;">
+              <div>
+                <div style="font-size:20px;font-weight:700;color:#1c2118;">Alerts</div>
+                <div style="font-size:12.5px;color:#8c8474;margin-top:2px;">408 open · All woredas</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+              <div style="padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;background:#173629;color:#fff;">All 408</div>
+              <div style="padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;background:#fff;border:1px solid #e2dbc8;color:#a1701f;">▲ Stall 57</div>
+              <div style="padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;background:#fff;border:1px solid #e2dbc8;color:#b3452f;">⟲ Overdue 6</div>
+              <div style="padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;background:#fff;border:1px solid #e2dbc8;color:#2f5fb3;">● Onward 184</div>
+              <div style="padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;background:#fff;border:1px solid #e2dbc8;color:#b3452f;">▲ Replacement 161</div>
+              <div style="padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;background:#fff;border:1px solid #e2dbc8;color:#1f7a6a;">⟲ Retention 0</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 28px;background:#faf7f0;border-top:1px solid #ece6d6;border-bottom:1px solid #ece6d6;font-size:12px;color:#4a4438;">
+            <input type="checkbox" style="width:14px;height:14px;">
+            <span style="color:#9b9282;">2 selected</span>
+            <button style="background:#173629;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;">Mark actioned</button>
+            <button style="background:#fff;color:#4a4438;border:1px solid #e2dbc8;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;">Dismiss</button>
+          </div>
+          <div style="display:flex;flex:1;min-height:0;">
+            <div style="flex:1;overflow:auto;border-right:1px solid #ece6d6;">
+              <div class="row-hover" style="display:grid;grid-template-columns:28px 20px 190px 1fr 150px 60px;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid #f0ebdd;background:#f1ece0;cursor:pointer;">
+                <input type="checkbox" checked style="width:14px;height:14px;">
+                <span style="color:#b3452f;font-size:12px;">▲</span>
+                <span style="font-size:13px;font-weight:700;color:#1c2118;">Ebisa Bulti</span>
+                <span style="font-size:12.5px;color:#4a4438;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Enterprise referral failed (Other). Consider a replacement.</span>
+                <span style="font-size:12px;color:#9b9282;">Lume</span>
+                <span style="font-size:11px;color:#9b9282;text-align:right;">today</span>
+              </div>
+              <div class="row-hover" style="display:grid;grid-template-columns:28px 20px 190px 1fr 150px 60px;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid #f0ebdd;cursor:pointer;">
+                <input type="checkbox" style="width:14px;height:14px;">
+                <span style="color:#a1701f;font-size:12px;">▲</span>
+                <span style="font-size:13px;font-weight:600;color:#1c2118;">Feven Haile</span>
+                <span style="font-size:12.5px;color:#4a4438;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">No activity for 21 days on case.</span>
+                <span style="font-size:12px;color:#9b9282;">Adama</span>
+                <span style="font-size:11px;color:#9b9282;text-align:right;">2d</span>
+              </div>
+              <div class="row-hover" style="display:grid;grid-template-columns:28px 20px 190px 1fr 150px 60px;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid #f0ebdd;cursor:pointer;background:#f1ece0;">
+                <input type="checkbox" checked style="width:14px;height:14px;">
+                <span style="color:#b3452f;font-size:12px;">⟲</span>
+                <span style="font-size:13px;font-weight:700;color:#1c2118;">Hawi Wondimu</span>
+                <span style="font-size:12.5px;color:#4a4438;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Partner has not confirmed referral after 5 days.</span>
+                <span style="font-size:12px;color:#9b9282;">Bishoftu</span>
+                <span style="font-size:11px;color:#9b9282;text-align:right;">1d</span>
+              </div>
+              <div class="row-hover" style="display:grid;grid-template-columns:28px 20px 190px 1fr 150px 60px;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid #f0ebdd;cursor:pointer;">
+                <input type="checkbox" style="width:14px;height:14px;">
+                <span style="color:#2f5fb3;font-size:12px;">●</span>
+                <span style="font-size:13px;font-weight:600;color:#1c2118;">Lensa Feyisa</span>
+                <span style="font-size:12.5px;color:#4a4438;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Training complete; ready for job placement referral.</span>
+                <span style="font-size:12px;color:#9b9282;">Bishoftu</span>
+                <span style="font-size:11px;color:#9b9282;text-align:right;">today</span>
+              </div>
+              <div class="row-hover" style="display:grid;grid-template-columns:28px 20px 190px 1fr 150px 60px;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid #f0ebdd;cursor:pointer;">
+                <input type="checkbox" style="width:14px;height:14px;">
+                <span style="color:#1f7a6a;font-size:12px;">⟲</span>
+                <span style="font-size:13px;font-weight:600;color:#1c2118;">Tolosa Gutema</span>
+                <span style="font-size:12.5px;color:#4a4438;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">90-day retention check due for placement.</span>
+                <span style="font-size:12px;color:#9b9282;">Lume</span>
+                <span style="font-size:11px;color:#9b9282;text-align:right;">3d</span>
+              </div>
+              <div class="row-hover" style="display:grid;grid-template-columns:28px 20px 190px 1fr 150px 60px;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid #f0ebdd;cursor:pointer;">
+                <input type="checkbox" style="width:14px;height:14px;">
+                <span style="color:#5b6b63;font-size:12px;">●</span>
+                <span style="font-size:13px;font-weight:600;color:#1c2118;">Dawit Tadesse</span>
+                <span style="font-size:12.5px;color:#4a4438;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Follow-up call due after enterprise referral.</span>
+                <span style="font-size:12px;color:#9b9282;">Adama</span>
+                <span style="font-size:11px;color:#9b9282;text-align:right;">today</span>
+              </div>
+            </div>
+            <div style="width:360px;flex:0 0 360px;padding:22px 24px;background:#fdfcf9;overflow:auto;">
+              <div style="font-size:10.5px;font-weight:600;letter-spacing:0.07em;color:#b3452f;margin-bottom:6px;">REFERRAL CONFIRMATION OVERDUE</div>
+              <div style="font-size:18px;font-weight:700;color:#1c2118;margin-bottom:4px;">Hawi Wondimu</div>
+              <div style="font-size:12px;color:#9b9282;margin-bottom:16px;">Bishoftu · 1d ago</div>
+              <div style="font-size:13.5px;line-height:1.6;color:#3a3428;padding-bottom:16px;border-bottom:1px solid #ece6d6;margin-bottom:16px;">
+                Partner has not confirmed referral after 5 days. Follow up directly with the partner or escalate to programme lead.
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button style="background:#173629;color:#fff;border:none;border-radius:7px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;">Mark actioned</button>
+                <button style="background:#fff;color:#4a4438;border:1px solid #e2dbc8;border-radius:7px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;">Dismiss</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">Try next: "combine <a class="dv-oid" href="#1a">1a</a>'s label rail with <a class="dv-oid" href="#1b">1b</a>'s bulk actions" · "make <a class="dv-oid" href="#1a">1a</a> the base, build out the full page" · "add unread/read states"</p>
+</section>
+]]>
+</x-dc>
+</body>
+</html>

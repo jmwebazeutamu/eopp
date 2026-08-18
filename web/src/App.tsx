@@ -103,7 +103,7 @@ const ANTD_THEME = {
   },
   components: {
     Modal: { borderRadiusLG: 14 },
-    Button: { borderRadius: 8, fontWeight: 600 },
+    Button: { borderRadius: 8, fontWeight: 600, controlHeight: 36, controlHeightSM: 32, controlHeightLG: 40 },
   },
 };
 

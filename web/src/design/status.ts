@@ -136,14 +136,14 @@ export function waitLevel(days: number, threshold: number): WaitLevel {
   return "ok";
 }
 
-/** Alert tones, per the handoff's counter cards. */
+/** Alert tones, per the alerts inbox handoff's type coding. */
 export const ALERT_TONE: Record<string, { fg: string; bg: string }> = {
-  STALL: { fg: "var(--terra-700)", bg: "var(--terra-100)" },
-  REFERRAL_CONFIRMATION_OVERDUE: { fg: "var(--gold-700)", bg: "var(--gold-100)" },
-  FOLLOW_UP_DUE: { fg: "var(--green-700)", bg: "var(--green-100)" },
-  ONWARD_REFERRAL_PROMPT: { fg: "var(--green-700)", bg: "var(--green-100)" },
-  REPLACEMENT_REFERRAL_PROMPT: { fg: "var(--terra-700)", bg: "var(--terra-100)" },
-  RETENTION_CHECK_DUE: { fg: "var(--gold-700)", bg: "var(--gold-100)" },
+  STALL: { fg: "var(--gold-700)", bg: "var(--gold-100)" },
+  REFERRAL_CONFIRMATION_OVERDUE: { fg: "var(--red-700)", bg: "var(--red-100)" },
+  FOLLOW_UP_DUE: { fg: "var(--slate-700)", bg: "var(--slate-100)" },
+  ONWARD_REFERRAL_PROMPT: { fg: "var(--blue-700)", bg: "var(--blue-100)" },
+  REPLACEMENT_REFERRAL_PROMPT: { fg: "var(--red-700)", bg: "var(--red-100)" },
+  RETENTION_CHECK_DUE: { fg: "var(--teal-700)", bg: "var(--teal-100)" },
 };
 
 /**

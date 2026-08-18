@@ -89,7 +89,7 @@ export default function AppLayout() {
         {t("shell.skipToContent")}
       </a>
 
-      <Header isPhone={isPhone} />
+      {isPhone && <Header isPhone />}
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         {!isPhone && (

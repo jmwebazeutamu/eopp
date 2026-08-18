@@ -119,10 +119,10 @@ export default function UserMenu({
           alignItems: "center",
           gap: 10,
           width: "100%",
-          minHeight: 48,
-          padding: collapsed ? 0 : "6px 8px",
+          minHeight: 44,
+          padding: collapsed ? 0 : "0 0 0 0",
           justifyContent: collapsed ? "center" : "flex-start",
-          borderRadius: "var(--r-button)",
+          borderRadius: 7,
           border: "none",
           background: open ? "rgba(255,255,255,.12)" : "transparent",
           color: "var(--on-dark)",
@@ -135,14 +135,14 @@ export default function UserMenu({
         <Avatar name={user.full_name} />
         {!collapsed && (
           <span style={{ minWidth: 0, lineHeight: 1.25 }}>
-            <span style={{ display: "block", fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ display: "block", fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {user.full_name}
             </span>
             <span
               style={{
                 display: "block",
-                color: "var(--on-dark-2)",
-                fontSize: 12,
+                color: "rgba(255,255,255,0.5)",
+                fontSize: 11.5,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -176,8 +176,8 @@ function Avatar({ name }: { name: string }) {
       aria-hidden="true"
       style={{
         flexShrink: 0,
-        width: 32,
-        height: 32,
+        width: 30,
+        height: 30,
         borderRadius: "50%",
         background: "var(--gold-300)",
         color: "var(--green-900)",
@@ -185,7 +185,7 @@ function Avatar({ name }: { name: string }) {
         alignItems: "center",
         justifyContent: "center",
         fontWeight: 700,
-        fontSize: 13,
+        fontSize: 12,
       }}
     >
       {initialsOf(name)}

@@ -78,9 +78,10 @@ p {
 }
 
 .t-title {
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.25;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .t-metric {
@@ -98,9 +99,9 @@ p {
 }
 
 .t-card-title {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.35;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .t-body-strong {
@@ -135,6 +136,13 @@ p {
 }
 
 @media (min-width: 780px) {
+  /* The partners handoff specifies 13.5px, and states it designed only for a
+     1440px desktop console. Below the breakpoint the field stays 16px, which
+     is what stops iOS zooming the page when it takes focus. */
+  .input {
+    font-size: 13.5px;
+  }
+
   .page {
     padding: 28px 32px;
   }
@@ -152,8 +160,10 @@ p {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
-  /* 24px, on the 4px scale. Nothing touches a card edge. */
-  padding: var(--s5);
+  /* 18/20 per the partners handoff, which tightens the spacing throughout.
+     This was 24px on the 4px scale; see the note in CLAUDE.md — the two
+     instructions disagree and the handoff is the later one. */
+  padding: 18px 20px;
 }
 
 .card--muted {
@@ -177,14 +187,14 @@ p {
 /* -- Buttons ------------------------------------------------------------- */
 
 .btn {
-  min-height: var(--touch);
+  min-height: 36px;
   padding: 0 16px;
-  border-radius: var(--r-button);
+  border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink-900);
   font: inherit;
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 600;
   font-family: var(--font-body);
   cursor: pointer;
@@ -234,9 +244,16 @@ p {
 }
 
 .btn--sm {
-  min-height: 34px;
-  font-size: 13px;
-  padding: 0 12px;
+  min-height: 32px;
+  font-size: 12.5px;
+  padding: 0 11px;
+}
+
+.btn--compact {
+  min-height: 36px;
+  font-size: 13.5px;
+  padding: 0 16px;
+  border-radius: 8px;
 }
 
 /* -- Chips --------------------------------------------------------------- */
@@ -247,8 +264,8 @@ p {
   gap: 6px;
   border-radius: var(--r-chip);
   border: 1px solid transparent;
-  padding: 3px 10px;
-  font-size: 13px;
+  padding: 3px 11px;
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -261,13 +278,13 @@ p {
 /* Filter chips: a horizontally scrolling row, not a dropdown, on phone. */
 .chip-filter {
   min-height: 40px;
-  padding: 0 13px;
+  padding: 0 14px;
   border-radius: var(--r-chip);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink-900);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   font-family: var(--font-body);
   cursor: pointer;
@@ -311,6 +328,115 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill-filter {
+  min-height: 36px;
+  padding: 7px 14px;
+  border-radius: var(--r-chip);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-900);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pill-filter[data-active="true"] {
+  background: var(--green-700);
+  border-color: var(--green-700);
+  color: var(--on-dark);
+}
+
+.pill-filter__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  opacity: 0.65;
+}
+
+.alerts-inbox {
+  display: flex;
+  min-height: 560px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.alerts-inbox__list {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.alerts-inbox__preview {
+  width: 360px;
+  flex: 0 0 360px;
+  border-left: 1px solid var(--line);
+  background: #fdfcf9;
+  padding: 22px 24px;
+  overflow: auto;
+}
+
+.alerts-table-row {
+  display: grid;
+  grid-template-columns: 28px 20px minmax(140px, 190px) minmax(0, 1fr) 120px 60px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface);
+}
+
+.alerts-table-row:hover {
+  background: var(--surface-alt);
+}
+
+.alerts-table-row[data-selected="true"],
+.alerts-table-row[data-open="true"] {
+  background: var(--fill-muted);
+}
+
+.alerts-table-row__check {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+.alerts-table-row__button {
+  all: unset;
+  cursor: pointer;
+}
+
+.alerts-table-row__button:focus-visible {
+  outline: 2px solid var(--green-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (max-width: 1100px) {
+  .alerts-inbox {
+    display: block;
+  }
+
+  .alerts-inbox__preview {
+    width: auto;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
 }
 
 .count-badge {
@@ -370,7 +496,7 @@ p {
   min-height: var(--touch);
   padding: 0 14px;
   border: 1px solid var(--line);
-  border-radius: var(--r-control);
+  border-radius: 9px;
   background: var(--surface);
   color: var(--ink-900);
   /* 16px stops iOS zooming the page on focus. */

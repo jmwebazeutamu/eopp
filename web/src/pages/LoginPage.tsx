@@ -54,7 +54,7 @@ export default function LoginPage() {
           <Form.Item name="password" label={t("login.password")} rules={[{ required: true, message: t("login.passwordRequired") }]}>
             <Input.Password prefix={<LockOutlined />} autoComplete="current-password" size="large" />
           </Form.Item>
-          <Button type="primary" htmlType="submit" block size="large" loading={submitting}>
+          <Button type="primary" htmlType="submit" block loading={submitting}>
             {t("login.submit")}
           </Button>
         </Form>
