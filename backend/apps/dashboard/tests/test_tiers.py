@@ -430,6 +430,7 @@ class TestPunchListV2:
             "overdue_actions",
             "median_days_to_confirm",
             "outcomes_verified",
+            "outcomes_recorded",
             "over_ceiling",
             "caseload_ceiling",
         }

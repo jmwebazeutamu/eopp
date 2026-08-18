@@ -245,9 +245,14 @@ def test_week_counts_is_one_aggregate(locations, case_manager, make_case, django
     assert counts["opened"] == 1
 
 
-def test_outcomes_verified_counts_only_verified_completions(
+def test_outcomes_verified_separates_verified_from_merely_recorded(
     locations, taxonomy, case_manager, make_case, make_referral
 ):
+    """Recorded is not verified. This asserted `outcome_verified_by IS NOT
+    NULL`, which only says a staff member signed the record off — and a
+    self-reported outcome someone signed off is still self-reported."""
+    from apps.referrals.models import VerificationSource
+
     referral = make_referral(make_case(case_manager, name="Verified"), category=taxonomy["employment"])
     referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_date=date.today())
     referral.transition_to(
@@ -255,14 +260,14 @@ def test_outcomes_verified_counts_only_verified_completions(
         actor=case_manager,
         outcome_type=taxonomy["job_placement"],
         outcome_date=date.today(),
+        verification_source=VerificationSource.EMPLOYER_CONFIRMED,
     )
-    assert queues.outcomes_verified(case_manager) == 1
+    assert queues.outcomes_verified(case_manager) == {"verified": 1, "recorded": 1}
 
-    # Strip the verifier and it drops out: §8.3 makes the verified subset the
-    # reportable one, and a self-reported outcome is an aspiration.
-    referral.outcome_verified_by = None
-    referral.save(update_fields=["outcome_verified_by"])
-    assert queues.outcomes_verified(case_manager) == 0
+    # Same outcome, self-reported: still recorded, no longer verified.
+    referral.verification_source = VerificationSource.SELF_REPORTED
+    referral.save(update_fields=["verification_source"])
+    assert queues.outcomes_verified(case_manager) == {"verified": 0, "recorded": 1}
 
 
 # ---------------------------------------------------------------------------

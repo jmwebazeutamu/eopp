@@ -35,8 +35,10 @@ the counts and lists are the product at this tier.
   </div>
   <div class="tile good">
     <div class="k">{% translate "Outcomes verified" %}</div>
-    <div class="v">{{ outcomes_verified }}</div>
-    <div class="n">{% translate "this month" %}</div>
+    <div class="v">{{ outcomes_verified.verified }}</div>
+    {# Verified is a subset of recorded, and saying so is the point: the tile #}
+    {# used to show the recorded count under a "verified" label. #}
+    <div class="n">{% blocktranslate with n=outcomes_verified.recorded %}of {{ n }} recorded, this month{% endblocktranslate %}</div>
   </div>
 </div>
 

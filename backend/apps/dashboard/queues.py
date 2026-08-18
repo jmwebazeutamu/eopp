@@ -274,22 +274,24 @@ def week_counts(user):
 
 
 def outcomes_verified(user):
-    """Referrals completed with a verifier recorded, this calendar month.
+    """Outcomes this month, split into recorded and externally verified.
 
-    The one positively-framed number on the page. `outcome_verified_by` rather
-    than merely Completed: §8.3 makes the verified subset the reportable one.
+    The one positively-framed number on the page, and it was overstated: it
+    counted `outcome_verified_by IS NOT NULL`, which only says a staff member
+    signed the record off. A self-reported outcome someone signed off is still
+    self-reported, so the tile read 50 where 34 had anyone but the youth behind
+    them.
+
+    Both are returned. Relabelling alone would not have been enough — the same
+    conflation drove the loop-closure rate on the donor tier.
     """
     today = timezone.localdate()
     first = today.replace(day=1)
-    return (
-        scoped_referrals(user)
-        .filter(
-            status=ReferralStatus.COMPLETED,
-            outcome_date__gte=first,
-            outcome_verified_by__isnull=False,
-        )
-        .count()
-    )
+    month = scoped_referrals(user).filter(outcome_date__gte=first)
+    return {
+        "verified": month.externally_verified().count(),
+        "recorded": month.with_recorded_outcome().count(),
+    }
 
 
 __all__ = [

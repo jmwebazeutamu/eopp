@@ -158,6 +158,21 @@ class ReferralQuerySet(models.QuerySet):
     def for_case(self, case):
         return self.filter(case=case)
 
+    def with_recorded_outcome(self):
+        """Completed with an outcome recorded. **Recorded is not verified.**"""
+        return self.filter(status=ReferralStatus.COMPLETED, outcome_type__isnull=False)
+
+    def externally_verified(self):
+        """Outcomes somebody other than the youth stood behind.
+
+        A blank source is **not** verified. The dashboards used to test
+        `outcome_verified_by IS NOT NULL`, which only says a staff member signed
+        the record off — 59 self-reported outcomes were being counted as
+        verified, and the loop-closure rate read 50% where the verified figure
+        was 32%. A self-reported placement rate is an aspiration.
+        """
+        return self.with_recorded_outcome().exclude(verification_source__in=["", VerificationSource.SELF_REPORTED])
+
     def placements(self):
         """**The** definition of a placement. Nothing else may restate it.
 
@@ -392,6 +407,16 @@ class Referral(BaseModel):
 
     def __str__(self):
         return f"{self.referral_category.label} referral for {self.case.youth.full_name}"
+
+    @property
+    def is_externally_verified(self):
+        """Whether anyone other than the youth stood behind this outcome.
+
+        Explicit, so no consumer has to pattern-match the free text in
+        `outcome_verification_method`, which holds values like "Provider
+        register", "interview" and "Follow-up visit" and cannot be read reliably.
+        """
+        return bool(self.verification_source) and self.verification_source != VerificationSource.SELF_REPORTED
 
     # -- derived ----------------------------------------------------------
 

@@ -64,6 +64,18 @@ export default function ResultsPage() {
                     <>
                       <RateValue rate={indicator.rate} />
                       <div className="t-meta">{t("dash.ofCount", { n: indicator.rate.n, d: indicator.rate.d })}</div>
+                      {/* The recorded rate sits beside the verified one, never
+                          instead of it: the card used to show recorded under a
+                          "verified" label. */}
+                      {indicator.recorded && indicator.recorded.percent !== null && (
+                        <div className="t-meta" style={{ marginTop: 4 }}>
+                          {t("me.recordedBeside", {
+                            percent: indicator.recorded.percent,
+                            n: indicator.recorded.n,
+                            d: indicator.recorded.d,
+                          })}
+                        </div>
+                      )}
                     </>
                   ) : (
                     "—"

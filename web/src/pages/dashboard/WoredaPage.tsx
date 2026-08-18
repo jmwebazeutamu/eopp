@@ -122,7 +122,7 @@ export default function WoredaPage() {
         <StatTile
           label={t("ws.verified")}
           value={data.tiles.outcomes_verified}
-          meta={t("ws.thisMonth")}
+          meta={t("ws.thisMonth", { recorded: data.tiles.outcomes_recorded })}
           tone="good"
         />
       </div>

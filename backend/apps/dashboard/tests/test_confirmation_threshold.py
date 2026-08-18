@@ -122,3 +122,87 @@ class TestTheIndicatorUsesTheSameRule:
         indicators = results_framework(youth, referrals, date.today(), 14)
         timeliness = [i for i in indicators if i["code"] == "confirmed_within_threshold"][0]
         assert timeliness["rate"]["n"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — recorded is not verified
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def completed(taxonomy, make_case, make_referral, case_manager):
+    """A mature completed referral with a chosen verification source."""
+
+    def _completed(source, name=None):
+        from apps.referrals.models import ReferralStatus
+
+        referral = make_referral(
+            make_case(case_manager, name=name or f"Outcome {source}"), category=taxonomy["employment"]
+        )
+        referral.initiated_date = date.today() - timedelta(days=90)
+        referral.save(update_fields=["initiated_date"])
+        referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_date=date.today())
+        referral.transition_to(
+            ReferralStatus.COMPLETED,
+            actor=case_manager,
+            outcome_type=taxonomy["job_placement"],
+            outcome_date=date.today(),
+            verification_source=source,
+        )
+        return referral
+
+    return _completed
+
+
+class TestRecordedIsNotVerified:
+    def test_a_self_reported_outcome_is_not_externally_verified(self, locations, taxonomy, completed):
+        """3.1. A self-reported placement rate is an aspiration."""
+        from apps.referrals.models import Referral, VerificationSource
+
+        completed(VerificationSource.SELF_REPORTED)
+        assert Referral.objects.with_recorded_outcome().count() == 1
+        assert Referral.objects.externally_verified().count() == 0
+
+    def test_a_blank_source_is_not_verified_either(self, locations, taxonomy, completed):
+        """The safe direction. 8 rows carry free text that names no verifier."""
+        from apps.referrals.models import Referral
+
+        completed("")
+        assert Referral.objects.with_recorded_outcome().count() == 1
+        assert Referral.objects.externally_verified().count() == 0
+
+    def test_an_employer_confirmation_is(self, locations, taxonomy, completed):
+        from apps.referrals.models import Referral, VerificationSource
+
+        referral = completed(VerificationSource.EMPLOYER_CONFIRMED)
+        assert Referral.objects.externally_verified().count() == 1
+        assert referral.is_externally_verified is True
+
+    def test_loop_closure_reports_the_verified_rate_as_primary(self, locations, taxonomy, programme_manager, completed):
+        """The card read 50% where the verified figure was 32%, because it
+        tested `outcome_verified_by IS NOT NULL` — which only says a staff
+        member signed the record off."""
+        from apps.referrals.models import VerificationSource
+
+        completed(VerificationSource.EMPLOYER_CONFIRMED)
+        completed(VerificationSource.SELF_REPORTED)
+        completed(VerificationSource.SELF_REPORTED)
+
+        youth, cases, referrals = scoped_bases(programme_manager)
+        indicators = results_framework(youth, referrals, date.today(), 14)
+        loop = [i for i in indicators if i["code"] == "loop_closure"][0]
+
+        # Primary is the verified subset: 1 of 3.
+        assert loop["rate"]["n"] == 1
+        # Recorded sits beside it, never instead of it: 3 of 3.
+        assert loop["recorded"]["n"] == 3
+
+    def test_the_monthly_tile_carries_both(self, locations, taxonomy, case_manager, completed):
+        from apps.dashboard import queues
+        from apps.referrals.models import VerificationSource
+
+        completed(VerificationSource.PROVIDER_CONFIRMED)
+        completed(VerificationSource.SELF_REPORTED)
+
+        counts = queues.outcomes_verified(case_manager)
+        assert counts == {"verified": 1, "recorded": 2}

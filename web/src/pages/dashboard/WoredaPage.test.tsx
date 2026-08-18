@@ -35,6 +35,7 @@ function payload(overrides: Partial<WoredaDashboard> = {}): WoredaDashboard {
       overdue_actions: 418,
       median_days_to_confirm: 9,
       outcomes_verified: 14,
+      outcomes_recorded: 21,
       over_ceiling: 4,
       caseload_ceiling: 120,
     },

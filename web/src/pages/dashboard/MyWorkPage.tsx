@@ -119,7 +119,12 @@ export default function MyWorkPage() {
           value={data.week.opened}
           meta={t("cm.weekMeta", { opened: data.week.opened, closed: data.week.closed })}
         />
-        <Tile label={t("cm.verified")} value={data.outcomes_verified} meta={t("cm.verifiedMeta")} tone="good" />
+        <Tile
+          label={t("cm.verified")}
+          value={data.outcomes_verified.verified}
+          meta={t("cm.verifiedMeta", { recorded: data.outcomes_verified.recorded })}
+          tone="good"
+        />
       </div>
 
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>

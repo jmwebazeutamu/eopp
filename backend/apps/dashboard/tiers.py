@@ -32,7 +32,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.alerts.models import Alert, AlertStatus
 from apps.cases.models import CaseStatus
-from apps.referrals.models import ConfirmationStatus, ReferralStatus, VerificationSource
+from apps.referrals.models import ConfirmationStatus, ReferralStatus
 from apps.referrals.taxonomy import OutcomeType, ReferralCategory
 from apps.youth.models import DisabilityStatus, PsnpStatus, SettlementType, Sex
 
@@ -195,11 +195,13 @@ def woreda_supervisor(youth, cases, referrals):
             "registered_without_case": youth.filter(case__isnull=True).count(),
             "overdue_actions": sum(row["overdue"] for row in team),
             "median_days_to_confirm": median(medians),
-            "outcomes_verified": referrals.filter(
-                status=ReferralStatus.COMPLETED,
-                outcome_verified_by__isnull=False,
-                outcome_date__gte=today.replace(day=1),
-            ).count(),
+            # Externally verified, not merely recorded — the tile read 50 where
+            # only 34 had anyone but the youth behind them. Both are carried so
+            # the card can show what it is a subset of.
+            "outcomes_verified": referrals.externally_verified().filter(outcome_date__gte=today.replace(day=1)).count(),
+            "outcomes_recorded": referrals.with_recorded_outcome()
+            .filter(outcome_date__gte=today.replace(day=1))
+            .count(),
             "over_ceiling": sum(1 for row in team if row["over_ceiling"]),
             "caseload_ceiling": settings.CASELOAD_CEILING,
         },
@@ -531,13 +533,15 @@ def results_framework(youth, referrals, today, confirmation_threshold, maturatio
 
     closed = referrals.filter(status__in=[ReferralStatus.COMPLETED, ReferralStatus.FAILED])
     mature_closed = closed.filter(initiated_date__lte=today - timedelta(days=maturation_days))
-    # §8.3: report the externally-verified subset as the headline. Until OQ-2's
-    # column is populated this falls back to "a verifier was named", which is
-    # weaker — a self-reported outcome someone signed off is still self-reported.
-    verified = mature_closed.filter(status=ReferralStatus.COMPLETED, outcome_verified_by__isnull=False)
-    externally_verified = verified.exclude(verification_source="").exclude(
-        verification_source=VerificationSource.SELF_REPORTED
-    )
+    # Recorded is not verified, and the card used to conflate them: it tested
+    # `outcome_verified_by IS NOT NULL`, which only says a staff member signed
+    # the record off. 59 self-reported outcomes were inside that number, so the
+    # rate read 50% where the externally-verified figure was 32%.
+    #
+    # Both are reported, and the verified one is primary — which is what the
+    # page's own caveat has always said to do.
+    recorded = mature_closed.with_recorded_outcome()
+    externally_verified = mature_closed.externally_verified()
 
     return [
         {
@@ -590,10 +594,17 @@ def results_framework(youth, referrals, today, confirmation_threshold, maturatio
             "framework": INDICATORS[4]["framework"],
             "kind": "rate",
             "value": None,
-            "rate": rate(verified.count(), mature_closed.count()),
+            # The primary figure is the verified one.
+            "rate": rate(externally_verified.count(), mature_closed.count()),
             "available": True,
-            "reason": str(_("Outcome recorded and verified, over mature closed referrals.")),
-            "externally_verified": rate(externally_verified.count(), mature_closed.count()),
+            "reason": str(
+                _(
+                    "Outcome verified by someone other than the youth, over mature closed referrals. "
+                    "The recorded rate beside it counts every outcome, verified or not."
+                )
+            ),
+            "recorded": rate(recorded.count(), mature_closed.count()),
+            "unit": str(_("referrals")),
         },
     ]
 

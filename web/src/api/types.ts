@@ -620,7 +620,8 @@ export interface MyWork {
   uninstrumented_risk: string[];
   caseload_by_status: { status: string; label: string; n: number; oldest_days: number; slug: string }[];
   week: { opened: number; closed: number };
-  outcomes_verified: number;
+  /** Verified is a subset of recorded. Showing one without the other overstated it. */
+  outcomes_verified: { verified: number; recorded: number };
 }
 
 export interface TeamRow {
@@ -664,6 +665,7 @@ export interface WoredaDashboard {
     overdue_actions: number;
     median_days_to_confirm: number | null;
     outcomes_verified: number;
+    outcomes_recorded: number;
     over_ceiling: number;
     caseload_ceiling: number;
   };
@@ -718,7 +720,11 @@ export interface Indicator {
   framework: string;
   kind: "count" | "rate";
   value: number | null;
+  /** The primary figure. For loop closure this is the *verified* rate. */
   rate: Rate | null;
+  /** Every outcome, verified or not. Shown beside the primary, never instead of it. */
+  recorded?: Rate | null;
+  unit?: string;
   available: boolean;
   reason: string;
 }

@@ -46,7 +46,7 @@ function payload(overrides: Partial<MyWork> = {}): MyWork {
       { status: "STALLED", label: "Stalled", n: 14, oldest_days: 62, slug: "stalled" },
     ],
     week: { opened: 6, closed: 3 },
-    outcomes_verified: 14,
+    outcomes_verified: { verified: 14, recorded: 21 },
     woredas: ["Adama", "Bishoftu"],
     generated_at: new Date().toISOString(),
     ...overrides,
@@ -132,6 +132,17 @@ describe("MyWorkPage", () => {
   it("says nothing is overdue only when nothing actually is", async () => {
     renderPage(payload({ needs_action: [], needs_action_count: 0, open_alerts_in_scope: 0 }));
     expect(await screen.findByText("Nothing is overdue.")).toBeInTheDocument();
+  });
+
+  it("does not present recorded outcomes as verified ones", async () => {
+    // 3.2. The tile counted every recorded outcome under a "verified" label —
+    // 50 where only 34 had anyone but the youth behind them.
+    renderPage();
+    // The subtext is what makes the tile honest: 14 is a subset of 21, and the
+    // tile used to show the 21 under a "verified" label.
+    const subtext = await screen.findByText("of 21 recorded, this month");
+    expect(subtext).toBeInTheDocument();
+    expect(subtext.closest("div")?.parentElement?.textContent).toContain("14");
   });
 
   it("keeps the caseload table in workflow order", async () => {
