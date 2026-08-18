@@ -52,7 +52,10 @@ export default function UserDetailModal({ user, onClose, onEdit }: Props) {
 
       <div className="grid-pairs">
         <Field label={t("users.username")}>{user.username}</Field>
-        <Field label={t("partners.email")}>{user.email || t("common.none")}</Field>
+        <Field label={t("profile.workEmail")}>{user.work_email || t("common.none")}</Field>
+        <Field label={t("profile.personalEmail")}>{user.personal_email || t("common.none")}</Field>
+        <Field label={t("profile.workPhone")}>{user.work_phone || t("common.none")}</Field>
+        <Field label={t("profile.personalPhone")}>{user.personal_phone || t("common.none")}</Field>
         {user.role === "CASE_MANAGER" && (
           // §11 sets a caseload ceiling of 50; an administrator reassigning work
           // needs the current load in front of them.

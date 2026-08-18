@@ -14,7 +14,10 @@ export function testUser(role: Role = "SYSTEM_ADMIN", overrides: Partial<Current
   return {
     id: "test-user",
     username: role.toLowerCase(),
-    email: "",
+    work_email: "",
+    personal_email: "",
+    work_phone: "",
+    personal_phone: "",
     full_name: "Test User",
     role,
     role_display: role,

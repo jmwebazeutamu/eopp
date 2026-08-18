@@ -154,8 +154,16 @@ class UserManager(BaseUserManager):
         if not username:
             raise ValueError("Users require a username.")
         extra_fields.setdefault("account_status", AccountStatus.ACTIVE)
-        email = extra_fields.pop("email", "")
-        user = self.model(username=username, email=self.normalize_email(email) if email else "", **extra_fields)
+        # `email` is still accepted as an alias for `work_email`: createsuperuser
+        # and any caller written before the rename passes it, and silently
+        # dropping an address is worse than accepting it under its old name.
+        for field in ("work_email", "personal_email"):
+            if extra_fields.get(field):
+                extra_fields[field] = self.normalize_email(extra_fields[field])
+        alias = extra_fields.pop("email", "")
+        if alias and not extra_fields.get("work_email"):
+            extra_fields["work_email"] = self.normalize_email(alias)
+        user = self.model(username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -179,7 +187,19 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
     # Username rather than email: woreda-level field staff often have no work
     # email address, and the spec's contact fields sit on Partner, not User.
     username = models.CharField(_("username"), max_length=150, unique=True)
-    email = models.EmailField(_("email address"), blank=True)
+    # Four contact points: work and personal, for each of email and phone.
+    #
+    # `work_email` is the renamed `email`. Nothing depended on it —
+    # USERNAME_FIELD is `username`, it is not in REQUIRED_FIELDS, and no code
+    # read it — so the rename is a label change with the data carried across,
+    # and it avoids the asymmetry of `email` sitting beside `personal_email`.
+    #
+    # Whichever address a password reset would use has to be decided before one
+    # is built; today nothing sends mail. See PROFILE-1 in the UI backlog.
+    work_email = models.EmailField(_("work email"), blank=True)
+    personal_email = models.EmailField(_("personal email"), blank=True)
+    work_phone = models.CharField(_("work phone"), max_length=32, blank=True)
+    personal_phone = models.CharField(_("personal phone"), max_length=32, blank=True)
 
     full_name = models.CharField(_("full name"), max_length=255)
     role = models.CharField(_("role"), max_length=32, choices=Role.choices, db_index=True)

@@ -31,7 +31,7 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
 
   if (!user) return null;
 
-  async function saveDetails(values: { full_name: string; email?: string }) {
+  async function saveDetails(values: Record<string, string | undefined>) {
     setSavingDetails(true);
     try {
       const response = await api.patch<CurrentUser>("/users/me/", values);
@@ -72,7 +72,13 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
         form={detailsForm}
         layout="vertical"
         requiredMark={false}
-        initialValues={{ full_name: user.full_name, email: user.email }}
+        initialValues={{
+          full_name: user.full_name,
+          work_email: user.work_email,
+          personal_email: user.personal_email,
+          work_phone: user.work_phone,
+          personal_phone: user.personal_phone,
+        }}
         onFinish={saveDetails}
       >
         <Form.Item
@@ -82,14 +88,33 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
         >
           <Input size="large" autoComplete="name" />
         </Form.Item>
-        <Form.Item
-          name="email"
-          label={t("profile.email")}
-          extra={t("profile.emailWhy")}
-          rules={[{ type: "email", message: t("profile.emailInvalid") }]}
-        >
-          <Input size="large" autoComplete="email" inputMode="email" />
-        </Form.Item>
+        <div className="grid-pairs">
+          <Form.Item
+            name="work_email"
+            label={t("profile.workEmail")}
+            rules={[{ type: "email", message: t("profile.emailInvalid") }]}
+          >
+            <Input size="large" autoComplete="email" inputMode="email" />
+          </Form.Item>
+          <Form.Item
+            name="personal_email"
+            label={t("profile.personalEmail")}
+            rules={[{ type: "email", message: t("profile.emailInvalid") }]}
+          >
+            <Input size="large" autoComplete="email" inputMode="email" />
+          </Form.Item>
+          <Form.Item name="work_phone" label={t("profile.workPhone")}>
+            <Input size="large" autoComplete="tel" inputMode="tel" />
+          </Form.Item>
+          <Form.Item name="personal_phone" label={t("profile.personalPhone")}>
+            <Input size="large" autoComplete="tel" inputMode="tel" />
+          </Form.Item>
+        </div>
+        {/* Every one of these is optional. Field staff are not required to hand
+            over a personal number to use the system. */}
+        <div className="t-meta" style={{ marginTop: -4, marginBottom: 12 }}>
+          {t("profile.contactWhy")}
+        </div>
         <button type="submit" className="btn btn--primary" disabled={savingDetails}>
           {t(savingDetails ? "common.saving" : "profile.saveDetails")}
         </button>

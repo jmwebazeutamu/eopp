@@ -31,7 +31,10 @@ export interface AccessMatrix {
 export interface CurrentUser {
   id: string;
   username: string;
-  email: string;
+  work_email: string;
+  personal_email: string;
+  work_phone: string;
+  personal_phone: string;
   full_name: string;
   role: Role;
   role_display: string;
@@ -195,7 +198,10 @@ export interface PathwayAssignment {
 export interface ManagedUser {
   id: string;
   username: string;
-  email: string;
+  work_email: string;
+  personal_email: string;
+  work_phone: string;
+  personal_phone: string;
   full_name: string;
   role: Role;
   role_display: string;

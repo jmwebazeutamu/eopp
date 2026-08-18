@@ -1,6 +1,7 @@
 """Serializers for User (spec §4.12)."""
 
 from django.contrib.auth.password_validation import validate_password
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -24,7 +25,10 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "username",
-            "email",
+            "work_email",
+            "personal_email",
+            "work_phone",
+            "personal_phone",
             "full_name",
             "role",
             "role_display",
@@ -100,7 +104,10 @@ class CurrentUserSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "username",
-            "email",
+            "work_email",
+            "personal_email",
+            "work_phone",
+            "personal_phone",
             "full_name",
             "role",
             "role_display",
@@ -196,25 +203,45 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["full_name", "email"]
+        fields = ["full_name", "work_email", "personal_email", "work_phone", "personal_phone"]
 
-    def validate_email(self, value):
-        """Normalised, and not already claimed by another account.
+    def validate_work_email(self, value):
+        return self._unique_email(value)
 
-        The column carries no unique constraint, so two accounts can hold one
-        address. That is tolerable while sign-in is by username, and would stop
+    def validate_personal_email(self, value):
+        return self._unique_email(value)
+
+    def _unique_email(self, value):
+        """Normalised, and not already claimed by any account in either slot.
+
+        Neither column carries a unique constraint, so two accounts can hold
+        one address. That is tolerable while sign-in is by username and stops
         being tolerable the moment a password reset is sent to an address — so
         it is refused here rather than discovered then.
+
+        Both columns are checked, not just the matching one: an address is one
+        address, and "someone else has it as their personal" is the same
+        collision as "someone else has it as their work".
         """
         if not value:
             return value
         value = User.objects.normalize_email(value).strip()
-        clash = User.objects.filter(email__iexact=value)
+        clash = User.objects.filter(Q(work_email__iexact=value) | Q(personal_email__iexact=value))
         if self.instance is not None:
             clash = clash.exclude(pk=self.instance.pk)
         if clash.exists():
             raise serializers.ValidationError(_("Another account already uses this email address."))
         return value
+
+    def validate(self, attrs):
+        """The two addresses on one account must also differ from each other."""
+        work = (attrs.get("work_email") or getattr(self.instance, "work_email", "")).lower()
+        personal = (attrs.get("personal_email") or getattr(self.instance, "personal_email", "")).lower()
+        if work and work == personal:
+            raise serializers.ValidationError(
+                {"personal_email": _("Use a different address from your work email, or leave it blank.")}
+            )
+        return attrs
 
     def validate_full_name(self, value):
         value = (value or "").strip()

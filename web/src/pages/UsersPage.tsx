@@ -228,8 +228,17 @@ export default function UsersPage() {
           <Form.Item name="username" label="Username" rules={[{ required: true }]}>
             <Input disabled={!!editing} />
           </Form.Item>
-          <Form.Item name="email" label="Email">
-            <Input type="email" />
+          <Form.Item name="work_email" label={t("profile.workEmail")}>
+            <Input type="email" autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="personal_email" label={t("profile.personalEmail")}>
+            <Input type="email" autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="work_phone" label={t("profile.workPhone")}>
+            <Input inputMode="tel" autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="personal_phone" label={t("profile.personalPhone")}>
+            <Input inputMode="tel" autoComplete="off" />
           </Form.Item>
           <Form.Item name="role" label="Role" rules={[{ required: true }]}>
             <Select options={ROLE_OPTIONS} />

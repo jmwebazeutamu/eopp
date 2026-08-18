@@ -16,7 +16,10 @@ function userWith(role: Role, access: Partial<AccessMatrix>): CurrentUser {
   return {
     id: "u1",
     username: role.toLowerCase(),
-    email: "",
+    work_email: "",
+    personal_email: "",
+    work_phone: "",
+    personal_phone: "",
     full_name: "Test User",
     role,
     role_display: role,

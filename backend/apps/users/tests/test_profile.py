@@ -26,15 +26,26 @@ def person(db):
 # ---------------------------------------------------------------------------
 
 
-def test_a_user_can_change_their_own_name_and_email(person, as_user):
+def test_a_user_can_change_their_own_name_and_contacts(person, as_user):
     response = as_user(person).patch(
-        "/api/v1/users/me/", {"full_name": "Almaz Tesfaye", "email": "Almaz@Example.COM"}, format="json"
+        "/api/v1/users/me/",
+        {
+            "full_name": "Almaz Tesfaye",
+            "work_email": "Almaz@Example.COM",
+            "personal_email": "almaz.home@example.com",
+            "work_phone": "+251911000111",
+            "personal_phone": "+251911000222",
+        },
+        format="json",
     )
     assert response.status_code == 200
     person.refresh_from_db()
     assert person.full_name == "Almaz Tesfaye"
     # Normalised: the domain is lowercased, so two spellings cannot both be held.
-    assert person.email == "Almaz@example.com"
+    assert person.work_email == "Almaz@example.com"
+    assert person.personal_email == "almaz.home@example.com"
+    assert person.work_phone == "+251911000111"
+    assert person.personal_phone == "+251911000222"
     # The response is the full /me/ shape, so one round trip refreshes the client.
     assert response.data["full_name"] == "Almaz Tesfaye"
     assert "access" in response.data
@@ -51,17 +62,42 @@ def test_a_blank_name_is_refused(person, as_user):
     assert "full_name" in response.data
 
 
-def test_an_email_another_account_holds_is_refused(person, as_user):
-    User.objects.create_user("other", PASSWORD, full_name="Other", role=Role.CASE_MANAGER, email="taken@example.com")
-    response = as_user(person).patch("/api/v1/users/me/", {"email": "TAKEN@example.com"}, format="json")
+@pytest.mark.parametrize("held_as", ["work_email", "personal_email"])
+@pytest.mark.parametrize("claimed_as", ["work_email", "personal_email"])
+def test_an_email_another_account_holds_is_refused(person, as_user, held_as, claimed_as):
+    """An address is one address, whichever slot either side keeps it in."""
+    User.objects.create_user(
+        "other", PASSWORD, full_name="Other", role=Role.CASE_MANAGER, **{held_as: "taken@example.com"}
+    )
+    response = as_user(person).patch("/api/v1/users/me/", {claimed_as: "TAKEN@example.com"}, format="json")
     assert response.status_code == 400
-    assert "email" in response.data
+    assert claimed_as in response.data
+
+
+def test_the_two_addresses_on_one_account_must_differ(person, as_user):
+    response = as_user(person).patch(
+        "/api/v1/users/me/",
+        {"work_email": "same@example.com", "personal_email": "same@example.com"},
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "personal_email" in response.data
+
+
+def test_a_personal_number_is_optional(person, as_user):
+    """Field staff are not required to hand over a personal number to use the
+    system; every contact point is blank by default and may stay blank."""
+    assert as_user(person).patch("/api/v1/users/me/", {"work_phone": "+251911000111"}, format="json").status_code == 200
+    person.refresh_from_db()
+    assert person.personal_phone == ""
 
 
 def test_keeping_your_own_email_is_not_a_clash_with_yourself(person, as_user):
-    person.email = "mine@example.com"
-    person.save(update_fields=["email"])
-    assert as_user(person).patch("/api/v1/users/me/", {"email": "mine@example.com"}, format="json").status_code == 200
+    person.work_email = "mine@example.com"
+    person.save(update_fields=["work_email"])
+    assert (
+        as_user(person).patch("/api/v1/users/me/", {"work_email": "mine@example.com"}, format="json").status_code == 200
+    )
 
 
 # ---------------------------------------------------------------------------

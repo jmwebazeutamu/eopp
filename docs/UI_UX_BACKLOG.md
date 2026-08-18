@@ -205,6 +205,14 @@ Recorded so they are not re-opened.
   adopted: the results handoff's 26px title, against the 22px the partners
   handoff set and which was confirmed.
 
+## 6. Profile and account
+
+| ID | Sev | Status | V | Finding | Where |
+|---|---|---|---|---|---|
+| PROFILE-1 | P2 | **open** | ✔ | **A password change does not sign other devices out.** simplejwt runs without the blacklist app, so refresh tokens already issued stay valid for their full 14-day window. The success message says so rather than implying otherwise. Closing it needs the blacklist app, or a `password_changed_at` stamp checked during authentication — an auth change, not a profile one. | `config/settings/base.py` |
+| PROFILE-2 | P3 | **open** | ✔ | Neither email column carries a unique constraint; uniqueness is enforced in the serializer across both. That holds for anything going through the API and not for the admin or a shell. It becomes load-bearing the moment mail is sent to an address — decide the constraint before then. | `apps/users/models.py` |
+| PROFILE-3 | P3 | **open** | ○ | Nothing decides *which* address a reset would use when both are set. No mail is sent today, so it is a question rather than a defect. | — |
+
 ## Known limits of this review
 
 - Only **Chromium** was available. No Firefox, Safari or a real Android device.

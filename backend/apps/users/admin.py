@@ -15,14 +15,15 @@ from .models import User
 class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
     list_display = ["username", "full_name", "role", "partner", "account_status", "last_login"]
     list_filter = ["role", "account_status", "is_staff"]
-    search_fields = ["username", "full_name", "email"]
+    search_fields = ["username", "full_name", "work_email", "personal_email"]
     ordering = ["full_name"]
     list_select_related = ["partner"]
     autocomplete_fields = ["partner"]
 
     fieldsets = (
         (None, {"fields": ("username", "password")}),
-        ("Identity", {"fields": ("full_name", "email")}),
+        ("Identity", {"fields": ("full_name",)}),
+        ("Contact", {"fields": ("work_email", "personal_email", "work_phone", "personal_phone")}),
         ("Role and scope", {"fields": ("role", "woreda_assignment", "partner", "account_status")}),
         ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         ("Dates", {"fields": ("last_login", "date_joined")}),
