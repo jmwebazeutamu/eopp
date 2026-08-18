@@ -5,8 +5,11 @@ import { Navigate, useNavigate } from "react-router-dom";
 
 import { errorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import LanguageSwitch from "../components/shell/LanguageSwitch";
+import { useLang } from "../i18n/LanguageContext";
 
 export default function LoginPage() {
+  const { t } = useLang();
   const { user, login } = useAuth();
   const { message } = App.useApp();
   const navigate = useNavigate();
@@ -40,21 +43,27 @@ export default function LoginPage() {
     >
       <Card style={{ width: "100%", maxWidth: 400 }}>
         <Typography.Title level={4} style={{ marginBottom: 4 }}>
-          PSNP Youth Employment and Referral Platform
+          {t("app.name")}
         </Typography.Title>
-        <Typography.Paragraph type="secondary">Case management and referral</Typography.Paragraph>
+        <Typography.Paragraph type="secondary">{t("login.subtitle")}</Typography.Paragraph>
 
         <Form layout="vertical" onFinish={onFinish} requiredMark={false} autoComplete="on">
-          <Form.Item name="username" label="Username" rules={[{ required: true, message: "Enter your username" }]}>
+          <Form.Item name="username" label={t("login.username")} rules={[{ required: true, message: t("login.usernameRequired") }]}>
             <Input prefix={<UserOutlined />} autoComplete="username" size="large" />
           </Form.Item>
-          <Form.Item name="password" label="Password" rules={[{ required: true, message: "Enter your password" }]}>
+          <Form.Item name="password" label={t("login.password")} rules={[{ required: true, message: t("login.passwordRequired") }]}>
             <Input.Password prefix={<LockOutlined />} autoComplete="current-password" size="large" />
           </Form.Item>
           <Button type="primary" htmlType="submit" block size="large" loading={submitting}>
-            Sign in
+            {t("login.submit")}
           </Button>
         </Form>
+
+        {/* The switch stays on this screen: a first-time user needs to choose a
+            language before they have an account menu to find it in. */}
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+          <LanguageSwitch />
+        </div>
       </Card>
     </div>
   );

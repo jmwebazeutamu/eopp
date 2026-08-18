@@ -4,9 +4,10 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { AlertSummary } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import { LANGUAGES, useLang } from "../i18n/LanguageContext";
+import { useLang } from "../i18n/LanguageContext";
 import { Icon } from "./ui";
 import Sidebar from "./shell/Sidebar";
+import UserMenu from "./shell/UserMenu";
 import { buildNav, isActivePath } from "./shell/navModel";
 import { usePreference } from "./shell/preferences";
 
@@ -39,7 +40,7 @@ function useIsPhone() {
 
 export default function AppLayout() {
   const { user, loading, logout } = useAuth();
-  const { lang, setLang, t } = useLang();
+  const { t } = useLang();
   const navigate = useNavigate();
   const location = useLocation();
   const isPhone = useIsPhone();
@@ -102,30 +103,6 @@ export default function AppLayout() {
           {t("shell.woreda")}: {user.woreda_assignment?.join(", ") || "—"}
         </span>
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-          {LANGUAGES.map((entry) => (
-            <button
-              key={entry.code}
-              type="button"
-              onClick={() => setLang(entry.code)}
-              aria-pressed={lang === entry.code}
-              style={{
-                minHeight: 32,
-                padding: "0 12px",
-                borderRadius: "var(--r-button)",
-                border: "1px solid rgba(255,255,255,.25)",
-                background: lang === entry.code ? "var(--surface)" : "transparent",
-                color: lang === entry.code ? "var(--ink-900)" : "var(--on-dark-2)",
-                fontWeight: 600,
-                fontSize: 13,
-                fontFamily: "var(--font-body)",
-                cursor: "pointer",
-              }}
-            >
-              {entry.label}
-            </button>
-          ))}
-        </div>
       </header>
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
@@ -137,34 +114,8 @@ export default function AppLayout() {
             collapsed={railCollapsed}
             onToggleCollapse={() => setRailCollapsed(!railCollapsed)}
             footer={
-              <div style={{ paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.15)" }}>
-                {!railCollapsed && (
-                  <>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{user.full_name}</div>
-                    <div style={{ color: "var(--on-dark-2)", fontSize: 13 }}>{user.role_display}</div>
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={logout}
-                  title={t("nav.signOut")}
-                  aria-label={t("nav.signOut")}
-                  style={{
-                    marginTop: 8,
-                    minHeight: 36,
-                    width: "100%",
-                    borderRadius: "var(--r-button)",
-                    border: "1px solid rgba(255,255,255,.25)",
-                    background: "transparent",
-                    color: "var(--on-dark-2)",
-                    font: "inherit",
-                    fontSize: 13,
-                    fontFamily: "var(--font-body)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {railCollapsed ? "\u23fb" : t("nav.signOut")}
-                </button>
+              <div style={{ paddingTop: 10, borderTop: "1px solid rgba(255,255,255,.15)" }}>
+                <UserMenu user={user} collapsed={railCollapsed} onSignOut={logout} />
               </div>
             }
           />

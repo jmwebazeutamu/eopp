@@ -39,6 +39,15 @@ export const STRINGS = {
   "nav.users": "Users",
   "nav.signOut": "Sign out",
   "shell.woreda": "Woreda",
+  "shell.account": "Account",
+  "login.subtitle": "Case management and referral",
+  "login.username": "Username",
+  "login.password": "Password",
+  "login.usernameRequired": "Enter your username",
+  "login.passwordRequired": "Enter your password",
+  "login.submit": "Sign in",
+  "shell.language": "Language",
+  "shell.allWoredas": "All woredas",
   "shell.caseload": "{count} cases",
 
   // Dashboard tiers

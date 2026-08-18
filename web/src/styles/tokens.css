@@ -78,7 +78,9 @@
   --overlay: 0 8px 24px rgba(26, 25, 21, 0.28);
 
   /* -- Layout ----------------------------------------------------------- */
-  --rail-width: 236px;
+  /* The rail has two widths; Sidebar.tsx owns them (RAIL_EXPANDED /
+     RAIL_COLLAPSED). Kept for anything still reading the old single value. */
+  --rail-width: 240px;
   --tabbar-height: 56px;
   --touch: 48px; /* minimum touch target, low-end Android */
 
