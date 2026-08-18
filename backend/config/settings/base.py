@@ -1,5 +1,5 @@
 """
-Shared settings for the Youth Employment Case Management and Referral Platform.
+Shared settings for the Economic Opportunities Pathway Platform (EEPP).
 
 Spec: docs/YOUTH_EMPLOYMENT_PLATFORM_DEV_SPEC.md
 Environment-specific overrides live in development.py and production.py.
@@ -180,7 +180,7 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Youth Employment Case Management and Referral Platform API",
+    "TITLE": "Economic Opportunities Pathway Platform API",
     "DESCRIPTION": (
         "Case management and referral engine for the Ethiopia youth employment "
         "pilot. See docs/YOUTH_EMPLOYMENT_PLATFORM_DEV_SPEC.md."

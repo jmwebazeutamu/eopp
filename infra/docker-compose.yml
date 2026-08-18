@@ -1,4 +1,4 @@
-# Youth Employment Platform — base stack (spec §2).
+# EEPP — base stack (spec §2).
 #
 # This file describes the deployed shape: Traefik in front, Django + Celery,
 # Postgres, Redis, MinIO. It carries NO development defaults. Every secret uses

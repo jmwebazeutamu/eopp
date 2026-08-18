@@ -1,4 +1,4 @@
-# Youth Employment Case Management and Referral Platform
+# Economic Opportunities Pathway Platform (EEPP)
 
 Case management and referral engine for the World Bank Ethiopia youth employment
 pilot. Django + DRF backend, React web client, Flutter field app.

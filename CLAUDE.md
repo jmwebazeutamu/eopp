@@ -1,4 +1,4 @@
-# Youth Employment Case Management and Referral Platform
+# Economic Opportunities Pathway Platform (EEPP)
 
 Guidance for Claude Code working in this repository.
 

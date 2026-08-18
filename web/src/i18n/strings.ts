@@ -15,7 +15,7 @@
 
 export const STRINGS = {
   // Shell
-  "app.name": "PSNP Youth Employment and Referral Platform",
+  "app.name": "Economic Opportunities Pathway Platform",
   "app.subtitle": "Case Management",
   "nav.dashboard": "Dashboard",
   "tier.unavailableTitle": "Dashboard",
@@ -54,7 +54,7 @@ export const STRINGS = {
   "shell.language": "Language",
   "shell.allWoredas": "All woredas",
   "shell.scope": "Woreda scope",
-  "shell.appMark": "PSNP Youth",
+  "shell.appMark": "EEPP",
   "common.close": "Close",
   "search.label": "Search records",
   "filters.label": "Filter the list",

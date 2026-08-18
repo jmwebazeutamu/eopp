@@ -10,6 +10,13 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
+# The admin is a working surface, not a debug tool: §9 puts the referral
+# taxonomy under the system administrator, who edits it here. Unbranded it
+# still read "Django administration".
+admin.site.site_header = "Economic Opportunities Pathway Platform"
+admin.site.site_title = "EEPP"
+admin.site.index_title = "Administration"
+
 api_v1_patterns = [
     path("users/", include("apps.users.urls")),
     path("locations/", include("apps.locations.urls")),
