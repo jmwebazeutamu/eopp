@@ -51,9 +51,7 @@ class TestOneDefinition:
         )
         assert Referral.objects.placements().count() == 0
 
-    def test_youth_is_the_unit_for_a_youth_placed_twice(
-        self, locations, taxonomy, case_manager, make_case, place
-    ):
+    def test_youth_is_the_unit_for_a_youth_placed_twice(self, locations, taxonomy, case_manager, make_case, place):
         """Two placements for one young person is one person in work."""
         case = make_case(case_manager, name="Placed Twice")
         place(case)
@@ -64,9 +62,7 @@ class TestOneDefinition:
 
 
 class TestStatusFollowsTheOutcome:
-    def test_recording_a_placement_moves_the_case_to_placed(
-        self, locations, taxonomy, case_manager, make_case, place
-    ):
+    def test_recording_a_placement_moves_the_case_to_placed(self, locations, taxonomy, case_manager, make_case, place):
         case = make_case(case_manager, name="Gets A Job")
         assert case.case_status == CaseStatus.ACTIVE
 

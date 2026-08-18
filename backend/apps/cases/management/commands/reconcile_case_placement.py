@@ -49,7 +49,9 @@ class Command(BaseCommand):
         self.stdout.write("")
         self.stdout.write(f"  placement outcomes recorded      {Referral.objects.placements().count()}")
         self.stdout.write(f"  distinct cases with one          {len(placed_case_ids)}")
-        self.stdout.write(f"  cases marked PLACED              {Case.objects.filter(case_status=CaseStatus.PLACED).count()}")
+        self.stdout.write(
+            f"  cases marked PLACED              {Case.objects.filter(case_status=CaseStatus.PLACED).count()}"
+        )
         self.stdout.write("")
         self.stdout.write(f"  to promote (outcome, not PLACED) {to_promote.count()}")
         for case in to_promote.select_related("youth")[:10]:

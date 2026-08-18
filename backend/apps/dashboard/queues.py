@@ -27,6 +27,7 @@ from apps.alerts.models import Alert, AlertStatus, AlertType
 from apps.cases.models import CaseStatus
 from apps.referrals.models import ConfirmationStatus, ReferralStatus
 
+from .rules import confirmation_threshold_days
 from .scoping import scoped_cases, scoped_referrals
 
 # Workflow order, not size order. A status distribution sorted by count becomes
@@ -231,7 +232,11 @@ def awaiting_over_threshold(user):
     CM-2's tile subtitle. Computed from the configured threshold rather than
     written into the string, so moving the setting moves the number with it.
     """
-    return awaiting_partner(user).filter(days_waiting__gte=settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS).count()
+    # `gt`, not `gte`: a wait of exactly the threshold has met the standard.
+    # See rules.is_overdue_for_confirmation for the boundary rule. This used
+    # `gte`, so it reported one more referral than the alert engine did over the
+    # same set.
+    return awaiting_partner(user).filter(days_waiting__gt=confirmation_threshold_days()).count()
 
 
 # ---------------------------------------------------------------------------

@@ -146,10 +146,7 @@ def metric_cards(youth, referrals, today):
 
     placed = _placements(referrals)
     this_quarter = (
-        placed.filter(outcome_date__gte=start, outcome_date__lt=end)
-        .values("case__youth_id")
-        .distinct()
-        .count()
+        placed.filter(outcome_date__gte=start, outcome_date__lt=end).values("case__youth_id").distinct().count()
     )
     target = settings.PLACEMENT_TARGET_PER_QUARTER
 

@@ -516,14 +516,16 @@ def disaggregation(youth, referrals, today):
 
 def results_framework(youth, referrals, today, confirmation_threshold, maturation_days=30):
     """ME-1 — the indicator table, each with its numerator and denominator."""
-    placements = referrals.placements()
     placed_youth = len(referrals.placed_youth_ids())
 
     # Only referrals old enough to have been decided count in a timeliness rate.
     mature = referrals.filter(initiated_date__lte=today - timedelta(days=maturation_days))
     confirmed_in_time = (
-        mature.filter(confirmed_date__isnull=False, confirmation_status=ConfirmationStatus.CONFIRMED)
-        .annotate(lag=ExpressionWrapper(F("confirmed_date") - F("initiated_date"), output_field=DurationField()))
+        mature.filter(confirmed_date__isnull=False, confirmation_status=ConfirmationStatus.CONFIRMED).annotate(
+            lag=ExpressionWrapper(F("confirmed_date") - F("initiated_date"), output_field=DurationField())
+        )
+        # `lte`: a partner who answers on the threshold day has met the
+        # standard. Same rule the tiles and the alert engine now use.
         .filter(lag__lte=timedelta(days=confirmation_threshold))
     )
 

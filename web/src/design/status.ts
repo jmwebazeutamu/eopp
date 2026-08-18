@@ -118,14 +118,20 @@ export const WAIT_TONE: Record<WaitLevel, { fg: string; bg: string }> = {
 };
 
 /**
- * §11 sets the confirmation-overdue threshold at 7 days, a placeholder pending
- * sign-off. Warn at two-thirds of it so a case manager sees a referral going
- * quiet before it is formally late.
+ * How a wait reads against the confirmation threshold.
+ *
+ * `threshold` is required and comes from the server. It used to default to a
+ * literal 7, which meant a component that failed to pass one silently scored
+ * against a value the programme had already moved off — the client-side half of
+ * the two-thresholds defect.
+ *
+ * The boundary matches `rules.is_overdue_for_confirmation` on the server:
+ * **strictly greater** than the threshold is over it. A partner who answers on
+ * the threshold day has met a standard stated as "within N days". Warn at
+ * two-thirds, so a case manager sees a referral going quiet before it is late.
  */
-export const CONFIRMATION_OVERDUE_DAYS = 7;
-
-export function waitLevel(days: number, threshold = CONFIRMATION_OVERDUE_DAYS): WaitLevel {
-  if (days >= threshold) return "over";
+export function waitLevel(days: number, threshold: number): WaitLevel {
+  if (days > threshold) return "over";
   if (days >= Math.ceil((threshold * 2) / 3)) return "warn";
   return "ok";
 }
@@ -140,12 +146,20 @@ export const ALERT_TONE: Record<string, { fg: string; bg: string }> = {
   RETENTION_CHECK_DUE: { fg: "var(--gold-700)", bg: "var(--gold-100)" },
 };
 
-/** The one-line reason under each alert counter — why this alert exists. */
+/**
+ * The one-line reason under each alert counter — why this alert exists.
+ *
+ * Deliberately free of day counts. These used to state "past 7 days" and
+ * "6 months since placement", both of which went stale the moment the
+ * thresholds moved, and a caption that contradicts the number beside it is
+ * worse than no caption. Each alert carries its own `threshold_days`, recorded
+ * when it was raised, and that is what the row renders.
+ */
 export const ALERT_REASON: Record<string, string> = {
-  STALL: "No activity for 30 days",
-  REFERRAL_CONFIRMATION_OVERDUE: "Partner silent past 7 days",
+  STALL: "No activity past the stall threshold",
+  REFERRAL_CONFIRMATION_OVERDUE: "Partner has not answered within the threshold",
   FOLLOW_UP_DUE: "Scheduled check-in reached",
   ONWARD_REFERRAL_PROMPT: "Referral completed, slot free",
   REPLACEMENT_REFERRAL_PROMPT: "Referral failed, youth unplaced",
-  RETENTION_CHECK_DUE: "6 months since placement",
+  RETENTION_CHECK_DUE: "Retention checkpoint reached",
 };

@@ -298,7 +298,10 @@ function ReferralCard({
   // Only a referral still waiting on the partner has a waiting time worth
   // showing; once it is active or closed the clock is no longer the story.
   const waiting = referral.status === "PENDING_CONFIRMATION" ? daysSince(referral.initiated_date) : null;
-  const level = waiting === null ? null : waitLevel(waiting, rules?.referral_confirmation_overdue_days);
+  // No client-side default: without the server's threshold there is no
+  // honest way to say whether a wait is late.
+  const overdueDays = rules?.referral_confirmation_overdue_days;
+  const level = waiting === null || overdueDays === undefined ? null : waitLevel(waiting, overdueDays);
 
   return (
     <div ref={cardRef}>

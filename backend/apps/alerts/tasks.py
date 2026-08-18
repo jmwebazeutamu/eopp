@@ -88,6 +88,10 @@ def detect_overdue_confirmations():
     what tells a case manager that code may now apply.
     """
     threshold = settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS
+    # Strictly beyond the threshold, matching rules.is_overdue_for_confirmation:
+    # a referral waiting exactly `threshold` days has not yet breached it. The
+    # dashboards and this engine disagreed on that boundary, so one referral
+    # could be overdue on one screen and on time on another.
     cutoff = date.today() - timedelta(days=threshold)
     created = 0
 

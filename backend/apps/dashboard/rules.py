@@ -88,6 +88,40 @@ def mean_days(value, observations):
     }
 
 
+# ---------------------------------------------------------------------------
+# The confirmation threshold — 2.1 and 2.2 of the consistency brief
+# ---------------------------------------------------------------------------
+#
+# THE BOUNDARY RULE, written down once so the three consumers cannot disagree:
+#
+#     A referral is OVERDUE when its wait is STRICTLY GREATER than the
+#     threshold. A wait of exactly `threshold` days is still within it.
+#
+# Chosen this way round because the threshold is stated to staff as "partners
+# answer within N days": a partner who answers on day N has met it. The
+# alternative made day 7 simultaneously within threshold on the Results
+# indicator (`<= 7`) and over it in the my-work API (`>= 7`), so one referral
+# was counted in both populations.
+
+
+def confirmation_threshold_days():
+    """The one value. Never hardcode a number beside this concept."""
+    from django.conf import settings
+
+    return settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS
+
+
+def is_within_confirmation_threshold(days_waited, threshold=None):
+    """True when a wait has met the standard. See the boundary rule above."""
+    threshold = confirmation_threshold_days() if threshold is None else threshold
+    return days_waited is not None and days_waited <= threshold
+
+
+def is_overdue_for_confirmation(days_waited, threshold=None):
+    """The exact complement, so the two can never drift apart."""
+    return days_waited is not None and not is_within_confirmation_threshold(days_waited, threshold)
+
+
 def quarter_elapsed_fraction(today, start, end):
     """How far through the quarter we are, as 0-1.
 

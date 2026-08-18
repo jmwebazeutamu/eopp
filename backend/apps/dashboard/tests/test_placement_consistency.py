@@ -11,7 +11,7 @@ import pytest
 
 from apps.dashboard.services import metric_cards, scoped_bases, woreda_comparison
 from apps.dashboard.tiers import cumulative_placements, disaggregation, results_framework
-from apps.referrals.models import Referral, ReferralStatus
+from apps.referrals.models import ReferralStatus
 
 pytestmark = pytest.mark.django_db
 
