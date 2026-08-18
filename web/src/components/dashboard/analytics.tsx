@@ -34,8 +34,10 @@ export function OutcomeMatrixPanel({ matrix }: { matrix: OutcomeMatrix }) {
         {t("pm.matrixWhy")}
       </div>
 
-      {/* Scrolls inside its own box; the page body never scrolls sideways. */}
-      <div style={{ overflowX: "auto" }}>
+      {/* Scrolls inside its own box; the page body never scrolls sideways.
+          `tabIndex` because a region that scrolls has to be reachable without a
+          mouse, or its overflow is readable only by trackpad. */}
+      <div style={{ overflowX: "auto" }} tabIndex={0} role="group" aria-label={t("pm.matrix")}>
         <table className="table" style={{ minWidth: 520 }}>
           <thead>
             <tr>
@@ -125,7 +127,7 @@ export function PartnerLeaguePanel({
         {t("pm.overall", { rate: performance.overall_rate.percent ?? "—" })} · {t("pm.unitReferrals")}
       </div>
 
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto" }} tabIndex={0} role="group" aria-label={t("pm.partners")}>
         <table className="table" style={{ minWidth: 520 }}>
           <thead>
             <tr>

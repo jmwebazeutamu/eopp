@@ -361,9 +361,11 @@ p {
 }
 
 .pill-filter__count {
+  /* Secondary by weight, not by opacity. The handoff specifies 65%, which
+     composites the tone toward white and lands at 2.95-3.97:1 on a 13px
+     digit — it would need 0.9 to pass, by which point it is not muted. */
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  opacity: 0.65;
 }
 
 .alerts-inbox {

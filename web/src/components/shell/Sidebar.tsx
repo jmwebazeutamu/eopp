@@ -61,7 +61,7 @@ export default function Sidebar({
       style={{
         width: collapsed ? RAIL_COLLAPSED : RAIL_EXPANDED,
         flexShrink: 0,
-        background: "#173629",
+        background: "var(--rail-bg)",
         color: "var(--on-dark)",
         display: "flex",
         flexDirection: "column",
@@ -165,7 +165,7 @@ export default function Sidebar({
                 fontWeight: 600,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: "rgba(255,255,255,0.4)",
+                color: "var(--rail-ink)",
               }}
             >
               {t(section.titleKey)}
@@ -192,7 +192,7 @@ export default function Sidebar({
                   padding: collapsed ? "7px 0" : "6px 9px",
                   borderRadius: 6,
                   border: "none",
-                  background: active ? "#2a5240" : "transparent",
+                  background: active ? "var(--rail-active)" : "transparent",
                   color: active ? "#ffffff" : "rgba(255,255,255,0.82)",
                   font: "inherit",
                   fontSize: 12.5,

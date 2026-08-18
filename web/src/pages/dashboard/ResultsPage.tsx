@@ -138,10 +138,17 @@ export default function ResultsPage() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th />
-                    <th>{t("me.registered")}</th>
-                    <th>{t("me.placed")}</th>
-                    <th>{t("pm.rate")}</th>
+                    {/* The row-label column. It was an empty `<th>`, which a
+                        screen reader reads as an unnamed column and axe flags
+                        as empty-table-header — and this page renders one table
+                        per cut, so several arrived identically headed. The cut
+                        names it: "Sex", "Age band", "Woreda". */}
+                    <th scope="col">
+                      <span className="sr-only">{cut.label}</span>
+                    </th>
+                    <th scope="col">{t("me.registered")}</th>
+                    <th scope="col">{t("me.placed")}</th>
+                    <th scope="col">{t("pm.rate")}</th>
                   </tr>
                 </thead>
                 <tbody>

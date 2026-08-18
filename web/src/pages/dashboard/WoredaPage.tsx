@@ -19,6 +19,9 @@ import { useTier } from "./useTier";
 // non-text contrast against each other, which is what caps the stack — not
 // taste. Each also carries its own count as a label, so identity never rests on
 // colour alone.
+/** Fills light enough that a white label fails on them. */
+const PALE_SEGMENT = new Set(["awaiting_partner", "closed"]);
+
 const SEGMENT_FILL: Record<string, string> = {
   on_track: "var(--green-500)",
   awaiting_partner: "var(--gold-500)",
@@ -277,7 +280,10 @@ export default function WoredaPage() {
                           style={{
                             flex: `0 0 ${(n / row.total) * 100}%`,
                             background: SEGMENT_FILL[segment.key],
-                            color: segment.key === "awaiting_partner" ? "var(--ink-900)" : "var(--on-dark)",
+                            // Ink on the two pale fills, white on the two dark
+                            // ones. White on --cancelled-bar is 2.98:1; ink is
+                            // 5.90:1. Same fault the referral timeline had.
+                            color: PALE_SEGMENT.has(segment.key) ? "var(--ink-900)" : "var(--on-dark)",
                             fontSize: 12,
                             fontWeight: 700,
                             display: "flex",

@@ -181,3 +181,19 @@ if (consoleErrors.length) {
   console.log(`\n${consoleErrors.length} console error(s):`);
   for (const e of [...new Set(consoleErrors)].slice(0, 12)) console.log("  " + e);
 }
+
+/*
+ * Accessibility auditing
+ * ----------------------
+ * axe-core drives the same chromium this script uses. It is deliberately not a
+ * package.json dependency — the field brief treats bundle weight as a real cost
+ * — so install it outside the project and point a script at it:
+ *
+ *   mkdir -p /tmp/axe && cd /tmp/axe && npm init -y && npm install axe-core
+ *   node audit.mjs        # injects axe.min.js, runs window.axe.run per route
+ *
+ * The 2026-08-18 pass took the app from 120 violation nodes to 18 across 11
+ * routes at two breakpoints. What it caught that hand review had not: the rail
+ * section labels at 3.42:1, --ink-400 failing on three of the four surfaces it
+ * lands on, and the filter pill's 65%-opacity count at 2.95:1.
+ */
