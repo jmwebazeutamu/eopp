@@ -132,6 +132,8 @@ export const STRINGS = {
   "me.value": "Value",
   "me.source": "Framework",
   "me.cumulative": "Cumulative placements",
+  "me.cumulativeUnit": "Counts {unit}. A youth placed twice enters once, on their first placement.",
+  "me.openingBalance": "{n} carried in from before this window",
   "me.cumulativeWhy": "Placements to date, by month.",
   "me.disaggregation": "Disaggregation",
   "me.registered": "Registered",

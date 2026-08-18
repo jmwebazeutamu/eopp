@@ -731,7 +731,12 @@ export interface DisaggregationCut {
 export interface DonorDashboard {
   scope_label: string;
   indicators: Indicator[];
-  cumulative: { month: string; placed: number; cumulative: number }[];
+  cumulative: {
+    series: { month: string; placed: number; cumulative: number; unit: string }[];
+    /** Placements older than the window, carried in rather than dropped. */
+    opening_balance: number;
+    unit: string;
+  };
   disaggregation: DisaggregationCut[];
   retention: { available: false; reason: string };
   caveats: string[];

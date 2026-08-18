@@ -460,11 +460,7 @@ def disaggregation(youth, referrals, today):
     woreda routinely contains both rural and urban kebeles, so inferring it
     would produce a confident wrong number instead of an honest blank.
     """
-    placed_youth = set(
-        referrals.filter(status=ReferralStatus.COMPLETED, outcome_type__counts_as_placement=True).values_list(
-            "case__youth_id", flat=True
-        )
-    )
+    placed_youth = referrals.placed_youth_ids()
 
     rows = list(
         youth.values_list("id", "sex", "woreda", "date_of_birth", "disability_status", "psnp_status", "settlement_type")
@@ -520,8 +516,8 @@ def disaggregation(youth, referrals, today):
 
 def results_framework(youth, referrals, today, confirmation_threshold, maturation_days=30):
     """ME-1 — the indicator table, each with its numerator and denominator."""
-    placements = referrals.filter(status=ReferralStatus.COMPLETED, outcome_type__counts_as_placement=True)
-    placed_youth = placements.values("case__youth_id").distinct().count()
+    placements = referrals.placements()
+    placed_youth = len(referrals.placed_youth_ids())
 
     # Only referrals old enough to have been decided count in a timeliness rate.
     mature = referrals.filter(initiated_date__lte=today - timedelta(days=maturation_days))
@@ -601,27 +597,60 @@ def results_framework(youth, referrals, today, confirmation_threshold, maturatio
 
 
 def cumulative_placements(referrals, today, months=12):
-    """ME-2 — one axis, two series, both counts. Never a dual axis, never a gauge."""
-    placements = referrals.filter(
-        status=ReferralStatus.COMPLETED, outcome_type__counts_as_placement=True, outcome_date__isnull=False
-    ).values_list("outcome_date", flat=True)
+    """ME-2 — youth placed to date, by month. One axis, counts, no dual axis.
+
+    Two things this got wrong, and they compounded:
+
+    * It counted **referrals**, so a youth placed twice moved the line twice
+      while the headline above it counted them once.
+    * It truncated to a rolling window but kept running a cumulative total
+      labelled "to date", silently dropping every placement older than the
+      window. The line closed below the headline by exactly the number of
+      placements it had discarded.
+
+    A youth enters the series on their **first** placement, so the running total
+    is distinct youth and the last point equals the Results headline by
+    construction — there is a test that asserts precisely that. Placements older
+    than the window are carried in as an opening balance rather than lost.
+    """
+    first_placement = {}
+    for youth_id, outcome_date in (
+        referrals.placements()
+        .filter(outcome_date__isnull=False)
+        .values_list("case__youth_id", "outcome_date")
+        .order_by("outcome_date")
+    ):
+        first_placement.setdefault(youth_id, outcome_date)
 
     start = date(today.year, today.month, 1) - timedelta(days=31 * (months - 1))
     start = date(start.year, start.month, 1)
 
     buckets = {}
-    for outcome_date in placements:
-        if outcome_date >= start:
+    opening = 0
+    for outcome_date in first_placement.values():
+        if outcome_date < start:
+            # Before the window. Carried in, never dropped: a total labelled
+            # "to date" that omits the earliest placements is simply wrong.
+            opening += 1
+        else:
             key = date(outcome_date.year, outcome_date.month, 1)
             buckets[key] = buckets.get(key, 0) + 1
 
-    series, running = [], 0
+    series, running = [], opening
     cursor = start
     while cursor <= today:
         running += buckets.get(cursor, 0)
-        series.append({"month": cursor.isoformat(), "placed": buckets.get(cursor, 0), "cumulative": running})
+        series.append(
+            {
+                "month": cursor.isoformat(),
+                "placed": buckets.get(cursor, 0),
+                "cumulative": running,
+                "unit": str(_("youth")),
+            }
+        )
         cursor = date(cursor.year + (cursor.month == 12), (cursor.month % 12) + 1, 1)
-    return series
+
+    return {"series": series, "opening_balance": opening, "unit": str(_("youth"))}
 
 
 def donor(youth, referrals, today, confirmation_threshold):

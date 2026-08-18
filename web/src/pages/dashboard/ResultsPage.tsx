@@ -25,7 +25,7 @@ export default function ResultsPage() {
   if (loading && !data) return <div className="t-meta">{t("common.loading")}</div>;
   if (!data) return null;
 
-  const peak = Math.max(1, ...data.cumulative.map((row) => row.cumulative));
+  const peak = Math.max(1, ...data.cumulative.series.map((row) => row.cumulative));
 
   return (
     <>
@@ -79,12 +79,17 @@ export default function ResultsPage() {
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
         <Card>
           <CapsLabel>{t("me.cumulative")}</CapsLabel>
+          <div className="t-meta" style={{ marginTop: 2 }}>
+            {t("me.cumulativeUnit", { unit: data.cumulative.unit })}
+            {data.cumulative.opening_balance > 0 &&
+              ` · ${t("me.openingBalance", { n: data.cumulative.opening_balance })}`}
+          </div>
           <div className="t-meta" style={{ margin: "2px 0 10px" }}>
             {t("me.cumulativeWhy")}
           </div>
           {/* Hand-built bars, one series, counts on one scale. */}
           <div className="stack" style={{ gap: 6 }}>
-            {data.cumulative.map((row) => (
+            {data.cumulative.series.map((row) => (
               <div key={row.month} style={{ display: "grid", gridTemplateColumns: "72px 1fr auto", gap: 8, alignItems: "center" }}>
                 <span className="t-meta tabular">{row.month.slice(0, 7)}</span>
                 <div className="track" style={{ height: 12 }}>
