@@ -114,10 +114,12 @@ export default function MyWorkPage() {
           value={data.active.referrals}
           meta={t("cm.activeMeta", { youth: data.active.youth })}
         />
+        {/* The headline silently picked the "opened" half while the subtext
+            read "0 opened · 20 closed", so a busy week looked like a dead one. */}
         <Tile
-          label={t("cm.week")}
+          label={t("cm.weekOpened")}
           value={data.week.opened}
-          meta={t("cm.weekMeta", { opened: data.week.opened, closed: data.week.closed })}
+          meta={t("cm.weekMeta", { closed: data.week.closed })}
         />
         <Tile
           label={t("cm.verified")}

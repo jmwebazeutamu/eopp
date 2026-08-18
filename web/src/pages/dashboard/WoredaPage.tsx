@@ -108,15 +108,17 @@ export default function WoredaPage() {
           meta={t("ws.acrossTeam")}
           tone={data.tiles.overdue_actions ? "warn" : undefined}
         />
+        {/* The overdue-confirmation count used to sit under this tile, which
+            counts youth with no case — two unrelated metrics on one card. */}
         <StatTile
           label={t("ws.noCaseYet")}
           value={data.tiles.registered_without_case}
-          meta={t("ws.awaitingAlerts", { count: data.awaiting_partner_alerts })}
+          meta={t("ws.noCaseMeta")}
         />
         <StatTile
           label={t("ws.medianConfirm")}
           value={data.tiles.median_days_to_confirm}
-          meta={t("dash.lagStandard", { days: data.confirmation_threshold })}
+          meta={t("ws.awaitingAlerts", { count: data.awaiting_partner_alerts })}
         />
         <StatTile
           label={t("ws.verified")}

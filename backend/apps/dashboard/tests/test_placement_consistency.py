@@ -126,3 +126,56 @@ class TestCumulativeChart:
         cumulative = cumulative_placements(referrals, date.today())
         assert cumulative["series"][-1]["cumulative"] == 1
         assert sum(point["placed"] for point in cumulative["series"]) + cumulative["opening_balance"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — the small ones
+# ---------------------------------------------------------------------------
+
+
+class TestConfirmationInvariant:
+    def test_a_refused_transition_leaves_no_confirmation_behind(
+        self, locations, taxonomy, case_manager, make_case, make_referral, settings
+    ):
+        """A confirmed_date on a referral nobody confirmed.
+
+        The §6.3 cap refuses the third concurrent confirmation. The database
+        rolls back, but the *instance* kept the caller's field updates, so the
+        next transition on the same object wrote a confirmation date for a
+        confirmation that never happened.
+        """
+        from apps.referrals.models import ConfirmationStatus
+
+        case = make_case(case_manager, name="At The Cap")
+        for _ in range(2):
+            referral = make_referral(case, category=taxonomy["training"])
+            referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_date=date.today())
+
+        third = make_referral(case, category=taxonomy["employment"])
+        with pytest.raises(Exception):
+            third.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_date=date.today())
+
+        # The instance must not still be carrying the refused values.
+        assert third.confirmed_date is None
+
+        # And the cancel that follows must not persist them.
+        third.transition_to(ReferralStatus.CANCELLED, actor=case_manager, notes="Withdrawn.")
+        third.refresh_from_db()
+        assert third.confirmed_date is None
+        assert third.confirmation_status == ConfirmationStatus.PENDING
+
+    def test_the_database_refuses_the_combination_outright(
+        self, locations, taxonomy, case_manager, make_case, make_referral
+    ):
+        """The write path that produced it was subtle enough to survive review,
+        so the invariant is enforced where it cannot be bypassed."""
+        from django.db import IntegrityError, transaction
+
+        from apps.referrals.models import ConfirmationStatus, Referral
+
+        referral = make_referral(make_case(case_manager, name="Invariant"))
+        with pytest.raises(IntegrityError):
+            with transaction.atomic():
+                Referral.objects.filter(pk=referral.pk).update(
+                    confirmation_status=ConfirmationStatus.PENDING, confirmed_date=date.today()
+                )

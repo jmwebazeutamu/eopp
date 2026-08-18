@@ -348,7 +348,10 @@ describe("ProgrammePage, against PUNCH_LIST v3 Tier 3", () => {
     // outcome per category, the off-diagonal is forbidden rather than empty,
     // and the card is restating a lookup table.
     renderDashboard(payload());
-    expect(await screen.findByText(/taxonomy admits one outcome per category/)).toBeInTheDocument();
+    // The copy used to say every off-diagonal cell was forbidden, which
+    // overstated it: "Other" applies to every category, so that column could
+    // always hold one.
+    expect(await screen.findByText(/only cells that can fall off the diagonal are in the Other column/)).toBeInTheDocument();
   });
 
   it("flags an Other share that makes the breakdown unreportable", async () => {

@@ -395,6 +395,15 @@ class Referral(BaseModel):
     objects = ReferralQuerySet.as_manager()
 
     class Meta:
+        constraints = [
+            # A confirmation date without a confirmation is not a state this
+            # domain has. Enforced in the database because the write path that
+            # produced it was subtle enough to survive review.
+            models.CheckConstraint(
+                condition=~models.Q(confirmation_status="PENDING", confirmed_date__isnull=False),
+                name="referral_no_confirmed_date_while_pending",
+            ),
+        ]
         verbose_name = _("referral")
         verbose_name_plural = _("referrals")
         ordering = ["-initiated_date", "-created_at"]
@@ -493,17 +502,43 @@ class Referral(BaseModel):
 
         # Apply the caller's field updates before checking requirements, so
         # "required on this transition" is evaluated against the final state.
+        #
+        # A failure past this point rolls the database back but leaves the
+        # *instance* mutated, and a later transition on the same object then
+        # persists those orphaned values. That is how two referrals came to hold
+        # a `confirmed_date` while still Pending: the confirmation was refused
+        # by the §6.3 cap, the caller caught it and cancelled the referral
+        # instead, and the cancel wrote the confirmed date the refused
+        # transition had set. `_restore_on_failure` below undoes the in-memory
+        # half of the rollback.
+        applied = {field: getattr(self, field, None) for field in kwargs}
         for field, value in kwargs.items():
             setattr(self, field, value)
+
+        def _restore_on_failure(exc):
+            """Put the instance back as it was, then re-raise.
+
+            The transaction has already rolled the row back; this rolls the
+            object back to match, so a caller that recovers from a refused
+            transition is not holding values the database rejected.
+            """
+            for name, previous in applied.items():
+                setattr(self, name, previous)
+            raise exc
 
         missing = [
             field for field in transition.requires if not getattr(self, f"{field}_id", getattr(self, field, None))
         ]
         if missing:
-            raise ValidationError({field: _("Required when moving to this status.") for field in missing})
+            _restore_on_failure(
+                ValidationError({field: _("Required when moving to this status.") for field in missing})
+            )
 
         if new_status == ReferralStatus.ACTIVE:
-            self._join_or_open_parallel_group()
+            try:
+                self._join_or_open_parallel_group()
+            except Exception as exc:  # the §6.3 cap, and anything else that refuses
+                _restore_on_failure(exc)
 
         if new_status == ReferralStatus.COMPLETED and not self.outcome_date:
             self.outcome_date = date.today()
