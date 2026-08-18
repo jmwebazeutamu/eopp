@@ -35,7 +35,7 @@ interface Group {
   hits: Hit[];
 }
 
-export default function GlobalSearch() {
+export default function GlobalSearch({ autoFocus = false }: { autoFocus?: boolean } = {}) {
   const { t } = useLang();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -118,6 +118,7 @@ export default function GlobalSearch() {
         <input
           id="global-search"
           ref={input}
+          autoFocus={autoFocus}
           type="search"
           role="combobox"
           aria-expanded={open}

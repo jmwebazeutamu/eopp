@@ -35,6 +35,10 @@ export const STRINGS = {
   "nav.referrals": "Referrals",
   "nav.alerts": "Alerts",
   "nav.registry": "Youth registry",
+  // The bar gives each label ~70px at 360px. "Youth registry" wrapped to two
+  // lines there; the short form is for the bar and the More sheet only.
+  "nav.registryShort": "Youth",
+  "nav.more": "More",
   "nav.partners": "Partners",
   "nav.users": "Users",
   "nav.signOut": "Sign out",
@@ -50,6 +54,7 @@ export const STRINGS = {
   "shell.allWoredas": "All woredas",
   "shell.scope": "Woreda scope",
   "shell.appMark": "PSNP Youth",
+  "common.close": "Close",
   "search.label": "Search records",
   "filters.label": "Filter the list",
   "filters.all": "All",

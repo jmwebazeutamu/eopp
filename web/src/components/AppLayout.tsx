@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { api } from "../api/client";
 import type { AlertSummary } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import { useLang } from "../i18n/LanguageContext";
-import { Icon } from "./ui";
 import Header from "./shell/Header";
 import { ScopeProvider } from "./shell/ScopeContext";
+import MobileTabBar from "./shell/MobileTabBar";
 import Sidebar from "./shell/Sidebar";
 import UserMenu from "./shell/UserMenu";
-import { buildNav, isActivePath } from "./shell/navModel";
+import { buildNav } from "./shell/navModel";
 import { usePreference } from "./shell/preferences";
 
 /**
@@ -42,8 +41,6 @@ function useIsPhone() {
 
 export default function AppLayout() {
   const { user, loading, logout } = useAuth();
-  const { t } = useLang();
-  const navigate = useNavigate();
   const location = useLocation();
   const isPhone = useIsPhone();
   const [openAlerts, setOpenAlerts] = useState(0);
@@ -74,9 +71,6 @@ export default function AppLayout() {
   if (!user) return <Navigate to="/login" replace />;
 
   const sections = buildNav(user, { openAlerts });
-  // The bottom bar has no room for section headings; item 7 reduces this list.
-  const flatNav = sections.flatMap((section) => section.items);
-  const active = (path: string) => isActivePath(path, location.pathname);
 
   return (
     // The shell owns the viewport and does not scroll; `main` is the scroll
@@ -86,7 +80,7 @@ export default function AppLayout() {
     // it starts *below* the header — clipping the only sign-out button.
     <ScopeProvider user={user}>
     <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--paper)" }}>
-      <Header />
+      <Header isPhone={isPhone} />
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         {!isPhone && (
@@ -110,41 +104,7 @@ export default function AppLayout() {
           </div>
 
           {isPhone && (
-            <nav
-              style={{
-                position: "sticky",
-                bottom: 0,
-                height: "var(--tabbar-height)",
-                background: "var(--green-700)",
-                display: "flex",
-                alignItems: "stretch",
-              }}
-            >
-              {flatNav.map((entry) => (
-                <button
-                  key={entry.path}
-                  type="button"
-                  onClick={() => navigate(entry.path)}
-                  aria-label={t(entry.labelKey)}
-                  style={{
-                    flex: 1,
-                    border: "none",
-                    background: active(entry.path) ? "var(--green-500)" : "transparent",
-                    color: "var(--on-dark)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 2,
-                    cursor: "pointer",
-                    fontFamily: "var(--font-body)",
-                  }}
-                >
-                  <Icon path={entry.icon} size={20} />
-                  <span style={{ fontSize: 9, fontWeight: 600 }}>{t(entry.labelKey)}</span>
-                </button>
-              ))}
-            </nav>
+            <MobileTabBar user={user} sections={sections} pathname={location.pathname} onSignOut={logout} />
           )}
         </main>
       </div>
