@@ -34,8 +34,11 @@ offices, personal case data. Breaking one is a defect, not a preference.
    **plus** a geometric mark. It has to survive monochrome, colour blindness and
    a cheap LCD at half brightness. When a label truncates, the mark leads it so
    it cannot be the part that is dropped.
-3. **Blue is absent. Red is genuine failure only.** Gold carries waiting, terra
-   cotta carries stalled. `--gold-500` is fill only, never behind text (2.6:1).
+3. **Red is genuine failure only.** Gold carries waiting, terra cotta carries
+   stalled. `--gold-500` is fill only, never behind text (2.6:1). Blue *was*
+   absent by design; `--blue-*`, `--teal-*` and `--slate-*` were added for the
+   alerts inbox on 2026-08-18 and confirmed — use them only for that screen's
+   categories, not as general accents.
 4. **Three breakpoints, each with one job.** `900px` collapses every
    multi-column grid to one column · `780px` is the structural switch — tables
    + nav rail above, cards + bottom tab bar below · `640px` drops the KPI row

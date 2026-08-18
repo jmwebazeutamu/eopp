@@ -647,9 +647,19 @@ faults that have already shipped here once.
   row to two columns. Touch targets 48px, tab bar 56px. The design handoff
   specifies 780px alone — 900 and 640 were added on the programme's
   instruction of 2026-08-18 and supersede it.
-- **Card padding is 24px** (`--s5`), gaps 16px between cards and 24px between
-  sections. Same instruction. `.card` is used on every screen, so changing it
-  moves every screen.
+- **Card padding is 18px/20px**, gaps 16px between cards and 24px between
+  sections. `.card` is used on every screen, so changing it moves every screen.
+  This started at 24px on the 4px scale and was tightened by
+  `docs/design_handoff_partners_page/`, which exists to tighten "an oversized,
+  inconsistent type scale" throughout. The programme confirmed the tighter
+  result on 2026-08-18 — do not restore 24px.
+- **The palette has grown past the original handoff.** `--blue-*`, `--teal-*`
+  and `--slate-*` were added for the alerts inbox
+  (`docs/design_handoff_alerts_inbox/`) and confirmed. This supersedes the
+  design handoff's "blue is deliberately absent" for those tokens; red is
+  still reserved for genuine failure, and gold still carries waiting.
+- **The rail is 232px expanded, 60px collapsed**, and the global search sits
+  in the rail rather than a top bar.
 - **Phone numbers are masked by default** (`maskPhone`). The case screen has a
   per-view, never-persisted Reveal; the registry has none at all.
 - **Strings go through `i18n/`.** English is populated; Amharic and Afaan Oromo

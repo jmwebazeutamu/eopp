@@ -144,11 +144,25 @@ Fixed in `160d947`. Recorded so the reasoning survives.
 | WOR-11 | — | **rejected** | ✔ | "Every bar starts and ends at the same x" — bar length is the deliberate encoding of caseload size. Starts and tracks equalised; ends left proportional. |  |
 | WOR-12 | — | done `85152cf` | ✔ | Card padding 24px and the 900/640 breakpoints, **applied globally** on the programme's instruction. Supersedes the handoff's single-breakpoint rule; `.claude/skills/design/SKILL.md` and CLAUDE.md were updated so it is not reverted. Nine inline grids across the four tier pages became `.grid-panels`, since an inline reflow width cannot see a media query. |  |
 
+## 4c. Regressions from the 2026-08-18 shell rewrite
+
+The partners and alerts redesigns rewrote the shell. The interface was
+confirmed as wanted; these two are function and semantics, not appearance, and
+were not part of that confirmation.
+
+| ID | Sev | Status | V | Finding | Where |
+|---|---|---|---|---|---|
+| REG-01 | P1 | **open** | ✔ | **The woreda scope selector no longer exists.** Every scoped screen still reads the scope — the subtitle says "All woredas" — but there is no control to change it, so a supervisor covering three woredas can no longer narrow to one. It was built to an explicit brief ("Right: woreda scope selector … applied to every scoped page, persisted per user, written to the URL"). Measured: 0 controls matching "Woreda scope" on `/cases`. | `components/shell/Header.tsx` (removed from the tree) |
+| REG-02 | P2 | **open** | ✔ | **The `banner` landmark is gone** with the top bar. The accessibility baseline requires banner / navigation / main. Measured: 0 `<header>` elements. | `components/AppLayout.tsx` |
+| REG-03 | P3 | **open** | ✔ | The rail wordmark renders the full product name over three lines. `docs/design_handoff_partners_page/` §Sidebar specifies the "EOPP" wordmark at 15px/700 — `shell.appMark` exists for it. | `components/shell/Sidebar.tsx` |
+| REG-04 | P2 | done `b5452d8` | ✔ | `.only-phone` carried an inline `display`, which beats the media query, so the partners table and the phone cards both rendered at 1440 and every partner appeared twice. The documented shipped-once fault; `responsive.test.ts` caught it. | `pages/PartnersPage.tsx` |
+| REG-05 | P1 | done `b5452d8` | ✔ | The tree did not typecheck: a helper widened `t`'s key to `string`, and parameters are contravariant. `Translate` is now exported so the signature is stated once. | `pages/AlertsPage.tsx` |
+
 ## 5. Design system conformance
 
 | ID | Sev | Status | V | Finding | Where |
 |---|---|---|---|---|---|
-| DS-01 | P1 | done `1f875b3` | ✔ | `ALERT_TYPE_COLOURS` used antd preset names outside the token layer — including a **blue** the handoff says is deliberately absent, and **red on STALL** where the handoff assigns terracotta and reserves red for genuine failure. | `api/types.ts`, `components/CaseAlerts.tsx` |
+| DS-01 | P1 | part `1f875b3` | ✔ | Reopened in part: `Sidebar.tsx` now hardcodes `#173629` for the rail. The colour is wanted — promote it to a token rather than remapping to `--green-700`, which is a different green. Original finding: | `ALERT_TYPE_COLOURS` used antd preset names outside the token layer — including a **blue** the handoff says is deliberately absent, and **red on STALL** where the handoff assigns terracotta and reserves red for genuine failure. | `api/types.ts`, `components/CaseAlerts.tsx` |
 | DS-02 | P1 | **open** | ✔ | `HEAT` in the outcome matrix is a **five-step sequential green ramp invented on the spot**, in literal hex, applied as a cell background. CLAUDE.md records that the prototype's `--seq-1..5` chart palette is *not adopted and needs sign-off*. Rebuild from existing steps or get the ramp sanctioned. | `components/dashboard/analytics.tsx` |
 | DS-03 | P1 | part | ○ | `CaseAlerts` is the one case-screen component never rebuilt on the token layer — antd `Card`, `Button`, `Space`, `Typography` used **visually**, against "antd keeps behaviour, not looks". The status chip is migrated; the rest is not. It renders directly above `ReferralPanel`, which was rebuilt. | `components/CaseAlerts.tsx` |
 | DS-04 | P1 | **open** | ○ | **~185 hardcoded user-facing strings.** Five components are entirely un-i18n'd: `ReferralActions`, `YouthFormModal`, `CaseFormModal`, `PartnerFormModal`, `LocationPicker` — every form label, `extra`, validator message and modal title. As it stands a translator delivering Amharic still gets English on every screen field staff type into. Also the option lists in `api/types.ts` and both pagination controls. Full inventory in the agent report. | many |
