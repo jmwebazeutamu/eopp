@@ -1,0 +1,84 @@
+{% extends "dashboard/base.html" %}{% load i18n %}
+{% comment %}
+The drill-down. Every card on the dashboard links here, because §2 of the
+contract requires that every number resolve to a list of named youth.
+{% endcomment %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="sub">
+  <a href="{% url 'dashboard:case-manager' %}">← {% translate "Back to my work" %}</a>
+  · {% blocktranslate count n=rows|length %}{{ n }} row{% plural %}{{ n }} rows{% endblocktranslate %}
+</div>
+
+<section class="card">
+{% if not rows %}
+  <p class="empty">{% translate "Nothing here." %}</p>
+
+{% elif kind == "alerts" %}
+  <table>
+    <thead><tr><th>{% translate "Youth" %}</th><th>{% translate "Why" %}</th>
+      <th class="num">{% translate "Overdue" %}</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td class="who-name">{{ row.alert.case.youth.full_name }}</td>
+          <td class="reason">{{ row.reason }}</td>
+          <td class="num"><span class="badge {% if row.alert.days_overdue > 0 %}over{% else %}due{% endif %}">
+            <span class="mark" aria-hidden="true">▲</span>{{ row.alert.days_overdue }}d</span></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+{% elif kind == "referrals" %}
+  <table>
+    <thead><tr><th>{% translate "Youth" %}</th><th>{% translate "Receiving partner" %}</th>
+      <th>{% translate "Sent" %}</th><th class="num">{% translate "Waiting" %}</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="who-name">{{ r.case.youth.full_name }}</td>
+          <td>{{ r.receiving_partner.partner_name }}</td>
+          <td>{{ r.initiated_date }}</td>
+          <td class="num"><span class="badge over"><span class="mark" aria-hidden="true">◔</span>{{ r.days_waiting }}d</span></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+{% elif kind == "risk" %}
+  <table>
+    <thead><tr><th>{% translate "Youth" %}</th><th>{% translate "Why" %}</th>
+      <th class="num">{% translate "Quiet for" %}</th></tr></thead>
+    <tbody>
+      {% for item in rows %}
+        <tr>
+          <td class="who-name">{{ item.youth_name }}</td>
+          <td class="reason">{{ item.reason }}</td>
+          <td class="num"><span class="badge over"><span class="mark" aria-hidden="true">▲</span>{{ item.badge }}</span></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+{% else %}
+  <table>
+    <thead><tr><th>{% translate "Youth" %}</th><th>{% translate "Woreda" %}</th>
+      <th>{% translate "Case manager" %}</th><th>{% translate "Last activity" %}</th></tr></thead>
+    <tbody>
+      {% for case in rows %}
+        <tr>
+          <td class="who-name">{{ case.youth.full_name }}</td>
+          <td>{{ case.woreda }}</td>
+          <td>{{ case.case_manager.full_name|default:"—" }}</td>
+          <td>{{ case.last_activity_date }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+</section>
+{% endblock %}

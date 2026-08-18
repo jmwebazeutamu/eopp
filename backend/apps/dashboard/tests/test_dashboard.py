@@ -16,6 +16,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from apps.dashboard.rules import REPORT_MIN_DENOMINATOR
 from apps.dashboard.services import (
     confirmation_lag,
     funnel,
@@ -110,18 +111,20 @@ def test_retention_reports_itself_as_unbuilt_rather_than_zero(locations, program
     payload = programme_dashboard(programme_manager)
     card = payload["metrics"]["retained_six_months"]
     assert card["available"] is False
-    assert "Sprint 5" in card["reason"]
+    assert "Not measurable yet" in card["reason"]
     assert "value" not in card
 
     retained = [row for row in payload["funnel"] if row["key"] == "retained"][0]
     assert retained["available"] is False
-    assert retained["count"] is None and retained["percent"] is None
+    assert retained["count"] is None and retained["share"] is None
 
 
 def test_an_empty_programme_reports_zeroes_not_errors(locations, programme_manager):
     payload = programme_dashboard(programme_manager)
     assert payload["metrics"]["placements_this_quarter"]["value"] == 0
-    assert [row["percent"] for row in payload["funnel"] if row["available"]] == [0, 0, 0, 0, 0]
+    # Counts are zero; the shares are withheld rather than shown as 0% of nothing.
+    assert all(row["count"] == 0 for row in payload["funnel"] if row["available"])
+    assert all(row["share"]["percent"] is None for row in payload["funnel"] if row["available"])
     assert payload["woredas"] == []
     assert payload["confirmation_lag"]["partners"] == []
 
@@ -166,7 +169,7 @@ def test_only_outcomes_flagged_as_placements_are_counted(
     payload = programme_dashboard(programme_manager)
     assert payload["metrics"]["placements_this_quarter"]["value"] == 1
     # Both reached Completed, so the funnel's "Placed or completed" holds two.
-    assert [row["count"] for row in payload["funnel"] if row["key"] == "completed"] == [2]
+    assert [row["count"] for row in payload["funnel"] if row["key"] == "closed_successfully"] == [2]
 
 
 def test_flipping_the_admin_flag_changes_the_figure_without_a_deploy(
@@ -193,7 +196,7 @@ def test_a_placement_in_a_previous_quarter_is_not_this_quarter(
     payload = programme_dashboard(programme_manager)
     assert payload["metrics"]["placements_this_quarter"]["value"] == 0
     # Still in the funnel, which is programme-to-date rather than quarterly.
-    assert [row["count"] for row in payload["funnel"] if row["key"] == "completed"] == [1]
+    assert [row["count"] for row in payload["funnel"] if row["key"] == "closed_successfully"] == [1]
 
 
 # ---------------------------------------------------------------------------
@@ -212,18 +215,37 @@ def test_the_funnel_counts_youth_so_a_later_stage_cannot_exceed_an_earlier_one(
     rows = {row["key"]: row["count"] for row in programme_dashboard(programme_manager)["funnel"]}
     assert rows["registered"] == 1
     assert rows["referred"] == 1
-    counts = [rows[key] for key in ("registered", "case_opened", "referred", "partner_confirmed", "completed")]
-    assert counts == sorted(counts, reverse=True)
+    # Only the gates nest. Profiling and pathway are coverage measures, not
+    # prerequisites: the referral engine raises a referral without either.
+    gates = [rows[key] for key in ("registered", "case_opened", "referred", "partner_confirmed", "closed_successfully")]
+    assert gates == sorted(gates, reverse=True)
 
 
 def test_percentages_are_of_registration(locations, programme_manager, make_youth, make_case):
-    for index in range(4):
+    """Enough youth to clear the reporting floor, so real percentages appear."""
+    for index in range(REPORT_MIN_DENOMINATOR - 1):
         make_youth(name=f"Youth {index}")
-    make_case(programme_manager, youth=make_youth(name="Youth With Case"))
+    for index in range(10):
+        make_case(programme_manager, youth=make_youth(name=f"Cased Youth {index}"))
 
-    rows = {row["key"]: row["percent"] for row in programme_dashboard(programme_manager)["funnel"]}
-    assert rows["registered"] == 100
-    assert rows["case_opened"] == 20  # 1 of 5
+    rows = {row["key"]: row["share"] for row in programme_dashboard(programme_manager)["funnel"]}
+    assert rows["registered"]["percent"] == 100
+    assert rows["registered"]["band"] == "report"
+    assert rows["case_opened"]["percent"] == 26  # 10 of 39
+    assert (rows["case_opened"]["n"], rows["case_opened"]["d"]) == (10, 39)
+
+
+def test_a_funnel_below_the_floor_keeps_its_counts_and_drops_its_percentages(locations, programme_manager, make_youth):
+    """The pilot is small (§1). A funnel off nine youth still draws — it just
+    does not claim shares that nine cases cannot support."""
+    for index in range(9):
+        make_youth(name=f"Youth {index}")
+
+    rows = {row["key"]: row["share"] for row in programme_dashboard(programme_manager)["funnel"]}
+    assert rows["registered"]["percent"] is None
+    assert rows["registered"]["band"] == "suppressed"
+    counts = [row["count"] for row in programme_dashboard(programme_manager)["funnel"] if row["available"]]
+    assert counts[0] == 9
 
 
 # ---------------------------------------------------------------------------
@@ -241,7 +263,14 @@ def test_confirmation_lag_averages_days_from_sent_to_decision(
 
     lag = programme_dashboard(programme_manager)["confirmation_lag"]
     assert lag["standard_days"] == 14
-    assert lag["partners"] == [{"partner": "Adama Polytechnic College", "days": 6, "referrals": 1}]
+    # One observation: the mean is withheld, but the partner and the count stay,
+    # so the panel says "too few to assess" rather than implying a fast partner.
+    assert lag["partners"] == [
+        {
+            "partner": "Adama Polytechnic College",
+            "lag": {"days": None, "n": 1, "band": "suppressed", "note": "Too few to assess."},
+        }
+    ]
 
 
 def test_a_partner_that_has_never_replied_is_absent_rather_than_fast(
@@ -252,17 +281,27 @@ def test_a_partner_that_has_never_replied_is_absent_rather_than_fast(
     assert programme_dashboard(programme_manager)["confirmation_lag"]["partners"] == []
 
 
-def test_partners_are_ordered_fastest_first(
+def test_partners_are_ordered_by_evidence_not_by_speed(
     locations, programme_manager, case_manager, make_case, make_referral, make_partner
 ):
-    slow = make_partner(name="Slow Institute")
-    for name, partner, days in [("Quick", None, 2), ("Slow", slow, 12)]:
-        referral = make_referral(make_case(programme_manager, name=f"{name} Case"), receiving_partner=partner)
-        referral.initiated_date = date.today() - timedelta(days=days)
+    """Sorting by the mean ranks partners by luck at these denominators, and a
+    published ranking is hard to withdraw. Most-observed leads instead."""
+    thin = make_partner(name="Thin Evidence Institute")
+    for index in range(3):
+        referral = make_referral(make_case(programme_manager, name=f"Well Known {index}"))
+        referral.initiated_date = date.today() - timedelta(days=12)
         referral.save(update_fields=["initiated_date"])
         referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_date=date.today())
 
-    assert [row["days"] for row in programme_dashboard(programme_manager)["confirmation_lag"]["partners"]] == [2, 12]
+    referral = make_referral(make_case(programme_manager, name="Barely Known"), receiving_partner=thin)
+    referral.initiated_date = date.today() - timedelta(days=2)
+    referral.save(update_fields=["initiated_date"])
+    referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_date=date.today())
+
+    partners = programme_dashboard(programme_manager)["confirmation_lag"]["partners"]
+    # The faster partner does not lead on one observation.
+    assert [row["partner"] for row in partners] == ["Adama Polytechnic College", "Thin Evidence Institute"]
+    assert [row["lag"]["n"] for row in partners] == [3, 1]
 
 
 # ---------------------------------------------------------------------------
@@ -278,8 +317,11 @@ def test_woreda_rate_is_placed_over_registered(
     make_youth(name="Bishoftu Nobody", woreda="Bishoftu")
 
     rows = {row["woreda"]: row for row in programme_dashboard(programme_manager)["woredas"]}
-    assert rows["Adama"] == {"woreda": "Adama", "registered": 2, "placed": 1, "rate": 50}
-    assert rows["Bishoftu"]["rate"] == 0
+    assert (rows["Adama"]["registered"], rows["Adama"]["placed"]) == (2, 1)
+    # Two youth is far below the floor: the counts stand, the rate does not.
+    assert rows["Adama"]["rate"]["percent"] is None
+    assert rows["Adama"]["rate"]["band"] == "suppressed"
+    assert rows["Bishoftu"]["placed"] == 0
 
 
 def test_a_woreda_with_no_placements_still_appears(locations, programme_manager, make_youth):
@@ -387,7 +429,7 @@ def test_panels_compose_from_the_same_scoped_bases(locations, programme_manager,
 
     assert metric_cards(youth, referrals, date.today())["placements_this_quarter"]["value"] == 1
     assert funnel(youth, cases, referrals)[0]["count"] == 1
-    assert confirmation_lag(referrals)["partners"][0]["referrals"] == 1
+    assert confirmation_lag(referrals)["partners"][0]["lag"]["n"] == 1
     assert woreda_comparison(youth, referrals)[0]["placed"] == 1
 
 

@@ -419,41 +419,84 @@ export interface YouthImportReport {
  */
 export type Maybe<T> = ({ available: true } & T) | { available: false; reason: string };
 
+/** How much weight a figure's denominator can carry. See apps/dashboard/rules.py. */
+export type Band = "report" | "provisional" | "suppressed";
+
+/**
+ * A percentage that arrives with the counts it came from.
+ *
+ * There is deliberately no shape in this file carrying a bare percentage: a rate
+ * without its denominator is the thing the reporting rules exist to prevent.
+ * `percent` is null when the band suppresses it, which the screen must render as
+ * "too few to assess" and never as 0%.
+ */
+export interface Rate {
+  percent: number | null;
+  n: number;
+  d: number;
+  band: Band;
+  note: string;
+}
+
+/** An average, banded the same way — a mean over four cases is as unstable as a rate over four. */
+export interface MeanDays {
+  days: number | null;
+  n: number;
+  band: Band;
+  note: string;
+}
+
 export interface PlacementMetric {
   value: number;
   /** Null when no quarterly target has been agreed (spec §11). */
   target: number | null;
   percent: number | null;
+  /** How far through the quarter we are — the target percent is read against this. */
+  quarter_elapsed_percent: number;
 }
 
 export interface GenderSplit {
   placed_total: number;
-  female: number;
-  male: number;
+  female: Rate;
+  male: Rate;
   /** The baseline a placement split only means something against. */
-  registration_female_percent: number;
+  registration_female: Rate;
 }
 
 export interface FunnelStage {
   key: string;
   label: string;
+  /** What the count counts — youth here, referrals on the partner cards. */
+  unit: string;
+  /** A stage a youth must pass to reach the next. False for coverage measures. */
+  gating: boolean;
+  /** The one-line definition of the stage, under its name. */
+  sublabel: string;
   count: number | null;
-  percent: number | null;
+  /** Null for a stage whose source entity does not exist yet. */
+  share: Rate | null;
+  /**
+   * Median days spent in the stage above this one — the most actionable number
+   * on the card, and the reason this is a row chart rather than a funnel: no
+   * funnel chart can show it.
+   */
+  median_days_in_prev_stage: number | null;
+  /** What was lost leaving this stage. Null on the last drawable row. */
+  lost: { count: number; share: Rate } | null;
   available: boolean;
   reason: string;
 }
 
 export interface PartnerLag {
   partner: string;
-  days: number;
-  referrals: number;
+  lag: MeanDays;
 }
 
 export interface WoredaRow {
   woreda: string;
   registered: number;
   placed: number;
-  rate: number;
+  rate: Rate;
 }
 
 export interface ProgrammeDashboard {
@@ -533,4 +576,164 @@ export interface SummaryCounter {
 export interface Summary {
   total: number;
   counters: SummaryCounter[];
+}
+
+// ---------------------------------------------------------------------------
+// The four dashboard tiers — dashboard_handoff_youth_employment/README.md §1
+// ---------------------------------------------------------------------------
+
+/** A card whose source entity does not exist yet. Never rendered as a zero. */
+export type Maybe2<T> = ({ available: true } & T) | { available: false; reason: string };
+
+export interface MyWorkAlert {
+  id: string;
+  case: string;
+  youth_name: string;
+  reason: string;
+  days_overdue: number;
+}
+
+export interface MyWorkReferral {
+  id: string;
+  case: string;
+  youth_name: string;
+  partner: string;
+  days_waiting: number;
+}
+
+export interface MyWork {
+  needs_action: MyWorkAlert[];
+  needs_action_count: number;
+  awaiting_partner: MyWorkReferral[];
+  awaiting_partner_count: number;
+  /** How many of those waits are past the configured threshold. */
+  awaiting_over_threshold: number;
+  /** Open alerts on cases in scope, whoever they are assigned to. */
+  open_alerts_in_scope: number;
+  /** Drives the badge and the footnote — never hardcode 7. */
+  confirmation_threshold: number;
+  active: { referrals: number; youth: number };
+  woredas: string[];
+  generated_at: string;
+  at_risk: { case: string; youth_name: string; reason: string; badge: string }[];
+  at_risk_count: number;
+  uninstrumented_risk: string[];
+  caseload_by_status: { status: string; label: string; n: number; oldest_days: number; slug: string }[];
+  week: { opened: number; closed: number };
+  outcomes_verified: number;
+}
+
+export interface TeamRow {
+  case_manager: string | null;
+  name: string;
+  total: number;
+  segments: Record<string, number>;
+  overdue: number;
+  /** Above CASELOAD_CEILING — the parameter that was configured and unread. */
+  over_ceiling: boolean;
+}
+
+export interface CompletenessRow {
+  field: string;
+  missing: number;
+  of: number;
+  /** False when the denominator is zero: "no records to check", not "complete". */
+  has_records: boolean;
+  cost: string;
+}
+
+export interface PartnerResponse {
+  partner: string;
+  /** Median over the partner's own answers only. */
+  median_days: number | null;
+  /** Confirmations the partner entered themselves. */
+  n: number;
+  /** Confirmations staff recorded on the partner's behalf — not responsiveness. */
+  staff_recorded: number;
+  band: Band;
+}
+
+export interface WoredaDashboard {
+  scope_label: string;
+  as_of: string;
+  confirmation_threshold: number;
+  awaiting_partner_alerts: number;
+  tiles: {
+    open_cases: number;
+    registered_without_case: number;
+    overdue_actions: number;
+    median_days_to_confirm: number | null;
+    outcomes_verified: number;
+    over_ceiling: number;
+    caseload_ceiling: number;
+  };
+  team_caseload: TeamRow[];
+  segments: { key: string; label: string }[];
+  unassigned_youth: { available: false; reason: string };
+  registered_without_case: number;
+  partner_response: PartnerResponse[];
+  data_completeness: CompletenessRow[];
+}
+
+export type Verdict = "above" | "below" | "as_expected" | "too_few";
+
+export interface PartnerPerformanceRow {
+  partner: string;
+  partner_type: string;
+  closed: number;
+  completed: number;
+  rate: Rate;
+  ci: { lower: number; upper: number } | null;
+  verdict: Verdict;
+  verdict_label: string;
+}
+
+export interface OutcomeMatrix {
+  categories: { code: string; label: string }[];
+  outcomes: { code: string; label: string }[];
+  cells: { category: string; outcome: string; n_referrals: number; n_youth: number }[];
+  not_recorded: number;
+  /** "category:outcome" pairs §5.3 permits. A forbidden cell is not an empty one. */
+  permitted: string[];
+  /** False when the taxonomy admits one outcome per category, so no crossover can appear. */
+  crossovers_possible: boolean;
+  /** Share of completed referrals recorded as "Other". */
+  other: Rate;
+}
+
+/** Tier 3 = the programme dashboard plus the analytical cards. */
+export interface ProgrammeTier extends ProgrammeDashboard {
+  as_of: string;
+  outcome_matrix: OutcomeMatrix;
+  partner_performance: { overall_rate: Rate; partners: PartnerPerformanceRow[] };
+  parallel_load: { cases_with_parallel: number; breaches_cap: number; cases_total: number };
+  data_completeness: CompletenessRow[];
+  cohort_retention: { available: false; reason: string };
+  disposition_90_day: { available: false; reason: string };
+}
+
+export interface Indicator {
+  code: string;
+  label: string;
+  framework: string;
+  kind: "count" | "rate";
+  value: number | null;
+  rate: Rate | null;
+  available: boolean;
+  reason: string;
+}
+
+export interface DisaggregationCut {
+  label: string;
+  rows: { value: string; registered: number; placed: number; rate: Rate }[];
+}
+
+export interface DonorDashboard {
+  scope_label: string;
+  indicators: Indicator[];
+  cumulative: { month: string; placed: number; cumulative: number }[];
+  disaggregation: DisaggregationCut[];
+  retention: { available: false; reason: string };
+  caveats: string[];
+  as_of: string;
 }

@@ -245,14 +245,33 @@ def test_completion_stamps_date_and_verifier(case, make_referral, case_manager, 
 
 
 def test_outcome_must_apply_to_the_category(case, make_referral, case_manager, taxonomy):
-    """§5.3 maps each outcome to the categories it applies to."""
-    referral = make_referral(case, category=taxonomy["training"])
+    """§5.3 maps each outcome to the categories it applies to.
+
+    The pairing here changed when `applies_to` was widened (punch-list G-1):
+    Job Placement now legitimately follows a Training referral, because that
+    crossover is the onward-referral gap the outcome matrix exists to measure.
+    Training Completion after an Employment referral is still nonsense, so the
+    rule is tested on that instead.
+    """
+    referral = make_referral(case, category=taxonomy["employment"])
     referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager)
 
     with pytest.raises(ValidationError) as exc:
-        # Job Placement applies to Employment, not Training.
-        referral.transition_to(ReferralStatus.COMPLETED, actor=case_manager, outcome_type=taxonomy["job_placement"])
+        referral.transition_to(
+            ReferralStatus.COMPLETED, actor=case_manager, outcome_type=taxonomy["training_completion"]
+        )
     assert "outcome_type" in exc.value.message_dict
+
+
+def test_a_training_referral_may_end_in_a_job(case, make_referral, case_manager, taxonomy):
+    """The crossover PM-3 exists to expose. Before G-1 the taxonomy forbade it,
+    so the outcome matrix could only ever restate its own lookup table."""
+    referral = make_referral(case, category=taxonomy["training"])
+    referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager)
+    referral.transition_to(ReferralStatus.COMPLETED, actor=case_manager, outcome_type=taxonomy["job_placement"])
+
+    referral.refresh_from_db()
+    assert referral.outcome_type.code == "JOB_PLACEMENT"
 
 
 def test_unrestricted_outcome_applies_to_any_category(case, make_referral, case_manager, taxonomy):
@@ -483,3 +502,60 @@ def test_stack_has_one_root_per_manual_referral(case, make_referral, taxonomy):
     stack = build_referral_stack(case)
     assert len(stack) == 2
     assert all(node["children"] == [] for node in stack)
+
+
+# ---------------------------------------------------------------------------
+# Recording a partner's confirmation on their behalf
+# ---------------------------------------------------------------------------
+#
+# Decided 2026-08-18: a case manager may confirm for a partner, because partners
+# in the pilot woredas may not log in for days and §6.2 offers no other exit from
+# Pending Confirmation. The two fields must stay separate or partner
+# responsiveness stops being measurable.
+
+
+def test_a_case_manager_may_record_a_partner_confirmation(locations, taxonomy, case_manager, make_case, make_referral):
+    referral = make_referral(make_case(case_manager, name="Waiting"))
+    referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_by="Ato Bekele, Adama Polytechnic")
+
+    referral.refresh_from_db()
+    assert referral.status == ReferralStatus.ACTIVE
+    # Who said it, and who typed it, are different facts.
+    assert referral.confirmed_by == "Ato Bekele, Adama Polytechnic"
+    assert referral.confirmation_recorded_by == case_manager
+
+
+def test_a_partner_confirming_for_themselves_records_no_recorder(
+    locations, taxonomy, db, make_case, make_referral, make_partner, case_manager
+):
+    """The null is what makes partner responsiveness measurable: it marks the
+    confirmations the partner actually gave."""
+    from apps.users.models import Role, User
+
+    partner = make_partner(name="Adama Polytechnic")
+    staff = User.objects.create_user(
+        "partner-conf", "pw-Test-12345", full_name="Partner Staff", role=Role.PARTNER_STAFF, partner=partner
+    )
+    referral = make_referral(make_case(case_manager, name="Waiting"), receiving_partner=partner)
+
+    referral.transition_to(ReferralStatus.ACTIVE, actor=staff, confirmed_by="Ato Bekele")
+
+    referral.refresh_from_db()
+    assert referral.confirmed_by == "Ato Bekele"
+    assert referral.confirmation_recorded_by is None
+
+
+def test_the_recorder_is_not_overwritten_by_a_later_transition(
+    locations, taxonomy, case_manager, make_case, make_referral
+):
+    referral = make_referral(make_case(case_manager, name="Waiting"))
+    referral.transition_to(ReferralStatus.ACTIVE, actor=case_manager, confirmed_by="Ato Bekele")
+    referral.transition_to(
+        ReferralStatus.COMPLETED,
+        actor=case_manager,
+        outcome_type=taxonomy["training_completion"],
+        outcome_date=date.today(),
+    )
+
+    referral.refresh_from_db()
+    assert referral.confirmation_recorded_by == case_manager

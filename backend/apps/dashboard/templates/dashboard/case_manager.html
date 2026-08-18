@@ -1,0 +1,162 @@
+{% extends "dashboard/base.html" %}{% load i18n %}
+{% comment %}
+CM-1 to CM-6. Every number on this page links to a list of named youth; §2 of the
+contract says anything that does not should be deleted.
+
+No percentages anywhere — a test asserts it against the rendered body. No charts:
+the counts and lists are the product at this tier.
+{% endcomment %}
+
+{% block content %}
+<h1>{% translate "My work today" %}</h1>
+<div class="sub">
+  {{ request.user.full_name }} · {{ request.user.get_role_display }}
+  {% if request.user.woreda_assignment %}· {{ request.user.woreda_assignment|join:", " }}{% endif %}
+</div>
+
+{# CM-1, CM-2, CM-5, CM-6 as tiles. Each is a link, never a bare number. #}
+<div class="tiles">
+  <a class="tile {% if needs_action_count %}bad{% endif %}" href="{% url 'dashboard:queue' 'needs-action' %}"
+     style="text-decoration:none;color:inherit">
+    <div class="k">{% translate "Needs action today" %}</div>
+    <div class="v">{{ needs_action_count }}</div>
+    <div class="n">{% translate "open alerts past their threshold" %}</div>
+  </a>
+  <a class="tile {% if awaiting_partner_count %}warn{% endif %}" href="{% url 'dashboard:queue' 'awaiting-partner' %}"
+     style="text-decoration:none;color:inherit">
+    <div class="k">{% translate "Awaiting partner" %}</div>
+    <div class="v">{{ awaiting_partner_count }}</div>
+    <div class="n">{% translate "no decision yet" %}</div>
+  </a>
+  <div class="tile">
+    <div class="k">{% translate "This week" %}</div>
+    <div class="v">{{ week.opened }}</div>
+    <div class="n">{% blocktranslate with n=week.closed %}opened · {{ n }} closed{% endblocktranslate %}</div>
+  </div>
+  <div class="tile good">
+    <div class="k">{% translate "Outcomes verified" %}</div>
+    <div class="v">{{ outcomes_verified }}</div>
+    <div class="n">{% translate "this month" %}</div>
+  </div>
+</div>
+
+<div class="grid">
+
+  {# CM-1 #}
+  <section class="card">
+    <h2>{% translate "Needs action today" %}</h2>
+    <div class="why">{% translate "Alerts assigned to you, past their own threshold. Worst first." %}</div>
+    {% if needs_action %}
+      <ul class="q">
+        {% for row in needs_action %}
+          <li>
+            <div>
+              <div class="who-name">{{ row.alert.case.youth.full_name }}</div>
+              <div class="reason">{{ row.reason }}</div>
+            </div>
+            <span class="badge {% if row.alert.days_overdue > 0 %}over{% else %}due{% endif %}">
+              {% if row.alert.days_overdue > 0 %}
+                <span class="mark" aria-hidden="true">▲</span>{% blocktranslate with d=row.alert.days_overdue %}{{ d }}d overdue{% endblocktranslate %}
+              {% else %}
+                <span class="mark" aria-hidden="true">◔</span>{% translate "Due today" %}
+              {% endif %}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if needs_action_count > needs_action|length %}
+        <a class="all" href="{% url 'dashboard:queue' 'needs-action' %}">
+          {% blocktranslate with n=needs_action_count %}View all {{ n }} →{% endblocktranslate %}</a>
+      {% endif %}
+    {% else %}
+      <p class="empty">{% translate "Nothing is overdue. Alerts are raised by scheduled checks, not by anything you did." %}</p>
+    {% endif %}
+  </section>
+
+  {# CM-2 #}
+  <section class="card">
+    <h2>{% translate "Referrals awaiting partner response" %}</h2>
+    <div class="why">
+      {% blocktranslate with d=confirmation_threshold %}Age in days is the sort key. Overdue past {{ d }} days.{% endblocktranslate %}
+      {% translate "The number of referrals sent is deliberately not shown." %}
+    </div>
+    {% if awaiting_partner %}
+      <table>
+        <thead><tr><th>{% translate "Youth" %}</th><th>{% translate "Receiving partner" %}</th>
+          <th class="num">{% translate "Waiting" %}</th></tr></thead>
+        <tbody>
+          {% for r in awaiting_partner %}
+            <tr>
+              <td>{{ r.case.youth.full_name }}</td>
+              <td>{{ r.receiving_partner.partner_name }}</td>
+              <td class="num">
+                <span class="badge {% if r.days_waiting >= confirmation_threshold %}over{% elif r.days_waiting >= 4 %}due{% else %}ok{% endif %}">
+                  <span class="mark" aria-hidden="true">{% if r.days_waiting >= confirmation_threshold %}▲{% else %}◔{% endif %}</span>{{ r.days_waiting }}d
+                </span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if awaiting_partner_count > awaiting_partner|length %}
+        <a class="all" href="{% url 'dashboard:queue' 'awaiting-partner' %}">
+          {% blocktranslate with n=awaiting_partner_count %}View all {{ n }} →{% endblocktranslate %}</a>
+      {% endif %}
+    {% else %}
+      <p class="empty">{% translate "No referral is waiting on a partner." %}</p>
+    {% endif %}
+  </section>
+
+  {# CM-3 — a table in workflow order, not a chart and not sorted by size. #}
+  <section class="card">
+    <h2>{% translate "My caseload by status" %}</h2>
+    <div class="why">{% translate "Workflow order. Each row opens the filtered list." %}</div>
+    <table>
+      <thead><tr><th>{% translate "Case status" %}</th><th class="num">{% translate "Cases" %}</th>
+        <th class="num">{% translate "Oldest" %}</th><th></th></tr></thead>
+      <tbody>
+        {% for row in caseload_by_status %}
+          <tr>
+            <td class="st-{{ row.slug }}"><span class="mark" aria-hidden="true">●</span>{{ row.label }}</td>
+            <td class="num">{{ row.n }}</td>
+            <td class="num">{% if row.n %}{{ row.oldest_days }}d{% else %}—{% endif %}</td>
+            <td class="num"><a href="{% url 'dashboard:queue' row.slug %}">{% translate "Open" %}</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  {# CM-4 #}
+  <section class="card">
+    <h2>{% translate "Youth at risk of dropping out" %}</h2>
+    <div class="why">{% translate "An exception list, worst first." %}</div>
+    {% if at_risk %}
+      <ul class="q">
+        {% for item in at_risk %}
+          <li>
+            <div>
+              <div class="who-name">{{ item.youth_name }}</div>
+              <div class="reason">{{ item.reason }}</div>
+            </div>
+            <span class="badge over"><span class="mark" aria-hidden="true">▲</span>{{ item.badge }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if at_risk_count > at_risk|length %}
+        <a class="all" href="{% url 'dashboard:queue' 'at-risk' %}">
+          {% blocktranslate with n=at_risk_count %}View all {{ n }} →{% endblocktranslate %}</a>
+      {% endif %}
+    {% else %}
+      <p class="empty">{% translate "No case has gone quiet." %}</p>
+    {% endif %}
+
+    {# Naming what this card cannot yet see, rather than implying it checked. #}
+    <div class="note">
+      {% translate "This list checks one of four conditions. Not yet instrumented:" %}
+      <ul>{% for condition in uninstrumented_risk %}<li>{{ condition }}</li>{% endfor %}</ul>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

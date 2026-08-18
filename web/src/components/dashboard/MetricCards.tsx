@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import type { ProgrammeDashboard } from "../../api/types";
 import { useLang } from "../../i18n/LanguageContext";
 import { CapsLabel, Card } from "../ui";
+import type { Rate } from "../../api/types";
 import { splitSegments } from "./dashboardLayout";
 import { NotYet } from "./panels";
 
@@ -41,7 +42,10 @@ export function MetricCards({ metrics }: { metrics: ProgrammeDashboard["metrics"
                 <div className="t-meta" style={{ color: "var(--on-dark-2)", marginTop: 6 }}>
                   {t("dash.ofTarget", { target: placements.target, percent: placements.percent ?? 0 })}
                 </div>
-                <div className="track" style={{ height: 8, marginTop: 10, background: "rgba(255,255,255,0.18)" }}>
+                <div
+                  className="track"
+                  style={{ height: 8, marginTop: 10, background: "rgba(255,255,255,0.18)", position: "relative" }}
+                >
                   <div
                     className="track__fill"
                     style={{
@@ -49,6 +53,22 @@ export function MetricCards({ metrics }: { metrics: ProgrammeDashboard["metrics"
                       background: "var(--gold-500)",
                     }}
                   />
+                  {/* Elapsed time as a mark on the same track. Progress against a
+                      quarterly target is meaningless without it: 3% on day three
+                      is on track, and the same figure on day eighty is not. */}
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      insetBlock: -2,
+                      insetInlineStart: `${Math.min(100, placements.quarter_elapsed_percent)}%`,
+                      width: 2,
+                      background: "var(--on-dark)",
+                    }}
+                  />
+                </div>
+                <div className="t-meta" style={{ color: "var(--on-dark-3)", marginTop: 6 }}>
+                  {t("dash.quarterElapsed", { percent: placements.quarter_elapsed_percent })}
                 </div>
               </>
             ) : (
@@ -74,7 +94,7 @@ export function MetricCards({ metrics }: { metrics: ProgrammeDashboard["metrics"
       <Card>
         <CapsLabel>{t("dash.genderSplit")}</CapsLabel>
         {gender.available ? (
-          <GenderBar female={gender.female} male={gender.male} baseline={gender.registration_female_percent} />
+          <GenderBar female={gender.female} male={gender.male} baseline={gender.registration_female} />
         ) : (
           <div className="t-meta" style={{ marginTop: 10 }}>
             {t("dash.noPlacementsYet")}
@@ -93,9 +113,21 @@ export function MetricCards({ metrics }: { metrics: ProgrammeDashboard["metrics"
  * ratio for gold *as* text. Ink on gold is 5.9:1, which clears AA, and it is
  * what the handoff's own dashboard mockup shows. Do not "fix" this to white.
  */
-function GenderBar({ female, male, baseline }: { female: number; male: number; baseline: number }) {
+function GenderBar({ female, male, baseline }: { female: Rate; male: Rate; baseline: Rate }) {
   const { t } = useLang();
-  const segments = splitSegments(female, male);
+
+  // Below the reporting floor the split is not drawn at all. A 67/33 bar off
+  // three placements invites exactly the parity conclusion three cases cannot
+  // support, and a bar is more persuasive than the asterisk beside it.
+  if (female.percent === null || male.percent === null) {
+    return (
+      <div className="t-meta" style={{ marginTop: 10 }}>
+        {t("dash.splitTooFew", { n: female.d })}
+      </div>
+    );
+  }
+
+  const segments = splitSegments(female.percent, male.percent);
 
   return (
     <>
@@ -142,9 +174,14 @@ function GenderBar({ female, male, baseline }: { female: number; male: number; b
         </span>
       </div>
       <div className="t-meta" style={{ marginTop: 8 }}>
-        {t("dash.women", { percent: segments.female })} · {t("dash.men", { percent: segments.male })}
+        {t("dash.women", { percent: segments.female })} · {t("dash.men", { percent: segments.male })} ·{" "}
+        {t("dash.ofCount", { n: female.n + male.n, d: female.d })}
+        {female.band === "provisional" && "*"}
       </div>
-      <div className="t-meta">{t("dash.registrationBaseline", { percent: baseline })}</div>
+      {baseline.percent !== null && (
+        <div className="t-meta">{t("dash.registrationBaseline", { percent: baseline.percent })}</div>
+      )}
+      {female.band === "provisional" && <div className="t-meta">{t("dash.provisionalNote")}</div>}
     </>
   );
 }

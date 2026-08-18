@@ -74,6 +74,55 @@ jobs:
       - name: Tests
         run: pytest --cov=apps --cov-report=term-missing
 
+  reporting-sql:
+    name: Reporting layer — SQL assertions
+    runs-on: ubuntu-latest
+    # dashboard_handoff_youth_employment/README.md §3 step 2: sql/900 is a
+    # blocking gate. It asserts the things the reporting layer exists to
+    # guarantee — suppression withholds numerators, censored cohort cells never
+    # read as 0%, no PII reaches the rpt schema — none of which the Python suite
+    # can see, because the layer is SQL.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: rpt_ci
+          POSTGRES_USER: yep
+          POSTGRES_PASSWORD: ci-not-a-secret
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      # 000 stubs the app tables. Django owns them in the real database; this
+      # runs against a scratch one so the layer is testable before Sprint 5's
+      # entities exist.
+      - name: Build the reporting layer
+        env:
+          PGPASSWORD: ci-not-a-secret
+        working-directory: docs/dashboard_handoff_youth_employment/sql
+        run: |
+          for f in 000_test_fixture_schema 001_reporting_schema 002_helper_functions \
+                   003_materialized_views 004_indexes 005_refresh; do
+            echo "--- $f"
+            psql -v ON_ERROR_STOP=1 -q -h localhost -U yep -d rpt_ci -f "$f.sql"
+          done
+
+      - name: Assertions A-Q
+        env:
+          PGPASSWORD: ci-not-a-secret
+        working-directory: docs/dashboard_handoff_youth_employment/sql
+        run: |
+          out=$(psql -v ON_ERROR_STOP=1 -q -h localhost -U yep -d rpt_ci \
+                     -f 900_test_seed_and_assertions.sql 2>&1)
+          echo "$out"
+          echo "$out" | grep -q "ALL REPORTING LAYER ASSERTIONS PASSED"
+
   image:
     name: Backend image builds
     runs-on: ubuntu-latest

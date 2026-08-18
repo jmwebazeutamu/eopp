@@ -4,6 +4,7 @@ import type { FunnelStage, PartnerLag, ProgrammeDashboard, WoredaRow } from "../
 import { useLang } from "../../i18n/LanguageContext";
 import { ALERT_TONE } from "../../design/status";
 import { CapsLabel, Card, MutedChip } from "../ui";
+import { MeanValue, ProvisionalNote, RateValue } from "./Figure";
 import { barPercent, funnelFill, lagScale, standardMarkPercent } from "./dashboardLayout";
 
 /**
@@ -53,41 +54,90 @@ export function FunnelPanel({ stages }: { stages: FunnelStage[] }) {
 
   return (
     <Panel title={t("dash.funnel")}>
+      <div className="t-meta" style={{ marginTop: -6 }}>
+        {t("dash.funnelWhy")}
+      </div>
+      {/* G-6: the partner cards count referrals and this counts youth. Both are
+          right, and unlabelled they read as a contradiction. */}
+      <div className="t-meta" style={{ marginBottom: 12 }}>
+        {t("pm.unitYouth")} {t("pm.emphasis")}
+      </div>
+
       {top === 0 && <div className="t-meta">{t("dash.empty")}</div>}
-      <div className="stack" style={{ gap: 10 }}>
-        {stages.map((stage, index) => (
-          <div key={stage.key}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
-              <span style={{ fontSize: 14 }}>{stage.label}</span>
-              {stage.available ? (
-                <span className="tabular" style={{ fontWeight: 600 }}>
-                  {stage.count?.toLocaleString()}
-                  <span className="t-meta" style={{ marginInlineStart: 6, fontWeight: 400 }}>
-                    {stage.percent}%
-                  </span>
-                </span>
-              ) : (
-                <MutedChip>{t("dash.notYet")}</MutedChip>
-              )}
+
+      {stages.map((stage, index) => (
+        <div key={stage.key}>
+          {/* Label · shared-baseline track · value. The baseline is shared so
+              two stages can be compared by eye; a funnel's taper cannot be. */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(96px, 148px) 1fr auto",
+              gap: 10,
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{stage.label}</div>
+              <div className="t-meta" style={{ fontSize: 11 }}>
+                {stage.sublabel}
+              </div>
             </div>
 
-            {/* An unavailable stage draws an empty track rather than a zero-width
-                fill: the row keeps its place in the funnel, and the absence is
-                visibly an absence rather than a floor. */}
-            <div className="track" style={{ height: 16, marginTop: 4 }} title={stage.available ? "" : stage.reason}>
+            <div className="track" style={{ height: 16 }} title={stage.available ? "" : stage.reason}>
               {stage.available && (
                 <div
                   className="track__fill"
                   style={{
                     width: `${barPercent(stage.count ?? 0, top)}%`,
-                    background: funnelFill(index, drawable.length),
+                    background: stage.gating ? funnelFill(index, drawable.length) : "var(--fill-muted-2)",
                   }}
                 />
               )}
             </div>
+
+            <div style={{ textAlign: "end", minWidth: 74 }}>
+              {stage.available && stage.share ? (
+                <>
+                  <div className="tabular" style={{ fontWeight: 700 }}>
+                    {stage.count?.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: 12 }}>
+                    <RateValue rate={stage.share} bold={false} />
+                  </div>
+                </>
+              ) : (
+                <MutedChip>{t("dash.notYet")}</MutedChip>
+              )}
+            </div>
           </div>
-        ))}
-      </div>
+
+          {/* The loss on the way out of this stage, annotated between the rows
+              rather than left to be subtracted. The mark carries it in
+              monochrome; the words carry it without colour at all. */}
+          {stage.lost && (
+            <div
+              className="t-meta"
+              style={{ padding: "5px 0 5px 10px", marginBlock: 2, borderInlineStart: "2px solid var(--line)" }}
+            >
+              <span aria-hidden style={{ marginInlineEnd: 4 }}>
+                ▼
+              </span>
+              <strong style={{ color: "var(--terra-700)" }}>
+                {stage.lost.share.percent === null
+                  ? t("dash.lostUnknown", { count: stage.lost.count })
+                  : t("dash.lost", { count: stage.lost.count, percent: stage.lost.share.percent })}
+              </strong>
+              {stages[index + 1]?.median_days_in_prev_stage !== null &&
+                stages[index + 1]?.median_days_in_prev_stage !== undefined && (
+                  <> · {t("dash.medianInStage", { days: stages[index + 1].median_days_in_prev_stage as number })}</>
+                )}
+            </div>
+          )}
+        </div>
+      ))}
+
+      <ProvisionalNote shown={stages.some((stage) => stage.share?.band === "provisional")} />
     </Panel>
   );
 }
@@ -98,8 +148,10 @@ export function FunnelPanel({ stages }: { stages: FunnelStage[] }) {
 
 export function LagPanel({ standardDays, partners }: { standardDays: number; partners: PartnerLag[] }) {
   const { t } = useLang();
+  // Only the means that survived banding can be scaled against; a withheld mean
+  // has no bar, which is the point.
   const scale = lagScale(
-    partners.map((row) => row.days),
+    partners.map((row) => row.lag.days).filter((days): days is number => days !== null),
     standardDays,
   );
   const mark = standardMarkPercent(standardDays, scale);
@@ -107,8 +159,9 @@ export function LagPanel({ standardDays, partners }: { standardDays: number; par
   return (
     <Panel title={t("dash.lag")}>
       <div className="t-meta">{t("dash.lagIntro")}</div>
+      <div className="t-meta">{t("dash.lagStandard", { days: standardDays })}</div>
       <div className="t-meta" style={{ marginBottom: 12 }}>
-        {t("dash.lagStandard", { days: standardDays })}
+        {t("dash.lagOrder")}
       </div>
 
       {partners.length === 0 ? (
@@ -119,16 +172,16 @@ export function LagPanel({ standardDays, partners }: { standardDays: number; par
             <div key={row.partner}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
                 <span style={{ fontSize: 14 }}>{row.partner}</span>
-                <span className="tabular" style={{ fontWeight: 600 }}>
-                  {row.days === 1 ? t("dash.day") : t("dash.days", { days: row.days })}
-                </span>
+                <MeanValue mean={row.lag} />
               </div>
 
               <div className="track" style={{ height: 12, marginTop: 4, position: "relative" }}>
-                <div
-                  className="track__fill"
-                  style={{ width: `${barPercent(row.days, scale)}%`, background: "var(--gold-500)" }}
-                />
+                {row.lag.days !== null && (
+                  <div
+                    className="track__fill"
+                    style={{ width: `${barPercent(row.lag.days, scale)}%`, background: "var(--gold-500)" }}
+                  />
+                )}
                 {/* The standard as a reference line, not a second colour: a
                     partner over it is read off the bar's own end crossing the
                     mark, which stays legible in monochrome. */}
@@ -143,8 +196,12 @@ export function LagPanel({ standardDays, partners }: { standardDays: number; par
                   }}
                 />
               </div>
+              <div className="t-meta" style={{ marginTop: 2 }}>
+                {t("dash.lagReferrals", { count: row.lag.n })}
+              </div>
             </div>
           ))}
+          <ProvisionalNote shown={partners.some((row) => row.lag.band === "provisional")} />
         </div>
       )}
     </Panel>
@@ -168,24 +225,25 @@ export function WoredaPanel({ rows }: { rows: WoredaRow[] }) {
             <div key={row.woreda}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
                 <span className="t-body-strong">{row.woreda}</span>
-                <span className="tabular" style={{ fontWeight: 600 }}>
-                  {row.rate}%
-                </span>
+                <RateValue rate={row.rate} />
               </div>
               {/* Every woreda is scaled against 100%, not against the leader:
                   the question is what share of registered youth reached work,
                   and a relative scale would make the best of a bad set look full. */}
               <div className="track" style={{ height: 20, marginTop: 4 }}>
-                <div
-                  className="track__fill"
-                  style={{ width: `${barPercent(row.rate, 100)}%`, background: "var(--green-500)" }}
-                />
+                {row.rate.percent !== null && (
+                  <div
+                    className="track__fill"
+                    style={{ width: `${barPercent(row.rate.percent, 100)}%`, background: "var(--green-500)" }}
+                  />
+                )}
               </div>
               <div className="t-meta" style={{ marginTop: 4 }}>
                 {t("dash.woredaMeta", { registered: row.registered, placed: row.placed })}
               </div>
             </div>
           ))}
+          <ProvisionalNote shown={rows.some((row) => row.rate.band === "provisional")} />
         </div>
       )}
     </Panel>

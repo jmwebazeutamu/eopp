@@ -236,6 +236,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "alerts.generate_replacement_prompts",
         "schedule": crontab(hour=5, minute=30),
     },
+    # Closes referrals no partner ever answered. A no-op until
+    # REFERRAL_ABANDONMENT_DAYS is set (OQ-13), so it is safe to schedule now:
+    # the threshold is programme management's decision, not a deploy.
+    "fail-abandoned-referrals": {
+        "task": "alerts.fail_abandoned_referrals",
+        "schedule": crontab(hour=5, minute=40),
+    },
     # Runs more often than detection: clearing a resolved alert out of somebody's
     # inbox promptly is what stops the inbox being ignored.
     "resolve-cleared-alerts": {
@@ -287,11 +294,41 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 # Platform business rules (configurable — spec §11 leaves these to Phase 1)
 # --------------------------------------------------------------------------
 
-# TODO(open-question): spec §11 — set with programme management before pilot.
-# Defaults below are placeholders so alert logic is testable, not agreed values.
+# Spec §11. STALL_ALERT_THRESHOLD_DAYS is still a placeholder; the other two
+# were settled with programme management on 2026-08-18 and carry their reasons
+# below. All three remain one-line changes.
+# TODO(open-question): STALL_ALERT_THRESHOLD_DAYS is not yet agreed.
 STALL_ALERT_THRESHOLD_DAYS = config("STALL_ALERT_THRESHOLD_DAYS", default=30, cast=int)
-REFERRAL_CONFIRMATION_OVERDUE_DAYS = config("REFERRAL_CONFIRMATION_OVERDUE_DAYS", default=7, cast=int)
+# Settled 2026-08-18 at 14 days, from the pilot's own evidence rather than the
+# original placeholder of 7.
+#
+# Partners answer in a median of 8-10 days when they answer at all. A 7-day
+# threshold therefore flags most referrals as overdue — the review measured 418
+# open alerts against 540 cases, four in five — and a queue where almost
+# everything is overdue prioritises nothing. 14 days flags roughly the slowest
+# quartile, which is what a threshold is for. It also removes a contradiction:
+# the dashboards stated a 14-day programme standard while the alert engine used
+# 7, so the same referral was simultaneously on time and overdue.
+REFERRAL_CONFIRMATION_OVERDUE_DAYS = config("REFERRAL_CONFIRMATION_OVERDUE_DAYS", default=14, cast=int)
 CASELOAD_CEILING = config("CASELOAD_CEILING", default=50, cast=int)
+
+# OQ-13, settled 2026-08-18. §6.2 offers no exit from
+# Pending Confirmation except partner action or a case manager cancelling, so a
+# referral nobody answers sits there forever — holding a slot against the §6.3
+# parallel cap and dragging the loop-closure denominator down permanently.
+#
+# Settled 2026-08-18 at 60 days — four times the 14-day standard.
+#
+# Chosen to sit far enough past the threshold that it cannot catch a partner who
+# is merely slow: at a median response of 8-10 days, 60 days is six medians. It
+# is also inside a quarter, so a stranded referral frees its §6.3 slot within the
+# reporting period rather than after it.
+#
+# Failing a referral is recoverable, which is what makes an automatic rule
+# acceptable: the case keeps its history, `PARTNER_NON_RESPONSIVE` records why,
+# and §6.2 allows a replacement referral immediately. Set to 0 or empty to
+# disable the sweep.
+REFERRAL_ABANDONMENT_DAYS = config("REFERRAL_ABANDONMENT_DAYS", default=60, cast=lambda v: int(v) if v else None)
 
 # TODO(open-question): the dashboard's headline card reads "N of TARGET this
 # quarter". The handoff's mockup shows 180, which is mockup data — the real

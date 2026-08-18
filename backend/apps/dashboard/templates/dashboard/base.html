@@ -1,0 +1,90 @@
+{% load i18n %}<!doctype html>
+{% comment %}
+Tier 1 shell. Self-contained on purpose.
+
+The tokens are inlined rather than served as a stylesheet: this page is one
+request under 100 KB (CASE_MANAGER_DASHBOARD.md §8), and a second round-trip for
+3 KB of CSS costs more on 3G than shipping it in the document. Values are the
+design handoff's, which is authoritative for both the React and the
+server-rendered implementations.
+
+The page is a set of lists and tables and stays usable with CSS disabled — every
+status carries a word and a mark, never colour alone, so nothing is lost when the
+styling is.
+{% endcomment %}
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% translate "My work today" %}{% endblock %}</title>
+<style>
+:root{
+  --green-900:#0A3A2C; --green-700:#0F4F3C; --green-500:#1C7A5B; --green-100:#E4EFE9;
+  --green-border:#9CC4B4; --green-ink:#0B4A38;
+  --gold-700:#7A5308; --gold-500:#C98A15; --gold-300:#E9C877; --gold-100:#FBF1DC; --gold-border:#E0BC72;
+  --terra-700:#8A3A1E; --terra-100:#F7E7DF; --terra-border:#DBA98F;
+  --red-700:#8C1D18; --red-100:#FAE6E4; --red-border:#DCA6A2;
+  --ink-900:#1A1915; --ink-600:#4E4A42; --ink-400:#7A7568;
+  --line:#E3DED2; --paper:#F7F4EE; --surface:#FFFFFF; --fill-muted:#F1EEE7;
+  --r-card:12px; --r-chip:999px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink-900);
+  font:15px/1.5 "Archivo",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--green-700)}
+.top{background:var(--green-900);color:#fff;padding:12px 20px;display:flex;gap:12px;
+  align-items:baseline;flex-wrap:wrap}
+.top b{font-size:15px}
+.top .who{color:#B9CFC6;font-size:13px;margin-left:auto}
+main{padding:20px;max-width:1200px;margin:0 auto}
+h1{font-size:22px;margin:0 0 2px}
+.sub{color:var(--ink-600);font-size:13px;margin-bottom:18px}
+.tiles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:18px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:12px 14px}
+.tile .k{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-600)}
+.tile .v{font-size:32px;font-weight:700;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.tile .n{font-size:12px;color:var(--ink-600)}
+.tile.bad{border-color:var(--red-border);background:var(--red-100)}
+.tile.warn{border-color:var(--gold-border);background:var(--gold-100)}
+.tile.good{border-color:var(--green-border);background:var(--green-100)}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:14px 16px}
+.card h2{font-size:15px;margin:0 0 2px}
+.card .why{font-size:12px;color:var(--ink-600);margin-bottom:10px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-600);
+  font-weight:700;padding:4px 8px 4px 0;border-bottom:1px solid var(--line)}
+td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+ul.q{list-style:none;margin:0;padding:0}
+ul.q li{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;
+  padding:9px 0;border-bottom:1px solid var(--line)}
+ul.q li:last-child{border-bottom:0}
+.who-name{font-weight:600}
+.reason{font-size:13px;color:var(--ink-600)}
+.badge{display:inline-block;border-radius:var(--r-chip);padding:2px 9px;font-size:12px;font-weight:700;
+  white-space:nowrap;border:1px solid transparent}
+.badge.over{background:var(--red-100);color:var(--red-700);border-color:var(--red-border)}
+.badge.due{background:var(--gold-100);color:var(--gold-700);border-color:var(--gold-border)}
+.badge.ok{background:var(--fill-muted);color:var(--ink-600)}
+.mark{font-weight:700;margin-right:5px}
+.st-active{color:var(--green-ink)} .st-pending{color:var(--gold-700)}
+.st-stalled{color:var(--terra-700)} .st-placed{color:var(--green-700)} .st-exited{color:var(--ink-600)}
+.all{display:inline-block;margin-top:10px;font-size:13px;font-weight:600}
+.empty{color:var(--ink-600);font-size:13px}
+.note{margin-top:10px;padding:9px 11px;border-radius:8px;background:var(--fill-muted);
+  font-size:12px;color:var(--ink-600)}
+.note ul{margin:6px 0 0;padding-left:18px}
+@media (max-width:780px){ main{padding:14px} .tiles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))} }
+</style>
+</head>
+<body>
+<header class="top">
+  <b>{% translate "PSNP Youth Employment" %}</b>
+  <span style="color:#D8E4DE;font-size:13px">{% translate "Case Management" %}</span>
+  <span class="who">{{ request.user.full_name }} · {{ request.user.get_role_display }}</span>
+</header>
+<main>{% block content %}{% endblock %}</main>
+</body>
+</html>

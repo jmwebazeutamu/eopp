@@ -41,5 +41,22 @@ services:
     volumes:
       - ../backend:/app
 
+  # The design handoff and the dashboard prototype, served as files. The web
+  # app's /dashboard route points at the prototype (VITE_DASHBOARD_URL), so this
+  # needs to outlive whichever terminal started it.
+  #
+  # Development only, and deliberately not in docker-compose.yml: docs/ holds
+  # design references with illustrative figures, and nothing in it should be
+  # reachable from a deployed environment. Read-only mount — the server has no
+  # reason to write to the repository.
+  docs:
+    image: nginx:alpine
+    container_name: yep_docs
+    restart: unless-stopped
+    ports:
+      - "${DOCS_HOST_PORT:-8101}:80"
+    volumes:
+      - ../docs:/usr/share/nginx/html:ro
+
 volumes:
   static_dev:

@@ -23,7 +23,7 @@ after go-live can join the headline figure without a deploy.
 from datetime import date
 
 from django.conf import settings
-from django.db.models import Avg, Count, DurationField, ExpressionWrapper, F
+from django.db.models import Avg, Count, DurationField, ExpressionWrapper, F, Min, Q
 from django.utils.translation import gettext_lazy as _
 
 from apps.cases.models import Case
@@ -32,13 +32,35 @@ from apps.users.models import Scope
 from apps.users.permissions import scope_queryset
 from apps.youth.models import Sex, Youth
 
+from .rules import mean_days, quarter_elapsed_fraction, rate
+
 # §4.7 Placement, with the 30/60/90-day retention checkpoints, is Sprint 5.
 # Everything the funnel's last row and the retention card need comes from it.
-RETENTION_PENDING = _("Retention needs the Placement record and its 30/60/90-day checkpoints (spec §4.7, Sprint 5).")
+SERVICE_START_PENDING = _("Not measurable yet: nothing has recorded the date a youth presented to the partner.")
 
-# The handoff's note under the confirmation-lag panel. Days from referral sent to
-# partner decision.
-CONFIRMATION_STANDARD_DAYS = 14
+# OQ-9 settled 2026-08-18. Two anchors, one reportable.
+#
+#   Operations: 30/60/90 days from PLACEMENT. Drives case manager follow-up.
+#   Reporting:  3 months from programme EXIT, unsubsidised only. This is the
+#               anchor UPSNJP's "wage-employed 3 months after completion"
+#               indicator uses, so it rolls up without reconciliation.
+#
+# The build previously showed a third, "retained at 6 months", taken from a
+# design mockup with no framework behind it. Dropped: three anchors produce
+# three different retention rates that nobody can reconcile, and the donor
+# number has to match the parent operation's definition or it cannot be quoted.
+RETENTION_LABEL = _("Retained 3 months after exit")
+
+RETENTION_PENDING = _(
+    "Not measurable yet: nothing records whether a youth is still employed three months after leaving the programme."
+)
+
+
+# The confirmation standard, read from the one place it is configured. It used
+# to be a literal 14 here while the alert engine used 7, so a referral could be
+# on time on the dashboard and overdue in the work queue at the same time.
+def confirmation_standard_days():
+    return settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS
 
 
 def _percent(part, whole):
@@ -147,62 +169,194 @@ def metric_cards(youth, referrals, today):
             # drops the progress bar rather than drawing 100% of nothing.
             "target": target or None,
             "percent": _percent(this_quarter, target) if target else None,
+            # Read the percentage against elapsed time, not against the whole
+            # quarter, or every quarter opens with a card saying the programme
+            # is failing. Day 3 of 90 at 3% of target is on track.
+            "quarter_elapsed_percent": round(quarter_elapsed_fraction(today, start, end) * 100),
         },
         "retained_six_months": {"available": False, "reason": str(RETENTION_PENDING)},
         "gender_split": {
             "available": placed_total > 0,
             "placed_total": placed_total,
-            "female": _percent(by_sex.get(Sex.FEMALE, 0), placed_total),
-            "male": _percent(by_sex.get(Sex.MALE, 0), placed_total),
-            "registration_female_percent": _percent(registered_female, registered_total),
+            # Banded: a 67/33 split off three placements is noise, and printing
+            # it beside a registration baseline invites exactly the parity
+            # conclusion the numbers cannot support.
+            "female": rate(by_sex.get(Sex.FEMALE, 0), placed_total),
+            "male": rate(by_sex.get(Sex.MALE, 0), placed_total),
+            "registration_female": rate(registered_female, registered_total),
         },
     }
 
 
+def _median(values):
+    """Whole days. No numpy for one statistic on a few hundred rows."""
+    ordered = sorted(v for v in values if v is not None)
+    if not ordered:
+        return None
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return round((ordered[middle - 1] + ordered[middle]) / 2)
+
+
+# The pipeline, as one row per stage. `date_field` is the annotation that says
+# when a youth reached that stage — stage *dates*, not booleans, because the
+# median time spent in the previous stage is the most actionable number on the
+# card and a count cannot produce it.
+# `gating` marks a stage a youth must pass to reach the next one. Profiling and
+# pathway assignment are not prerequisites — the referral engine will raise a
+# referral without either — so they are *coverage*, not gates. Counting them as
+# funnel stages would put "Referred 168" above "Profiled 0" and read as a broken
+# programme rather than as a profiling gap, so no drop-off is annotated across
+# them and the nesting invariant is only claimed where it holds.
+STAGES = [
+    ("registered", _("Registered"), _("Youth record created"), "registered_on", True),
+    ("case_opened", _("Case opened"), _("Case file opened"), "case_opened_on", True),
+    ("profiled", _("Profiled and eligible"), _("Profiling record complete"), "profiled_on", False),
+    ("pathway", _("Pathway assigned"), _("Current pathway set"), "pathway_on", False),
+    ("referred", _("Referred"), _("First referral raised"), "referred_on", True),
+    ("partner_confirmed", _("Partner confirmed"), _("Referral accepted"), "confirmed_on", True),
+    ("service_attended", _("Service attended"), _("Youth presented to the partner"), "attended_on", True),
+    # Named for what it measures, not for an outcome. "Placed" appears three
+    # times on this screen with three different denominators otherwise, and this
+    # is the one a programme manager quotes in a meeting.
+    (
+        "closed_successfully",
+        _("First referral closed successfully"),
+        _("An outcome was recorded"),
+        "completed_on",
+        True,
+    ),
+]
+
+# Every figure on the pipeline counts youth. The partner cards count referrals,
+# and a youth holds several — unlabelled, the two read as a contradiction.
+PIPELINE_UNIT = _("youth")
+
+
 def funnel(youth, cases, referrals):
-    """Registration → placement, one row per stage the data can carry.
+    """Registration → placement, with the loss at every transition.
 
     Each stage counts *youth*, not events, so the rows nest: a youth referred
     three times is one youth referred. Counting referrals instead would let a
     later stage exceed an earlier one, which reads as a bug in the programme
     rather than in the query.
+
+    Drawn as a row chart on a shared left baseline rather than as a funnel, and
+    annotated with the loss at each transition, because the question a programme
+    manager is asking is where youth are *lost* — a funnel highlights the
+    survivors and cannot show median days in stage at all.
     """
-    registered = youth.count()
+    confirmed_statuses = [ReferralStatus.ACTIVE, ReferralStatus.COMPLETED, ReferralStatus.REPLACED]
 
-    # Youth ids rather than case ids, so every row is denominated the same way.
-    referred = youth.filter(case__referrals__isnull=False).distinct().count()
-    confirmed = (
-        youth.filter(
-            case__referrals__status__in=[
-                ReferralStatus.ACTIVE,
-                ReferralStatus.COMPLETED,
-                ReferralStatus.REPLACED,
-            ]
-        )
-        .distinct()
-        .count()
+    # One pass. Each stage's date is the first time the youth reached it.
+    rows = youth.annotate(
+        registered_on=F("registration_date"),
+        case_opened_on=Min("case__opened_date"),
+        referred_on=Min("case__referrals__initiated_date"),
+        confirmed_on=Min("case__referrals__confirmed_date", filter=Q(case__referrals__status__in=confirmed_statuses)),
+        completed_on=Min("case__referrals__outcome_date", filter=Q(case__referrals__status=ReferralStatus.COMPLETED)),
+        attended_on=Min("case__referrals__service_start_date"),
+        profiled_on=Min("case__profiling_records__assessed_date"),
+        pathway_on=Min(
+            "case__pathway_assignments__assessment_date", filter=Q(case__pathway_assignments__is_current=True)
+        ),
+    ).values(
+        "registered_on",
+        "case_opened_on",
+        "profiled_on",
+        "pathway_on",
+        "referred_on",
+        "confirmed_on",
+        "attended_on",
+        "completed_on",
     )
-    completed = youth.filter(case__referrals__status=ReferralStatus.COMPLETED).distinct().count()
+    rows = list(rows)
 
-    rows = [
-        ("registered", _("Registered"), registered, True, ""),
-        ("case_opened", _("Case opened"), cases.values("youth_id").distinct().count(), True, ""),
-        ("referred", _("Referred"), referred, True, ""),
-        ("partner_confirmed", _("Partner confirmed"), confirmed, True, ""),
-        ("completed", _("Placed or completed"), completed, True, ""),
-        ("retained", _("Retained at 6 months"), None, False, str(RETENTION_PENDING)),
-    ]
-    return [
-        {
+    registered = len(rows)
+    out = []
+    previous_field = None
+    last_gating = None
+
+    for index, (key, label, sub, field, gating) in enumerate(STAGES):
+        reached = [row for row in rows if row[field] is not None]
+        count = len(reached)
+
+        # Days spent in the previous stage, over the youth who cleared both.
+        median_days = None
+        if previous_field:
+            spans = [
+                (row[field] - row[previous_field]).days
+                for row in reached
+                if row[previous_field] is not None and row[field] >= row[previous_field]
+            ]
+            median_days = _median(spans)
+
+        # OQ-1 is settled and the column exists, but nothing has written to it
+        # yet. An empty column is "not instrumented", never a 100% loss.
+        if key == "service_attended" and count == 0 and registered:
+            out.append(
+                {
+                    "key": key,
+                    "label": str(label),
+                    "sublabel": str(sub),
+                    "count": None,
+                    "share": None,
+                    "median_days_in_prev_stage": None,
+                    "available": False,
+                    "reason": str(SERVICE_START_PENDING),
+                    "lost": None,
+                    "gating": False,
+                    "unit": str(PIPELINE_UNIT),
+                }
+            )
+            previous_field = field
+            continue
+
+        entry = {
             "key": key,
             "label": str(label),
+            "sublabel": str(sub),
             "count": count,
-            "percent": _percent(count, registered) if available else None,
-            "available": available,
-            "reason": reason,
+            # The count is always shown; the share is banded on the registration
+            # denominator every row is measured against. A funnel drawn off
+            # fourteen youth still draws — it just does not claim percentages.
+            "share": rate(count, registered),
+            "median_days_in_prev_stage": median_days,
+            "available": True,
+            "reason": "",
+            "lost": None,
+            "gating": gating,
+            "unit": str(PIPELINE_UNIT),
         }
-        for key, label, count, available, reason in rows
-    ]
+        # The loss is annotated on the row it leaves, so the reader sees where
+        # the programme is losing people rather than only who survived. Only
+        # between gates: a youth referred without a profiling record has not
+        # been "lost" at profiling.
+        if gating and last_gating is not None:
+            lost = last_gating["count"] - count
+            last_gating["lost"] = {"count": lost, "share": rate(lost, last_gating["count"])}
+        out.append(entry)
+        if gating:
+            last_gating = entry
+        previous_field = field
+
+    out.append(
+        {
+            "key": "retained",
+            "label": str(RETENTION_LABEL),
+            "sublabel": str(_("Still in the same placement")),
+            "count": None,
+            "share": None,
+            "median_days_in_prev_stage": None,
+            "available": False,
+            "reason": str(RETENTION_PENDING),
+            "lost": None,
+            "gating": True,
+            "unit": str(PIPELINE_UNIT),
+        }
+    )
+    return out
 
 
 def confirmation_lag(referrals):
@@ -220,16 +374,23 @@ def confirmation_lag(referrals):
         .order_by("mean")
     )
     return {
-        "standard_days": CONFIRMATION_STANDARD_DAYS,
-        "partners": [
-            {
-                "partner": row["receiving_partner__partner_name"],
-                "days": round(row["mean"].days + row["mean"].seconds / 86400),
-                "referrals": row["n"],
-            }
-            for row in rows
-            if row["mean"] is not None
-        ],
+        "standard_days": confirmation_standard_days(),
+        # Ordered by the number of referrals each mean rests on, not by the mean
+        # itself. Sorting by speed ranks partners by luck when the denominators
+        # are this small, and a published ranking is hard to withdraw; ordering
+        # by n puts the partners there is most evidence about at the top and
+        # removes the ranking incentive.
+        "partners": sorted(
+            [
+                {
+                    "partner": row["receiving_partner__partner_name"],
+                    "lag": mean_days(row["mean"].days + row["mean"].seconds / 86400, row["n"]),
+                }
+                for row in rows
+                if row["mean"] is not None
+            ],
+            key=lambda entry: -entry["lag"]["n"],
+        ),
     }
 
 
@@ -252,13 +413,15 @@ def woreda_comparison(youth, referrals):
             "woreda": woreda,
             "registered": count,
             "placed": placed.get(woreda, 0),
-            "rate": _percent(placed.get(woreda, 0), count),
+            "rate": rate(placed.get(woreda, 0), count),
         }
         for woreda, count in registered.items()
     ]
-    # Best first, then by size, so an equal rate off three youth does not lead a
-    # woreda that achieved it off three hundred.
-    return sorted(rows, key=lambda row: (-row["rate"], -row["registered"]))
+    # Ordered by how much evidence there is, not by who is winning. A raw
+    # placement-rate ranking across woredas rewards creaming and penalises the
+    # woreda taking the harder intake — and the platform holds no vulnerability
+    # profile to adjust for that yet (§4.3's index is still undefined).
+    return sorted(rows, key=lambda row: -row["registered"])
 
 
 def alert_pressure(cases):

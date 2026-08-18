@@ -49,14 +49,33 @@ CATEGORIES = [
 # or into their own enterprise. Training Completion does not: finishing a TVET
 # course closes the referral successfully without anyone being placed, and
 # counting it would inflate the headline number the donor reads.
+# `applies_to` widened 2026-08-18, closing punch-list G-1.
+#
+# Each category previously admitted exactly one specific outcome plus "Other",
+# which made the outcome matrix a restatement of this table: every completed
+# referral landed on the diagonal because nothing else was permitted. The card
+# exists to expose the onward-referral gap — a training referral that completes
+# and never becomes a job — and that crossover was unrepresentable.
+#
+# Widened only where the path is real: a training or apprenticeship placement
+# can end in a job, and any referral can end in the youth taking up a service.
+# Still a list the system administrator owns (§9); this is the starter set.
 OUTCOME_TYPES = [
-    ("SERVICE_UPTAKE", "Service Uptake", ["COMPLEMENTARY_SERVICE", "COACHING"], False, False),
-    ("TRAINING_COMPLETION", "Training Completion", ["TRAINING"], False, False),
-    ("JOB_PLACEMENT", "Job Placement", ["EMPLOYMENT"], False, True),
-    ("APPRENTICESHIP_START", "Apprenticeship Start", ["APPRENTICESHIP"], False, True),
-    ("ENTERPRISE_ENROLMENT", "Enterprise Enrolment", ["ENTERPRISE"], False, True),
-    ("FINANCE_ACCESS", "Finance Access", ["FINANCE_ACCESS"], False, False),
-    ("MARKET_LINKAGE_ESTABLISHED", "Market Linkage Established", ["MARKET_LINKAGE"], False, False),
+    (
+        "SERVICE_UPTAKE",
+        "Service Uptake",
+        ["COMPLEMENTARY_SERVICE", "COACHING", "TRAINING", "APPRENTICESHIP", "ENTERPRISE", "FINANCE_ACCESS"],
+        False,
+        False,
+    ),
+    ("TRAINING_COMPLETION", "Training Completion", ["TRAINING", "APPRENTICESHIP"], False, False),
+    # The crossover PM-3 exists to measure: training and apprenticeship
+    # referrals that end in actual employment.
+    ("JOB_PLACEMENT", "Job Placement", ["EMPLOYMENT", "TRAINING", "APPRENTICESHIP"], False, True),
+    ("APPRENTICESHIP_START", "Apprenticeship Start", ["APPRENTICESHIP", "TRAINING"], False, True),
+    ("ENTERPRISE_ENROLMENT", "Enterprise Enrolment", ["ENTERPRISE", "FINANCE_ACCESS", "TRAINING"], False, True),
+    ("FINANCE_ACCESS", "Finance Access", ["FINANCE_ACCESS", "ENTERPRISE"], False, False),
+    ("MARKET_LINKAGE_ESTABLISHED", "Market Linkage Established", ["MARKET_LINKAGE", "ENTERPRISE"], False, False),
     # Empty applies_to means "any category" — §5.3's Other row.
     ("OTHER", "Other", [], True, False),
 ]

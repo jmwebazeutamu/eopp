@@ -65,6 +65,24 @@ class DisabilityStatus(models.TextChoices):
     UNDISCLOSED = "UNDISCLOSED", _("Not disclosed")
 
 
+class SettlementType(models.TextChoices):
+    """Rural / peri-urban / urban — OQ-11, settled 2026-08-18.
+
+    Both the ILO and the World Bank frameworks require a rural/urban cut on
+    every indicator, and nothing in §4.1 supported one. Deliberately **not**
+    proxied from woreda: an Ethiopian woreda routinely contains both, so
+    inferring it would produce a confident number that is wrong rather than an
+    honest gap.
+
+    Optional, because it is being added after intake has begun and back-filling
+    a guess is worse than a blank.
+    """
+
+    RURAL = "RURAL", _("Rural")
+    PERI_URBAN = "PERI_URBAN", _("Peri-urban")
+    URBAN = "URBAN", _("Urban")
+
+
 class YouthQuerySet(models.QuerySet):
     def in_woredas(self, woredas):
         return self.filter(woreda__in=woredas)
@@ -99,6 +117,14 @@ class Youth(BaseModel):
     zone = models.CharField(_("zone"), max_length=128)
     woreda = models.CharField(_("woreda"), max_length=128, db_index=True)
     kebele = models.CharField(_("kebele"), max_length=128)
+    settlement_type = models.CharField(
+        _("settlement type"),
+        max_length=16,
+        choices=SettlementType.choices,
+        blank=True,
+        db_index=True,
+        help_text=_("Rural, peri-urban or urban. Required by the ILO and World Bank disaggregation."),
+    )
 
     # §4.1 types this as a Reference, but the PSNP household registry is an
     # external system and no Household entity exists among the fourteen in §3.

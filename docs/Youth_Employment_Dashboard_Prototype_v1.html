@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Youth Employment Platform — Dashboard &amp; Reporting Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* ---- Design-system tokens (from design_handoff_youth_employment/README.md) ---- */
+  --green-900:#0A3A2C; --green-700:#0F4F3C; --green-500:#1C7A5B; --green-100:#E4EFE9;
+  --green-border:#9CC4B4; --green-ink:#0B4A38;
+  --gold-700:#7A5308; --gold-500:#C98A15; --gold-300:#E9C877; --gold-100:#FBF1DC; --gold-border:#E0BC72;
+  --terra-700:#8A3A1E; --terra-500:#A84B2A; --terra-100:#F7E7DF; --terra-border:#DBA98F;
+  --red-700:#8C1D18; --red-500:#B3261E; --red-100:#FAE6E4; --red-border:#DCA6A2;
+  --ink-900:#1A1915; --ink-600:#4E4A42; --ink-400:#7A7568;
+  --line:#E3DED2; --line-soft:#F4F1EA;
+  --paper:#F7F4EE; --surface:#FFFFFF; --surface-alt:#FCFBF8;
+  --fill-muted:#F1EEE7; --fill-muted-2:#EDEAE1;
+
+  /* ---- Chart series palette — validated with dataviz/scripts/validate_palette.js ----
+     categorical (light): #12836B,#D08A0A,#B0442A,#7A4CA8  → ALL CHECKS PASS
+     ordinal   (light): #84BEAC,#5FA890,#3D9078,#1E7D66,#0C5346 → ALL CHECKS PASS  */
+  --cat-1:#12836B; --cat-2:#D08A0A; --cat-3:#B0442A; --cat-4:#7A4CA8;
+  --seq-1:#84BEAC; --seq-2:#5FA890; --seq-3:#3D9078; --seq-4:#1E7D66; --seq-5:#0C5346;
+  --seq-0:#F2F6F4;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Archivo','Noto Sans Ethiopic',system-ui,-apple-system,sans-serif;
+  background:var(--paper); color:var(--ink-900); line-height:1.5; font-size:15px;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{margin:0; font-weight:700; letter-spacing:-.01em}
+p{margin:0 0 10px}
+a{color:var(--green-700)}
+table{border-collapse:collapse; width:100%}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- shell ---------- */
+.topbar{background:var(--green-900); color:#fff; padding:10px 24px; display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+.topbar .mark{width:22px;height:22px;border-radius:5px;background:var(--gold-300);display:grid;place-items:center;color:var(--green-900);font-weight:700;font-size:12px}
+.topbar .name{font-weight:700;font-size:14px}
+.topbar .meta{color:#B9CFC6;font-size:12px;margin-left:auto;text-align:right}
+.tabs{background:var(--green-700); display:flex; gap:0; overflow-x:auto; padding:0 12px; border-bottom:3px solid var(--green-900)}
+.tabs button{
+  background:none;border:0;color:#D8E4DE;font:inherit;font-size:13px;font-weight:600;
+  padding:12px 14px;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-3px;white-space:nowrap;
+  font-family:inherit;
+}
+.tabs button:hover{color:#fff}
+.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--gold-300)}
+.tabs button .tier{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-300);opacity:.9}
+main{padding:20px 24px 60px; max-width:1360px; margin:0 auto}
+.panel[hidden]{display:none}
+
+/* ---------- page furniture ---------- */
+.pagehead{margin:4px 0 14px}
+.pagehead h2{font-size:22px}
+.pagehead .sub{color:var(--ink-600); font-size:13px; margin-top:3px}
+.asof{display:inline-block;background:var(--fill-muted);border:1px solid var(--line);border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-600)}
+.filterrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:14px}
+.filterrow .lbl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-400);margin-right:2px}
+.chip{border:1px solid var(--line);background:var(--surface-alt);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;color:var(--ink-600);cursor:pointer;font-family:inherit}
+.chip[aria-pressed="true"]{background:var(--green-700);border-color:var(--green-700);color:#fff}
+
+.grid{display:grid;gap:14px;align-items:start}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g12{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.g21{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)}
+@media(max-width:1000px){.g2,.g3,.g12,.g21{grid-template-columns:1fr}}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card.dark{background:var(--green-900);border-color:var(--green-900);color:#fff}
+.card h3{font-size:15px;margin-bottom:2px}
+.card .den{font-size:12px;color:var(--ink-400);margin-bottom:10px}
+.card.dark .den{color:#B9CFC6}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-400);margin-bottom:6px}
+.card.dark .eyebrow{color:var(--gold-300)}
+
+/* ---------- stat tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.tile .k{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-400)}
+.tile .v{font-size:34px;font-weight:700;line-height:1.05;margin:4px 0 2px}
+.tile .n{font-size:12px;color:var(--ink-600)}
+.tile.alert{background:var(--gold-100);border-color:var(--gold-border)}
+.tile.alert .v{color:var(--gold-700)}
+.tile.bad{background:var(--red-100);border-color:var(--red-border)}
+.tile.bad .v{color:var(--red-700)}
+.tile.good .v{color:var(--green-ink)}
+
+/* ---------- status chips: colour + word + shape, never colour alone ---------- */
+.st{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;border-radius:5px;padding:2px 7px;border:1px solid;white-space:nowrap}
+.st i{width:8px;height:8px;display:block;flex:none}
+.st-act{background:var(--green-100);border-color:var(--green-border);color:var(--green-ink)}
+.st-act i{background:var(--cat-1);border-radius:999px}
+.st-pen{background:var(--gold-100);border-color:var(--gold-border);color:var(--gold-700)}
+.st-pen i{background:var(--cat-2);border-radius:0}
+.st-com{background:var(--green-100);border-color:var(--green-border);color:var(--green-ink)}
+.st-com i{background:var(--green-700);clip-path:polygon(50% 0,100% 100%,0 100%)}
+.st-fail{background:var(--red-100);border-color:var(--red-border);color:var(--red-700)}
+.st-fail i{background:var(--red-700);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.st-rep{background:var(--terra-100);border-color:var(--terra-border);color:var(--terra-700)}
+.st-rep i{background:var(--terra-500);border-radius:2px;transform:rotate(45deg)}
+.st-can{background:var(--fill-muted-2);border-color:var(--line);color:var(--ink-600)}
+.st-can i{background:var(--ink-400);height:3px;align-self:center}
+
+/* ---------- lists / work queues ---------- */
+.qlist{list-style:none;margin:0;padding:0}
+.qlist li{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line-soft)}
+.qlist li:first-child{border-top:0}
+.qlist .who{font-weight:600;font-size:14px}
+.qlist .why{font-size:12.5px;color:var(--ink-600)}
+.qlist .age{margin-left:auto;text-align:right;flex:none}
+.badge{display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:2px 6px;white-space:nowrap}
+.badge.over{background:var(--red-100);color:var(--red-700);border:1px solid var(--red-border)}
+.badge.due{background:var(--gold-100);color:var(--gold-700);border:1px solid var(--gold-border)}
+.badge.ok{background:var(--green-100);color:var(--green-ink);border:1px solid var(--green-border)}
+.linkall{display:inline-block;margin-top:10px;font-size:12.5px;font-weight:700;color:var(--green-700);text-decoration:none;border-bottom:1px solid var(--green-border)}
+
+/* ---------- tables ---------- */
+.tbl{font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-400);padding:6px 8px;border-bottom:1px solid var(--line);background:var(--surface-alt)}
+.tbl td{padding:7px 8px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.tbl td.num,.tbl th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .muted{color:var(--ink-400)}
+.suppressed{color:var(--ink-400);font-style:italic}
+
+/* ---------- hand-built bars ---------- */
+.barrow{display:grid;grid-template-columns:minmax(96px,auto) 1fr auto;gap:10px;align-items:center;padding:5px 0}
+.barrow .lab{font-size:13px;font-weight:600}
+.barrow .lab small{display:block;font-weight:400;font-size:11px;color:var(--ink-400)}
+.track{background:var(--fill-muted);border-radius:4px;height:18px;position:relative;overflow:hidden}
+.fill{height:100%;border-radius:0 4px 4px 0;background:var(--cat-1)}
+.barrow .val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;min-width:64px;text-align:right}
+.barrow .val em{font-style:normal;font-weight:400;color:var(--ink-400);font-size:12px}
+
+/* stacked 100% bar: 2px surface gaps between segments */
+.stack{display:flex;height:22px;border-radius:4px;overflow:hidden;background:var(--surface);gap:2px}
+.seg{position:relative;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;min-width:2px;overflow:hidden;white-space:nowrap}
+.seg:first-child{border-radius:4px 0 0 4px}
+.seg:last-child{border-radius:0 4px 4px 0}
+.seg.s1{background:var(--cat-1)} .seg.s2{background:var(--cat-2);color:#231a04}
+.seg.s3{background:var(--cat-3)} .seg.s4{background:var(--cat-4)}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-600);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:3px;display:block}
+
+/* funnel / pipeline */
+.fun{display:grid;grid-template-columns:minmax(150px,auto) 1fr 78px;gap:8px 12px;align-items:center}
+.fun .stg{font-size:13px;font-weight:600}
+.fun .stg small{display:block;font-weight:400;font-size:11px;color:var(--ink-400)}
+.fun .ftrack{background:var(--fill-muted);height:22px;border-radius:4px;overflow:hidden}
+.fun .ffill{height:100%;background:var(--cat-1);border-radius:0 4px 4px 0}
+.fun .fval{font-size:14px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.drop{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;font-size:11.5px;color:var(--terra-700);font-weight:600;padding:0 0 2px}
+.drop b{color:var(--terra-700)}
+
+/* pivot heat */
+.heat th{font-size:11px}
+.heat td.c{text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;border:2px solid var(--surface)}
+.heat td.c small{display:block;font-weight:400;font-size:10px;opacity:.85}
+.h0{background:var(--seq-0);color:var(--ink-400)}
+.h1{background:var(--seq-1);color:var(--ink-900)}
+.h2{background:var(--seq-2);color:var(--ink-900)}
+.h3{background:var(--seq-3);color:#fff}
+.h4{background:var(--seq-4);color:#fff}
+.h5{background:var(--seq-5);color:#fff}
+.hcens{background:repeating-linear-gradient(135deg,var(--fill-muted),var(--fill-muted) 5px,var(--surface-alt) 5px,var(--surface-alt) 10px);color:var(--ink-400);font-weight:400;font-size:11px;font-style:italic}
+
+/* verdict flags */
+.vd{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;white-space:nowrap}
+.vd.below{color:var(--red-700)} .vd.above{color:var(--green-ink)} .vd.as{color:var(--ink-600)} .vd.few{color:var(--ink-400);font-weight:600}
+
+/* notes */
+.note{background:var(--gold-100);border:1px solid var(--gold-border);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--ink-900);margin-top:12px}
+.note b{color:var(--gold-700)}
+.note.info{background:var(--green-100);border-color:var(--green-border)}
+.note.info b{color:var(--green-ink)}
+.foot{font-size:11.5px;color:var(--ink-400);margin-top:9px;line-height:1.45}
+
+/* timeline */
+.tlwrap{overflow-x:auto}
+.tlkey{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-600);margin-top:8px}
+
+/* rationale tab */
+.doc{max-width:1000px}
+.doc h3{font-size:18px;margin:26px 0 6px;padding-top:16px;border-top:2px solid var(--line)}
+.doc h4{font-size:14px;margin:16px 0 4px;color:var(--green-ink)}
+.doc p,.doc li{font-size:14px}
+.doc ul{margin:0 0 10px;padding-left:20px}
+.doc li{margin-bottom:4px}
+.doc .tbl td{font-size:12.5px;vertical-align:top}
+.doc .tbl th{font-size:10.5px}
+.rule{font-size:13px;background:var(--green-100);border-left:4px solid var(--green-700);padding:9px 12px;border-radius:0 6px 6px 0;margin:10px 0}
+.warn{font-size:13px;background:var(--red-100);border-left:4px solid var(--red-700);padding:9px 12px;border-radius:0 6px 6px 0;margin:10px 0}
+code{background:var(--fill-muted);padding:1px 5px;border-radius:3px;font-size:12.5px}
+
+/* tooltip */
+#tip{position:fixed;z-index:99;pointer-events:none;background:var(--ink-900);color:#fff;font-size:12px;font-weight:600;padding:6px 9px;border-radius:6px;opacity:0;transition:opacity .1s;max-width:240px;line-height:1.4}
+#tip.on{opacity:1}
+[data-tip]{cursor:default}
+</style>
+</head>
+<body data-palette="#12836B,#D08A0A,#B0442A,#7A4CA8">
+<div id="tip"></div>
+
+<div class="topbar">
+  <div class="mark">Y</div>
+  <div class="name">Youth Employment Case Management &amp; Referral Platform</div>
+  <div class="meta">Pilot — Adama · Bishoftu · Lume woredas, Oromia<br>Prototype with illustrative data, not live figures</div>
+</div>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-p="p1"><span class="tier">Operational</span>Case manager</button>
+  <button role="tab" aria-selected="false" data-p="p2"><span class="tier">Tactical</span>Woreda supervisor</button>
+  <button role="tab" aria-selected="false" data-p="p3"><span class="tier">Analytical</span>Programme manager</button>
+  <button role="tab" aria-selected="false" data-p="p4"><span class="tier">Strategic</span>M&amp;E / donor</button>
+  <button role="tab" aria-selected="false" data-p="p5"><span class="tier">Method</span>Variables &amp; rationale</button>
+</nav>
+
+<main>
+
+<!-- ==================== TIER 1: CASE MANAGER ==================== -->
+<section class="panel" id="p1">
+  <div class="pagehead">
+    <h2>My work today</h2>
+    <div class="sub">Almaz Tesfaye · Youth case manager · Adama woreda · 128 open cases &nbsp;<span class="asof">Live — refreshed 2 min ago</span></div>
+  </div>
+
+  <div class="note info" style="margin:0 0 14px">
+    <b>Design rule for this tier:</b> no percentages, no charts, no comparison with other case managers. Every number on this
+    screen opens a list of named youth. A rate is not an action, and 128 cases is not a denominator.
+  </div>
+
+  <div class="tiles">
+    <div class="tile bad"><div class="k">Needs action today</div><div class="v tnum">11</div><div class="n">7 overdue · 4 due today</div></div>
+    <div class="tile alert"><div class="k">Referrals awaiting partner</div><div class="v tnum">9</div><div class="n">4 older than 7 days</div></div>
+    <div class="tile"><div class="k">Active referrals</div><div class="v tnum">63</div><div class="n">across 41 youth</div></div>
+    <div class="tile"><div class="k">New this week</div><div class="v tnum">6</div><div class="n">3 closed this week</div></div>
+    <div class="tile good"><div class="k">Outcomes verified</div><div class="v tnum">14</div><div class="n">this month</div></div>
+  </div>
+
+  <div class="grid g21">
+    <div class="card">
+      <div class="eyebrow">Work queue · sorted by days overdue</div>
+      <h3>Needs action today</h3>
+      <div class="den">Alerts generated by the rules in Dev Spec §6 — stall, confirmation overdue, follow-up due, retention check due</div>
+      <ul class="qlist">
+        <li><div><div class="who">Chaltu Bekele · YTH-0412</div><div class="why">Referral to Bishoftu TVET College unconfirmed — partner has not responded</div></div><div class="age"><span class="badge over">19d overdue</span></div></li>
+        <li><div><div class="who">Getachew Alemu · YTH-0388</div><div class="why">Case stalled — no activity since 3 Jun</div></div><div class="age"><span class="badge over">14d overdue</span></div></li>
+        <li><div><div class="who">Hawi Deressa · YTH-0501</div><div class="why">Failed referral (partner capacity) — replacement not yet raised</div></div><div class="age"><span class="badge over">11d overdue</span></div></li>
+        <li><div><div class="who">Sisay Wondimu · YTH-0347</div><div class="why">30-day retention check due — placed 18 Jul at Rift Valley Agro</div></div><div class="age"><span class="badge over">6d overdue</span></div></li>
+        <li><div><div class="who">Meseret Girma · YTH-0466</div><div class="why">Training completed 12 Aug — onward referral prompt waiting on your confirmation</div></div><div class="age"><span class="badge due">Due today</span></div></li>
+        <li><div><div class="who">Tolosa Nagawo · YTH-0293</div><div class="why">Follow-up call due — last contact 45 days ago</div></div><div class="age"><span class="badge due">Due today</span></div></li>
+      </ul>
+      <a class="linkall" href="#">View all 11 →</a>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Exception list</div>
+      <h3>Youth at risk of dropping out</h3>
+      <div class="den">No contact in 30+ days, or absent from a placement / training</div>
+      <ul class="qlist">
+        <li><div><div class="who">Tolosa Nagawo</div><div class="why">No contact 45 days</div></div><div class="age"><span class="badge over">45d</span></div></li>
+        <li><div><div class="who">Bontu Feyisa</div><div class="why">3 consecutive training absences</div></div><div class="age"><span class="badge over">3×</span></div></li>
+        <li><div><div class="who">Dawit Kebede</div><div class="why">Left placement, reason not recorded</div></div><div class="age"><span class="badge over">Gap</span></div></li>
+        <li><div><div class="who">Kalkidan Assefa</div><div class="why">Phone unreachable ×4 attempts</div></div><div class="age"><span class="badge due">×4</span></div></li>
+        <li><div><div class="who">Abdi Jemal</div><div class="why">Consent review due before next referral</div></div><div class="age"><span class="badge due">Due</span></div></li>
+      </ul>
+      <a class="linkall" href="#">View all 9 →</a>
+    </div>
+  </div>
+
+  <div class="grid g12" style="margin-top:14px">
+    <div class="card">
+      <div class="eyebrow">Semantic order — not sorted by size</div>
+      <h3>My caseload by status</h3>
+      <div class="den">n = 128 open cases. Each row opens the filtered list.</div>
+      <table class="tbl">
+        <thead><tr><th>Case status</th><th class="num">Cases</th><th>Oldest in status</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><span class="st st-act"><i></i>Active</span></td><td class="num">71</td><td class="muted">—</td><td><a href="#">Open</a></td></tr>
+          <tr><td><span class="st st-pen"><i></i>Referral pending</span></td><td class="num">23</td><td class="muted">19 days</td><td><a href="#">Open</a></td></tr>
+          <tr><td><span class="st st-rep"><i></i>Stalled</span></td><td class="num">14</td><td class="muted">62 days</td><td><a href="#">Open</a></td></tr>
+          <tr><td><span class="st st-com"><i></i>Placed</span></td><td class="num">17</td><td class="muted">—</td><td><a href="#">Open</a></td></tr>
+          <tr><td><span class="st st-can"><i></i>Exited</span></td><td class="num">3</td><td class="muted">—</td><td><a href="#">Open</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">The Primero pattern — track acceptance state, not volume sent</div>
+      <h3>Referrals awaiting partner response</h3>
+      <div class="den">Age in days is the sort key. Referral volume sent is deliberately not shown.</div>
+      <table class="tbl">
+        <thead><tr><th>Youth</th><th>Receiving partner</th><th class="num">Waiting</th></tr></thead>
+        <tbody>
+          <tr><td>Chaltu Bekele</td><td>Bishoftu TVET College</td><td class="num"><span class="badge over">19d</span></td></tr>
+          <tr><td>Firaol Tadesse</td><td>Bishoftu TVET College</td><td class="num"><span class="badge over">16d</span></td></tr>
+          <tr><td>Rahel Mekonnen</td><td>Oromia Credit &amp; Savings</td><td class="num"><span class="badge over">12d</span></td></tr>
+          <tr><td>Yonas Bekele</td><td>Adama Industrial Park HR</td><td class="num"><span class="badge over">9d</span></td></tr>
+          <tr><td>Lensa Gutema</td><td>Oromia Credit &amp; Savings</td><td class="num"><span class="badge due">5d</span></td></tr>
+          <tr><td>Ebisa Fikadu</td><td>Adama Polytechnic College</td><td class="num"><span class="badge ok">2d</span></td></tr>
+        </tbody>
+      </table>
+      <div class="foot">Threshold: partner confirmation overdue after 7 days (<code>alert.threshold_days</code>, configurable per alert type).</div>
+    </div>
+  </div>
+
+  <!-- REFERRAL STACK TIMELINE -->
+  <div class="card" style="margin-top:14px">
+    <div class="eyebrow">Case record component · LifeLines pattern · inline SVG, no chart library</div>
+    <h3>Referral stack — Meseret Girma (YTH-0466)</h3>
+    <div class="den">One lane per referral, ordered by initiation date. Intervals are bars; point events are marks. Dotted connectors show dead time between referrals.</div>
+    <div class="tlwrap">
+      <svg viewBox="0 0 900 258" width="100%" height="258" role="img" aria-label="Referral stack timeline for Meseret Girma, February to August 2026. Details in the table below.">
+        <!-- month grid -->
+        <g font-family="Archivo, sans-serif" font-size="11" fill="#7A7568">
+          <line x1="150" y1="26" x2="150" y2="226" stroke="#F4F1EA" stroke-width="1"/>
+          <line x1="257" y1="26" x2="257" y2="226" stroke="#F4F1EA" stroke-width="1"/>
+          <line x1="364" y1="26" x2="364" y2="226" stroke="#F4F1EA" stroke-width="1"/>
+          <line x1="471" y1="26" x2="471" y2="226" stroke="#F4F1EA" stroke-width="1"/>
+          <line x1="578" y1="26" x2="578" y2="226" stroke="#F4F1EA" stroke-width="1"/>
+          <line x1="685" y1="26" x2="685" y2="226" stroke="#F4F1EA" stroke-width="1"/>
+          <line x1="792" y1="26" x2="792" y2="226" stroke="#F4F1EA" stroke-width="1"/>
+          <text x="150" y="18">Feb</text><text x="257" y="18">Mar</text><text x="364" y="18">Apr</text>
+          <text x="471" y="18">May</text><text x="578" y="18">Jun</text><text x="685" y="18">Jul</text><text x="792" y="18">Aug</text>
+        </g>
+
+        <!-- lane 1: Training referral, completed -->
+        <text x="0" y="46" font-family="Archivo, sans-serif" font-size="12" font-weight="600" fill="#1A1915">R1 · Training</text>
+        <text x="0" y="59" font-family="Archivo, sans-serif" font-size="10.5" fill="#7A7568">Adama Polytechnic</text>
+        <rect x="150" y="36" width="18" height="20" rx="3" fill="#D08A0A" data-tip="Pending confirmation · 5 Feb → 10 Feb (5 days)"/>
+        <rect x="170" y="36" width="230" height="20" rx="3" fill="#12836B" data-tip="Active · 10 Feb → 12 Aug · Life skills + TVET, 84% attendance"/>
+        <rect x="402" y="36" width="14" height="20" rx="3" fill="#0F4F3C" data-tip="Completed 12 Aug · Outcome: Training completion"/>
+        <polygon points="409,30 415,42 403,42" fill="#0F4F3C"/>
+        <text x="424" y="51" font-family="Archivo, sans-serif" font-size="11" font-weight="700" fill="#0B4A38">Completed — training completion</text>
+
+        <!-- lane 2: Complementary service, runs outside the cap -->
+        <text x="0" y="92" font-family="Archivo, sans-serif" font-size="12" font-weight="600" fill="#1A1915">R2 · Complementary</text>
+        <text x="0" y="105" font-family="Archivo, sans-serif" font-size="10.5" fill="#7A7568">Lume Health Office</text>
+        <rect x="203" y="82" width="9" height="20" rx="3" fill="#D08A0A" data-tip="Pending confirmation · 2 days"/>
+        <rect x="214" y="82" width="150" height="20" rx="3" fill="#12836B" data-tip="Active · psychosocial support, 6 sessions"/>
+        <rect x="366" y="82" width="14" height="20" rx="3" fill="#0F4F3C" data-tip="Completed · Outcome: Service uptake"/>
+        <polygon points="373,76 379,88 367,88" fill="#0F4F3C"/>
+        <text x="388" y="97" font-family="Archivo, sans-serif" font-size="11" font-weight="600" fill="#4E4A42">Completed — service uptake · ran outside the 2-referral cap</text>
+
+        <!-- lane 3: Employment referral, failed -->
+        <text x="0" y="138" font-family="Archivo, sans-serif" font-size="12" font-weight="600" fill="#1A1915">R3 · Employment</text>
+        <text x="0" y="151" font-family="Archivo, sans-serif" font-size="10.5" fill="#7A7568">Adama Industrial Park</text>
+        <rect x="471" y="128" width="32" height="20" rx="3" fill="#D08A0A" data-tip="Pending confirmation · 9 days — breached the 7-day threshold"/>
+        <rect x="505" y="128" width="80" height="20" rx="3" fill="none" stroke="#B3261E" stroke-width="2" stroke-dasharray="4 3" data-tip="Active then Failed · YOUTH_NO_SHOW"/>
+        <rect x="587" y="128" width="14" height="20" rx="3" fill="#B3261E" data-tip="Failed 18 Jun · reason YOUTH_NO_SHOW"/>
+        <polygon points="594,124 601,134 594,144 587,134" fill="#B3261E"/>
+        <text x="505" y="120" font-family="Archivo, sans-serif" font-size="11" font-weight="700" fill="#8C1D18">Failed — youth no-show</text>
+        <!-- dead time connector -->
+        <line x1="601" y1="138" x2="668" y2="138" stroke="#A84B2A" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <line x1="668" y1="138" x2="668" y2="174" stroke="#A84B2A" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+        <!-- lane 4: Replacement referral, active -->
+        <text x="0" y="184" font-family="Archivo, sans-serif" font-size="12" font-weight="600" fill="#1A1915">R4 · Employment</text>
+        <text x="0" y="197" font-family="Archivo, sans-serif" font-size="10.5" fill="#7A7568">Replacement of R3</text>
+        <rect x="668" y="174" width="12" height="20" rx="3" fill="#D08A0A" data-tip="Pending confirmation · 1 day"/>
+        <rect x="682" y="174" width="140" height="20" rx="3" fill="#12836B" data-tip="Active since 3 Jul · Rift Valley Agro-Processing"/>
+        <text x="830" y="189" font-family="Archivo, sans-serif" font-size="11" font-weight="700" fill="#0B4A38">Active</text>
+        <text x="676" y="166" font-family="Archivo, sans-serif" font-size="10.5" font-weight="700" fill="#8A3A1E">15 days dead time</text>
+
+        <!-- today marker -->
+        <line x1="845" y1="26" x2="845" y2="226" stroke="#1A1915" stroke-width="1.5"/>
+        <text x="849" y="222" font-family="Archivo, sans-serif" font-size="10.5" font-weight="700" fill="#1A1915">Today</text>
+
+        <!-- axis -->
+        <line x1="140" y1="226" x2="900" y2="226" stroke="#E3DED2" stroke-width="1"/>
+        <text x="0" y="248" font-family="Archivo, sans-serif" font-size="10.5" fill="#7A7568">R2 was a Complementary Service referral — allowed to run alongside R1 (working default, Dev Spec §6.3)</text>
+      </svg>
+    </div>
+    <div class="tlkey">
+      <span><span class="st st-pen"><i></i>Pending</span> solid gold bar</span>
+      <span><span class="st st-act"><i></i>Active</span> solid green bar</span>
+      <span><span class="st st-com"><i></i>Completed</span> filled triangle end-cap</span>
+      <span><span class="st st-fail"><i></i>Failed</span> hollow dashed bar + diamond end-cap</span>
+      <span>Dotted connector = dead time between a failure and its replacement</span>
+    </div>
+    <div class="note">
+      <b>Accessible twin required.</b> The SVG above always ships with the chronological event table beneath it — the table is the
+      WCAG 1.1.1 text alternative, the fallback when the SVG fails on a low-end browser, and the thing case managers actually read.
+    </div>
+    <table class="tbl" style="margin-top:12px">
+      <thead><tr><th>Date</th><th>Referral</th><th>Event</th><th>Status</th><th>Recorded by</th></tr></thead>
+      <tbody>
+        <tr><td class="tnum">05 Feb</td><td>R1 Training</td><td>Initiated — manual, from pathway assignment</td><td><span class="st st-pen"><i></i>Pending</span></td><td class="muted">A. Tesfaye</td></tr>
+        <tr><td class="tnum">10 Feb</td><td>R1 Training</td><td>Confirmed by Adama Polytechnic College</td><td><span class="st st-act"><i></i>Active</span></td><td class="muted">Partner staff</td></tr>
+        <tr><td class="tnum">20 Mar</td><td>R2 Complementary</td><td>Initiated — psychosocial support, runs in parallel</td><td><span class="st st-pen"><i></i>Pending</span></td><td class="muted">A. Tesfaye</td></tr>
+        <tr><td class="tnum">18 Apr</td><td>R2 Complementary</td><td>Outcome verified by follow-up visit — service uptake</td><td><span class="st st-com"><i></i>Completed</span></td><td class="muted">A. Tesfaye</td></tr>
+        <tr><td class="tnum">15 May</td><td>R3 Employment</td><td>Initiated — manual</td><td><span class="st st-pen"><i></i>Pending</span></td><td class="muted">A. Tesfaye</td></tr>
+        <tr><td class="tnum">24 May</td><td>R3 Employment</td><td>Confirmed after 9 days — breached 7-day threshold</td><td><span class="st st-act"><i></i>Active</span></td><td class="muted">Partner staff</td></tr>
+        <tr><td class="tnum">18 Jun</td><td>R3 Employment</td><td>Failed — <code>YOUTH_NO_SHOW</code>; replacement prompt generated</td><td><span class="st st-fail"><i></i>Failed</span></td><td class="muted">A. Tesfaye</td></tr>
+        <tr><td class="tnum">03 Jul</td><td>R4 Employment</td><td>Replacement confirmed — parent R3, Rift Valley Agro-Processing</td><td><span class="st st-act"><i></i>Active</span></td><td class="muted">A. Tesfaye</td></tr>
+        <tr><td class="tnum">12 Aug</td><td>R1 Training</td><td>Completed — training completion; onward prompt raised</td><td><span class="st st-com"><i></i>Completed</span></td><td class="muted">Trainer</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ==================== TIER 2: WOREDA SUPERVISOR ==================== -->
+<section class="panel" id="p2" hidden>
+  <div class="pagehead">
+    <h2>Adama woreda — team oversight</h2>
+    <div class="sub">Bekele Wolde · Woreda supervisor · 5 case managers, 361 open cases &nbsp;<span class="asof">As of 17 Aug 2026, 06:00 EAT</span></div>
+  </div>
+
+  <div class="filterrow">
+    <span class="lbl">Period</span>
+    <button class="chip" aria-pressed="false">This week</button>
+    <button class="chip" aria-pressed="true">This month</button>
+    <button class="chip" aria-pressed="false">Quarter</button>
+    <span class="lbl" style="margin-left:12px">Pathway</span>
+    <button class="chip" aria-pressed="true">All</button>
+    <button class="chip" aria-pressed="false">Wage</button>
+    <button class="chip" aria-pressed="false">Self-employment</button>
+    <button class="chip" aria-pressed="false">Apprenticeship</button>
+  </div>
+
+  <div class="tiles">
+    <div class="tile bad"><div class="k">Unassigned youth</div><div class="v tnum">17</div><div class="n">registered, no case manager</div></div>
+    <div class="tile alert"><div class="k">Overdue actions, team</div><div class="v tnum">48</div><div class="n">across 4 of 5 staff</div></div>
+    <div class="tile"><div class="k">Open cases</div><div class="v tnum">361</div><div class="n">avg 72 per case manager</div></div>
+    <div class="tile"><div class="k">Median days to confirm</div><div class="v tnum">6</div><div class="n">referral initiated → partner confirmed</div></div>
+    <div class="tile good"><div class="k">Outcomes verified</div><div class="v tnum">41</div><div class="n">this month</div></div>
+  </div>
+
+  <div class="grid g12">
+    <div class="card">
+      <div class="eyebrow">100% stacked · 4 segments only · direct-labelled</div>
+      <h3>Team caseload by status</h3>
+      <div class="den">Six operational statuses collapsed to four for the chart. Full six-status detail sits in the drill-down table.</div>
+
+      <div style="margin-top:6px">
+        <div class="barrow" style="grid-template-columns:minmax(120px,auto) 1fr auto">
+          <div class="lab">A. Tesfaye<small>n = 128</small></div>
+          <div class="stack">
+            <div class="seg s1" style="flex:0 0 55.5%" data-tip="On track — 71 cases (55%)">55%</div>
+            <div class="seg s2" style="flex:0 0 18%" data-tip="Awaiting partner — 23 cases (18%)">18%</div>
+            <div class="seg s3" style="flex:0 0 11%" data-tip="Stalled — 14 cases (11%)">11%</div>
+            <div class="seg s4" style="flex:0 0 15.5%" data-tip="Exited or placed — 20 cases (16%)">16%</div>
+          </div>
+          <div class="val">128</div>
+        </div>
+        <div class="barrow" style="grid-template-columns:minmax(120px,auto) 1fr auto">
+          <div class="lab">D. Hailu<small>n = 84</small></div>
+          <div class="stack">
+            <div class="seg s1" style="flex:0 0 63%" data-tip="On track — 53 cases (63%)">63%</div>
+            <div class="seg s2" style="flex:0 0 14%" data-tip="Awaiting partner — 12 cases (14%)">14%</div>
+            <div class="seg s3" style="flex:0 0 6%" data-tip="Stalled — 5 cases (6%)">6%</div>
+            <div class="seg s4" style="flex:0 0 17%" data-tip="Exited or placed — 14 cases (17%)">17%</div>
+          </div>
+          <div class="val">84</div>
+        </div>
+        <div class="barrow" style="grid-template-columns:minmax(120px,auto) 1fr auto">
+          <div class="lab">S. Negash<small>n = 71</small></div>
+          <div class="stack">
+            <div class="seg s1" style="flex:0 0 42%" data-tip="On track — 30 cases (42%)">42%</div>
+            <div class="seg s2" style="flex:0 0 22%" data-tip="Awaiting partner — 16 cases (22%)">22%</div>
+            <div class="seg s3" style="flex:0 0 25%" data-tip="Stalled — 18 cases (25%) — highest in team">25%</div>
+            <div class="seg s4" style="flex:0 0 11%" data-tip="Exited or placed — 7 cases (11%)">11%</div>
+          </div>
+          <div class="val">71</div>
+        </div>
+        <div class="barrow" style="grid-template-columns:minmax(120px,auto) 1fr auto">
+          <div class="lab">M. Abera<small>n = 52</small></div>
+          <div class="stack">
+            <div class="seg s1" style="flex:0 0 60%" data-tip="On track — 31 cases (60%)">60%</div>
+            <div class="seg s2" style="flex:0 0 17%" data-tip="Awaiting partner — 9 cases (17%)">17%</div>
+            <div class="seg s3" style="flex:0 0 8%" data-tip="Stalled — 4 cases (8%)">8%</div>
+            <div class="seg s4" style="flex:0 0 15%" data-tip="Exited or placed — 8 cases (15%)">15%</div>
+          </div>
+          <div class="val">52</div>
+        </div>
+        <div class="barrow" style="grid-template-columns:minmax(120px,auto) 1fr auto">
+          <div class="lab">T. Regassa<small>n = 26 · new staff</small></div>
+          <div class="stack">
+            <div class="seg s1" style="flex:0 0 69%" data-tip="On track — 18 cases (69%)">69%</div>
+            <div class="seg s2" style="flex:0 0 19%" data-tip="Awaiting partner — 5 cases (19%)">19%</div>
+            <div class="seg s3" style="flex:0 0 4%" data-tip="Stalled — 1 case (4%)"></div>
+            <div class="seg s4" style="flex:0 0 8%" data-tip="Exited or placed — 2 cases (8%)"></div>
+          </div>
+          <div class="val">26</div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--cat-1)"></i>On track (Active)</span>
+        <span><i style="background:var(--cat-2)"></i>Awaiting partner (Pending / Referral pending)</span>
+        <span><i style="background:var(--cat-3)"></i>Stalled</span>
+        <span><i style="background:var(--cat-4)"></i>Exited or placed</span>
+      </div>
+      <div class="foot">Segments carry the value as a direct label, so identity never rests on colour alone. Legend order matches stack order.</div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Sorted descending, counts labelled</div>
+      <h3>Overdue actions by case manager</h3>
+      <div class="den">Alert records with <code>status = Open</code> past their threshold. Volume of work, not quality of work.</div>
+      <div style="margin-top:8px">
+        <div class="barrow"><div class="lab">S. Negash<small>71 cases</small></div><div class="track"><div class="fill" style="width:100%;background:var(--cat-3)"></div></div><div class="val">21</div></div>
+        <div class="barrow"><div class="lab">A. Tesfaye<small>128 cases</small></div><div class="track"><div class="fill" style="width:52%"></div></div><div class="val">11</div></div>
+        <div class="barrow"><div class="lab">M. Abera<small>52 cases</small></div><div class="track"><div class="fill" style="width:43%"></div></div><div class="val">9</div></div>
+        <div class="barrow"><div class="lab">D. Hailu<small>84 cases</small></div><div class="track"><div class="fill" style="width:33%"></div></div><div class="val">7</div></div>
+        <div class="barrow"><div class="lab">T. Regassa<small>26 cases</small></div><div class="track"><div class="fill" style="width:0%"></div></div><div class="val">0</div></div>
+      </div>
+      <div class="note">
+        <b>Read this with the caseload column, not alone.</b> S. Negash carries 21 overdue actions on 71 cases; A. Tesfaye carries
+        11 on 128. Counts without their denominator are the classic supervision error — but a rate here would be equally wrong,
+        because n = 71 is far below the 30-per-cell stability floor once you disaggregate. Show both raw numbers and let the
+        supervisor judge.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g12" style="margin-top:14px">
+    <div class="card">
+      <div class="eyebrow">Median, not mean · n shown per partner</div>
+      <h3>Referral response time by partner</h3>
+      <div class="den">Days from <code>initiated_date</code> to <code>confirmed_date</code>, Adama referrals only, last 90 days</div>
+      <div style="margin-top:8px">
+        <div class="barrow"><div class="lab">Bishoftu TVET<small>n = 34</small></div><div class="track"><div class="fill" style="width:100%;background:var(--cat-3)"></div></div><div class="val">19 <em>d</em></div></div>
+        <div class="barrow"><div class="lab">Oromia Credit<small>n = 61</small></div><div class="track"><div class="fill" style="width:58%;background:var(--cat-2)"></div></div><div class="val">11 <em>d</em></div></div>
+        <div class="barrow"><div class="lab">Adama Ind. Park<small>n = 42</small></div><div class="track"><div class="fill" style="width:42%;background:var(--cat-2)"></div></div><div class="val">8 <em>d</em></div></div>
+        <div class="barrow"><div class="lab">Rift Valley Agro<small>n = 38</small></div><div class="track"><div class="fill" style="width:32%"></div></div><div class="val">6 <em>d</em></div></div>
+        <div class="barrow"><div class="lab">Adama Polytechnic<small>n = 89</small></div><div class="track"><div class="fill" style="width:16%"></div></div><div class="val">3 <em>d</em></div></div>
+        <div class="barrow"><div class="lab">Lume Health<small>n = 27</small></div><div class="track"><div class="fill" style="width:11%"></div></div><div class="val">2 <em>d</em></div></div>
+      </div>
+      <div class="foot">Bars above the 7-day confirmation threshold are shown in gold; above 14 days in terracotta. Colour restates the value the label already gives.</div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Data quality is a programme widget, not an IT widget</div>
+      <h3>Data completeness</h3>
+      <div class="den">Records in this woreda with required fields missing. Blocks reporting downstream.</div>
+      <table class="tbl">
+        <thead><tr><th>Field</th><th class="num">Missing</th><th class="num">of</th><th>Worst case manager</th></tr></thead>
+        <tbody>
+          <tr><td>Phone number</td><td class="num">44</td><td class="num muted">361</td><td class="muted">S. Negash (21)</td></tr>
+          <tr><td>Profiling record</td><td class="num">31</td><td class="num muted">361</td><td class="muted">S. Negash (14)</td></tr>
+          <tr><td>Consent date</td><td class="num">8</td><td class="num muted">361</td><td class="muted">M. Abera (5)</td></tr>
+          <tr><td>Outcome type on completed referral</td><td class="num">19</td><td class="num muted">147</td><td class="muted">D. Hailu (9)</td></tr>
+          <tr><td>Failure reason on failed referral</td><td class="num">6</td><td class="num muted">52</td><td class="muted">A. Tesfaye (4)</td></tr>
+        </tbody>
+      </table>
+      <div class="foot">Missing failure-reason codes are the highest-cost gap: they break the replacement prompt logic and the partner failure breakdown at the same time.</div>
+    </div>
+  </div>
+
+  <div class="note info" style="margin-top:14px">
+    <b>Delivery:</b> this dashboard ships as a 07:00 server-rendered email every weekday, with the interactive version as the
+    drill-down. On 3G, a rendered snapshot in the inbox is a better product than a dashboard that takes 12 seconds to paint.
+  </div>
+</section>
+
+<!-- ==================== TIER 3: PROGRAMME MANAGER ==================== -->
+<section class="panel" id="p3" hidden>
+  <div class="pagehead">
+    <h2>Programme performance</h2>
+    <div class="sub">All woredas · pilot cohort 1 &nbsp;<span class="asof">As of 16 Aug 2026 · refreshed nightly 02:00 EAT</span></div>
+  </div>
+
+  <div class="filterrow">
+    <span class="lbl">Woreda</span>
+    <button class="chip" aria-pressed="true">All 3</button>
+    <button class="chip" aria-pressed="false">Adama</button>
+    <button class="chip" aria-pressed="false">Bishoftu</button>
+    <button class="chip" aria-pressed="false">Lume</button>
+    <span class="lbl" style="margin-left:12px">Sex</span>
+    <button class="chip" aria-pressed="true">All</button>
+    <button class="chip" aria-pressed="false">Female</button>
+    <button class="chip" aria-pressed="false">Male</button>
+    <span class="lbl" style="margin-left:12px">Age</span>
+    <button class="chip" aria-pressed="true">15–29</button>
+    <button class="chip" aria-pressed="false">15–17</button>
+    <button class="chip" aria-pressed="false">18–24</button>
+    <button class="chip" aria-pressed="false">25–29</button>
+  </div>
+
+  <div class="grid g21">
+    <div class="card">
+      <div class="eyebrow">Row chart with a shared left baseline — not a funnel chart</div>
+      <h3>Pipeline: where youth are lost</h3>
+      <div class="den">n = 842 registered youth. Drop-off is annotated at every transition, because the loss is the question.</div>
+      <div class="fun" style="margin-top:10px">
+        <div class="stg">Registered<small>Youth record created</small></div>
+        <div class="ftrack"><div class="ffill" style="width:100%"></div></div>
+        <div class="fval">842</div>
+        <div class="drop">▼ <b>111 lost (13%)</b> · median 9 days in stage</div>
+
+        <div class="stg">Profiled &amp; eligible<small>Profiling record complete</small></div>
+        <div class="ftrack"><div class="ffill" style="width:86.8%"></div></div>
+        <div class="fval">731</div>
+        <div class="drop">▼ <b>37 lost (5%)</b> · median 6 days in stage</div>
+
+        <div class="stg">Pathway assigned<small>Current pathway set</small></div>
+        <div class="ftrack"><div class="ffill" style="width:82.4%"></div></div>
+        <div class="fval">694</div>
+        <div class="drop">▼ <b>43 lost (6%)</b> · median 11 days in stage</div>
+
+        <div class="stg">Referral initiated<small>≥1 referral raised</small></div>
+        <div class="ftrack"><div class="ffill" style="width:77.3%"></div></div>
+        <div class="fval">651</div>
+        <div class="drop">▼ <b>103 lost (16%)</b> · median <b>8 days</b> waiting on partners</div>
+
+        <div class="stg">Partner confirmed<small>Referral accepted</small></div>
+        <div class="ftrack"><div class="ffill" style="width:65.1%"></div></div>
+        <div class="fval">548</div>
+        <div class="drop">▼ <b>72 lost (13%)</b> · median 14 days in stage</div>
+
+        <div class="stg">Service attended<small>Youth presented to partner</small></div>
+        <div class="ftrack"><div class="ffill" style="width:56.5%"></div></div>
+        <div class="fval">476</div>
+        <div class="drop">▼ <b>145 lost (30%)</b> · median <b>52 days</b> — the widest gap in the pipeline</div>
+
+        <div class="stg">Outcome verified<small>Completed + verified</small></div>
+        <div class="ftrack"><div class="ffill" style="width:39.3%"></div></div>
+        <div class="fval">331</div>
+        <div class="drop">▼ <b>117 lost (35%)</b> · median 21 days in stage</div>
+
+        <div class="stg">Placed / enterprise<small>Job, apprenticeship or business</small></div>
+        <div class="ftrack"><div class="ffill" style="width:25.4%"></div></div>
+        <div class="fval">214</div>
+        <div class="drop">▼ 77 not yet due for the 90-day check</div>
+
+        <div class="stg">Retained at 90 days<small>Of those whose 90-day mark passed</small></div>
+        <div class="ftrack"><div class="ffill" style="width:11.5%;background:var(--seq-5)"></div></div>
+        <div class="fval">97</div>
+      </div>
+      <div class="note">
+        <b>Median days in stage is the actionable number, and no funnel chart shows it.</b> The 52-day median between "partner
+        confirmed" and "service attended" is a scheduling and transport problem you can act on this month. The conversion rate
+        alone would not tell you that.
+      </div>
+      <div class="foot">
+        The last bar uses a mature denominator: 97 of the 137 youth whose 90-day mark has passed, not 97 of 214. The 77 youth placed
+        less than 90 days ago are excluded, never counted as failures.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Small multiples · shared scale</div>
+      <h3>Same pipeline, by woreda</h3>
+      <div class="den">Conversion from registered to placed. Identical x-scale across all three panels.</div>
+
+      <div style="margin-top:8px">
+        <div class="eyebrow" style="margin-bottom:2px;color:var(--ink-600)">Adama · 361 registered</div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Profiled</div><div class="track" style="height:12px"><div class="fill" style="width:89%"></div></div><div class="val" style="font-size:12px;min-width:46px">321</div></div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Referred</div><div class="track" style="height:12px"><div class="fill" style="width:79%"></div></div><div class="val" style="font-size:12px;min-width:46px">285</div></div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Attended</div><div class="track" style="height:12px"><div class="fill" style="width:59%"></div></div><div class="val" style="font-size:12px;min-width:46px">213</div></div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Placed</div><div class="track" style="height:12px"><div class="fill" style="width:29%;background:var(--seq-5)"></div></div><div class="val" style="font-size:12px;min-width:46px">105</div></div>
+      </div>
+
+      <div style="margin-top:14px">
+        <div class="eyebrow" style="margin-bottom:2px;color:var(--ink-600)">Bishoftu · 284 registered</div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Profiled</div><div class="track" style="height:12px"><div class="fill" style="width:86%"></div></div><div class="val" style="font-size:12px;min-width:46px">244</div></div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Referred</div><div class="track" style="height:12px"><div class="fill" style="width:77%"></div></div><div class="val" style="font-size:12px;min-width:46px">219</div></div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Attended</div><div class="track" style="height:12px"><div class="fill" style="width:47%;background:var(--cat-3)"></div></div><div class="val" style="font-size:12px;min-width:46px">134</div></div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Placed</div><div class="track" style="height:12px"><div class="fill" style="width:19%;background:var(--cat-3)"></div></div><div class="val" style="font-size:12px;min-width:46px">54</div></div>
+      </div>
+
+      <div style="margin-top:14px">
+        <div class="eyebrow" style="margin-bottom:2px;color:var(--ink-600)">Lume · 197 registered</div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Profiled</div><div class="track" style="height:12px"><div class="fill" style="width:84%"></div></div><div class="val" style="font-size:12px;min-width:46px">166</div></div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Referred</div><div class="track" style="height:12px"><div class="fill" style="width:75%"></div></div><div class="val" style="font-size:12px;min-width:46px">147</div></div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Attended</div><div class="track" style="height:12px"><div class="fill" style="width:65%"></div></div><div class="val" style="font-size:12px;min-width:46px">129</div></div>
+        <div class="barrow" style="grid-template-columns:64px 1fr auto;padding:2px 0"><div class="lab" style="font-size:11.5px">Placed</div><div class="track" style="height:12px"><div class="fill" style="width:28%;background:var(--seq-5)"></div></div><div class="val" style="font-size:12px;min-width:46px">55</div></div>
+      </div>
+
+      <div class="foot" style="margin-top:10px">
+        Terracotta marks a stage where this woreda converts below the programme average — an emphasis highlight, not a fifth
+        category. The value label carries the number either way.
+      </div>
+      <div class="note">
+        <b>Three woredas do not justify a map.</b> A choropleth would encode woreda land area as a second, meaningless variable
+        and cost the most expensive network requests on the page — GeoJSON plus tiles — to communicate three numbers. Small
+        multiples of bars are read correctly in under a second and cost nothing.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g12" style="margin-top:14px">
+    <div class="card">
+      <div class="eyebrow">Pivot table with a single-hue scale — not a Sankey</div>
+      <h3>Referral category → outcome type</h3>
+      <div class="den">Completed referrals only, n = 460. Counts are the data; colour restates them.</div>
+      <table class="tbl heat" style="margin-top:8px">
+        <thead>
+          <tr><th>Referral category</th><th class="num">Service uptake</th><th class="num">Training compl.</th><th class="num">Job placement</th><th class="num">Enterprise / finance</th><th class="num">Total</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Training</td><td class="c h1" data-tip="Training → Service uptake: 4">4</td><td class="c h5" data-tip="Training → Training completion: 130 — the dominant flow">130</td><td class="c h1" data-tip="Training → Job placement: 9">9</td><td class="c h0">0</td><td class="num"><b>143</b></td></tr>
+          <tr><td>Employment / placement</td><td class="c h0">0</td><td class="c h0">0</td><td class="c h4" data-tip="Employment → Job placement: 80">80</td><td class="c h1" data-tip="Employment → Enterprise/finance: 3">3</td><td class="num"><b>83</b></td></tr>
+          <tr><td>Apprenticeship</td><td class="c h0">0</td><td class="c h2" data-tip="Apprenticeship → Training completion: 21">21</td><td class="c h3" data-tip="Apprenticeship → Job placement: 38">38</td><td class="c h0">0</td><td class="num"><b>59</b></td></tr>
+          <tr><td>Enterprise</td><td class="c h1" data-tip="Enterprise → Service uptake: 6">6</td><td class="c h1" data-tip="Enterprise → Training completion: 11">11</td><td class="c h0">0</td><td class="c h3" data-tip="Enterprise → Enterprise enrolment: 44">44</td><td class="num"><b>61</b></td></tr>
+          <tr><td>Finance access</td><td class="c h1" data-tip="Finance → Service uptake: 3">3</td><td class="c h0">0</td><td class="c h0">0</td><td class="c h3" data-tip="Finance → Finance access: 31">31</td><td class="num"><b>34</b></td></tr>
+          <tr><td>Complementary service</td><td class="c h4" data-tip="Complementary → Service uptake: 66">66</td><td class="c h0">0</td><td class="c h0">0</td><td class="c h0">0</td><td class="num"><b>66</b></td></tr>
+          <tr><td>Coaching / market linkage</td><td class="c h2" data-tip="Coaching → Service uptake: 14">14</td><td class="c h0">0</td><td class="c h0">0</td><td class="c h0">0</td><td class="num"><b>14</b></td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <b>Reconciliation.</b> 1,584 referrals raised to date: 143 pending confirmation, 494 active, 33 replaced, 21 cancelled,
+        and 893 closed — of which 460 completed (this table) and 433 failed. The 331 youth in the "outcome verified" pipeline
+        stage is a count of <i>people</i>, not referrals; a youth can hold several completed referrals.
+      </div>
+      <div class="note">
+        <b>The empty cells are the finding.</b> Training referrals convert to training completions and almost never to jobs —
+        130 completions produced 9 direct placements. That is the onward-referral gap the platform exists to close, and a Sankey
+        would hide it: a Sankey draws only the ribbons that exist, so a zero has no visual presence at all.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Sorted by n, never by rate</div>
+      <h3>Partner performance</h3>
+      <div class="den">Completed ÷ (Completed + Failed), last 180 days. Comparison flag derived from funnel-plot control limits at 99.8%.</div>
+      <table class="tbl" style="margin-top:8px">
+        <thead><tr><th>Partner</th><th class="num">Closed</th><th class="num">Completed</th><th class="num">Rate</th><th>Vs programme</th></tr></thead>
+        <tbody>
+          <tr style="background:var(--green-100)"><td>Adama Polytechnic College<br><span class="muted" style="font-size:11.5px">TVET institution</span></td><td class="num">180</td><td class="num">115</td><td class="num"><b>64%</b><br><span class="muted" style="font-size:11px">[57–71]</span></td><td><span class="vd above">▲ above expected</span></td></tr>
+          <tr><td>Oromia Credit &amp; Savings<br><span class="muted" style="font-size:11.5px">Finance institution</span></td><td class="num">149</td><td class="num">66</td><td class="num"><b>44%</b><br><span class="muted" style="font-size:11px">[36–52]</span></td><td><span class="vd as">▬ as expected</span></td></tr>
+          <tr style="background:var(--red-100)"><td>Bishoftu TVET College<br><span class="muted" style="font-size:11.5px">TVET institution</span></td><td class="num">141</td><td class="num">39</td><td class="num"><b>28%</b><br><span class="muted" style="font-size:11px">[21–35]</span></td><td><span class="vd below">▼ below expected</span></td></tr>
+          <tr style="background:var(--green-100)"><td>Lume Woreda Health Office<br><span class="muted" style="font-size:11.5px">Complementary service</span></td><td class="num">118</td><td class="num">92</td><td class="num"><b>78%</b><br><span class="muted" style="font-size:11px">[70–85]</span></td><td><span class="vd above">▲ above expected</span></td></tr>
+          <tr><td>Rift Valley Agro-Processing<br><span class="muted" style="font-size:11.5px">Employer</span></td><td class="num">96</td><td class="num">44</td><td class="num"><b>46%</b><br><span class="muted" style="font-size:11px">[36–56]</span></td><td><span class="vd as">▬ as expected</span></td></tr>
+          <tr><td>Adama Industrial Park HR<br><span class="muted" style="font-size:11.5px">Employer</span></td><td class="num">74</td><td class="num">31</td><td class="num"><b>42%</b><br><span class="muted" style="font-size:11px">[31–53]</span></td><td><span class="vd as">▬ as expected</span></td></tr>
+          <tr><td>Bishoftu Enterprise Dev. Agency<br><span class="muted" style="font-size:11.5px">Enterprise development</span></td><td class="num">46</td><td class="num">23</td><td class="num"><b>50%</b><br><span class="muted" style="font-size:11px">[36–64]</span></td><td><span class="vd as">▬ as expected</span></td></tr>
+          <tr><td>Debre Zeyit Poultry Cooperative<br><span class="muted" style="font-size:11.5px">Market linkage</span></td><td class="num">27</td><td class="num">14</td><td class="num"><b>52%*</b></td><td><span class="vd few">* provisional, n &lt; 30</span></td></tr>
+          <tr><td>Lume Legal Aid Desk<br><span class="muted" style="font-size:11.5px">Legal aid</span></td><td class="num">8</td><td class="num">5</td><td class="num suppressed">—</td><td><span class="vd few">too few to assess</span></td></tr>
+        </tbody>
+      </table>
+      <div class="foot">
+        Top 9 partners by closed-referral volume — 839 of 893 closed referrals. A further 54 closed referrals to 11 smaller
+        partners are not shown individually; all fall below the n = 10 suppression floor. Attribution rule: a referral counts
+        once, against the receiving partner named on that referral record.
+      </div>
+      <div class="warn">
+        <b>Never sort this table by rate.</b> With these denominators, rate-ranking sorts partners by luck. Debre Zeyit at 52% on
+        27 closed referrals would sit above Oromia Credit at 44% on 149, and management attention would follow the noise.
+        Sorting by n puts the partners you have most evidence about at the top and removes the ranking incentive entirely.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g12" style="margin-top:14px">
+    <div class="card">
+      <div class="eyebrow">Cohort table · censoring shown explicitly</div>
+      <h3>Placement retention by intake cohort</h3>
+      <div class="den">% of placed youth still in the same placement at each checkpoint. Read across a row for decay, down a column for whether recent cohorts are improving.</div>
+      <table class="tbl heat" style="margin-top:8px">
+        <thead><tr><th>Placement cohort</th><th class="num">Placed</th><th class="num">30 days</th><th class="num">60 days</th><th class="num">90 days</th></tr></thead>
+        <tbody>
+          <tr><td>Feb 2026</td><td class="num">38</td><td class="c h4" data-tip="Feb cohort, 30 days: 87% (33 of 38)">87%<small>33/38</small></td><td class="c h3" data-tip="Feb cohort, 60 days: 79% (30 of 38)">79%<small>30/38</small></td><td class="c h3" data-tip="Feb cohort, 90 days: 71% (27 of 38)">71%<small>27/38</small></td></tr>
+          <tr><td>Mar 2026</td><td class="num">52</td><td class="c h5" data-tip="Mar cohort, 30 days: 90% (47 of 52)">90%<small>47/52</small></td><td class="c h4" data-tip="Mar cohort, 60 days: 81% (42 of 52)">81%<small>42/52</small></td><td class="c h3" data-tip="Mar cohort, 90 days: 73% (38 of 52)">73%<small>38/52</small></td></tr>
+          <tr><td>Apr 2026</td><td class="num">47</td><td class="c h4" data-tip="Apr cohort, 30 days: 85% (40 of 47)">85%<small>40/47</small></td><td class="c h3" data-tip="Apr cohort, 60 days: 77% (36 of 47)">77%<small>36/47</small></td><td class="c h2" data-tip="Apr cohort, 90 days: 68% (32 of 47)">68%<small>32/47</small></td></tr>
+          <tr><td>May 2026</td><td class="num">41</td><td class="c h4" data-tip="May cohort, 30 days: 88% (36 of 41)">88%<small>36/41</small></td><td class="c h3" data-tip="May cohort, 60 days: 80% (33 of 41)">80%<small>33/41</small></td><td class="c hcens" data-tip="Not yet mature — 90-day mark falls on 31 Aug 2026">matures 31 Aug</td></tr>
+          <tr><td>Jun 2026</td><td class="num">29</td><td class="c h4" data-tip="Jun cohort, 30 days: 86% (25 of 29) — provisional, n < 30">86%*<small>25/29</small></td><td class="c hcens" data-tip="Not yet mature — 60-day mark falls on 30 Aug 2026">matures 30 Aug</td><td class="c hcens">matures 29 Sep</td></tr>
+          <tr><td>Jul 2026</td><td class="num">7</td><td class="c suppressed" data-tip="Suppressed — denominator below 10">—</td><td class="c hcens">not due</td><td class="c hcens">not due</td></tr>
+        </tbody>
+      </table>
+      <div class="warn">
+        <b>The most common cohort-table bug is showing 0% for an immature cell.</b> Hatched cells are not-yet-due, not failures.
+        In a donor review, a blank read as a zero reads as programme collapse. Every hatched cell carries the date it matures.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Composition, not a percentage</div>
+      <h3>What happened to the 90-day cohort</h3>
+      <div class="den">n = 137 youth whose 90-day mark has passed. A retention rate hides this breakdown.</div>
+      <div style="margin-top:10px">
+        <div class="stack" style="height:34px">
+          <div class="seg s1" style="flex:0 0 70.8%" data-tip="Still in the same placement: 97 (71%)">Still placed 97</div>
+          <div class="seg s4" style="flex:0 0 8%" data-tip="Left for a better job or further training: 11 (8%)">11</div>
+          <div class="seg s3" style="flex:0 0 13.9%" data-tip="Left involuntarily — dismissed, contract ended, business closed: 19 (14%)">19</div>
+          <div class="seg s2" style="flex:0 0 7.3%" data-tip="Lost to follow-up — unreachable at the 90-day check: 10 (7%)">10</div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--cat-1)"></i>Still in placement — 97 (71%)</span>
+          <span><i style="background:var(--cat-4)"></i>Left for better job / training — 11 (8%)</span>
+          <span><i style="background:var(--cat-3)"></i>Left involuntarily — 19 (14%)</span>
+          <span><i style="background:var(--cat-2)"></i>Lost to follow-up — 10 (7%)</span>
+        </div>
+      </div>
+      <div class="note">
+        <b>Voluntary exits are not failures.</b> 11 youth left for a better job or further training. Folding them into a 71%
+        "retention rate" understates the programme; reporting 79% by counting them as successes overstates it. Show the
+        composition and let the reader decide, then state the convention used in the donor table.
+      </div>
+      <div class="foot" style="margin-top:12px">
+        <b>Loss shape matters too.</b> Retention decays fastest in the first 30 days (11 of the 19 involuntary exits fall inside
+        day 30), which points to a job-match and onboarding problem rather than a general attrition problem. Steady loss across
+        all 90 days would imply something else entirely.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TIER 4: M&E / DONOR ==================== -->
+<section class="panel" id="p4" hidden>
+  <div class="pagehead">
+    <h2>Results against targets</h2>
+    <div class="sub">Pilot months 1–8 · 500–1,000 youth cohort, 3 woredas &nbsp;<span class="asof">Frozen as of 31 July 2026 · next refresh 31 Aug</span></div>
+  </div>
+
+  <div class="note" style="margin:0 0 14px">
+    <b>This layer is frozen, not live.</b> A donor dashboard that changes between the analyst's screenshot and the review meeting
+    destroys trust in the numbers. It refreshes monthly on a fixed date and the as-of date sits in the header of every export.
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">Indicator names as worded in the parent operations — no reconciliation required</div>
+    <h3>Results framework</h3>
+    <div class="den">Cumulative to 31 July 2026 against end-of-pilot targets</div>
+    <table class="tbl" style="margin-top:8px">
+      <thead><tr><th>Indicator</th><th>Source framework</th><th class="num">Target</th><th class="num">Actual</th><th class="num">% of target</th><th style="width:200px">Progress</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Youth clients with business plans financed or enrolled in wage employment</b><br><span class="muted" style="font-size:11.5px">Count, disaggregated by sex and woreda</span></td>
+          <td class="muted">PSNP 5 / SEASN (P172479), verbatim</td>
+          <td class="num">300</td><td class="num"><b>214</b></td><td class="num">71%</td>
+          <td><div class="track"><div class="fill" style="width:71%"></div></div><div class="foot" style="margin-top:3px">On track ▲ +38 vs last month</div></td>
+        </tr>
+        <tr>
+          <td><b>Youth who received livelihood grant</b><br><span class="muted" style="font-size:11.5px">Count</span></td>
+          <td class="muted">PSNP 5 / SEASN (P172479), verbatim</td>
+          <td class="num">180</td><td class="num"><b>67</b></td><td class="num">37%</td>
+          <td><div class="track"><div class="fill" style="width:37%;background:var(--cat-3)"></div></div><div class="foot" style="margin-top:3px">Behind ▼ disbursement bottleneck</div></td>
+        </tr>
+        <tr>
+          <td><b>Share of project beneficiaries completing training</b><br><span class="muted" style="font-size:11.5px">Completed ÷ initially enrolled</span></td>
+          <td class="muted">WB Jobs M&amp;E Toolkit (2017), intermediate</td>
+          <td class="num">75%</td><td class="num"><b>68%</b><br><span class="muted" style="font-size:11px">139/205</span></td><td class="num">91%</td>
+          <td><div class="track"><div class="fill" style="width:91%;background:var(--cat-2)"></div></div><div class="foot" style="margin-top:3px">Slightly behind ▬ stable</div></td>
+        </tr>
+        <tr>
+          <td><b>Number of self- and/or wage employed project beneficiaries</b><br><span class="muted" style="font-size:11.5px">Gross, not net of deadweight or displacement</span></td>
+          <td class="muted">WB Jobs M&amp;E Toolkit, PDO-level</td>
+          <td class="num">260</td><td class="num"><b>214</b></td><td class="num">82%</td>
+          <td><div class="track"><div class="fill" style="width:82%"></div></div><div class="foot" style="margin-top:3px">On track ▲</div></td>
+        </tr>
+        <tr>
+          <td><b>Wage-employed 3 months after completion</b><br><span class="muted" style="font-size:11.5px">Unsubsidised employment only; anchored on programme exit, not placement date</span></td>
+          <td class="muted">Ethiopia UPSNJP (P169943) construction</td>
+          <td class="num">60%</td><td class="num"><b>64%</b><br><span class="muted" style="font-size:11px">71/111</span></td><td class="num">107%</td>
+          <td><div class="track"><div class="fill" style="width:100%;background:var(--seq-5)"></div></div><div class="foot" style="margin-top:3px">Ahead ▲ n = 111 mature</div></td>
+        </tr>
+        <tr>
+          <td><b>Referrals confirmed by the receiving partner within 7 days</b><br><span class="muted" style="font-size:11.5px">Timeliness expressed as % within N days, not as a mean</span></td>
+          <td class="muted">PSNP "within 45 days" construction, adapted</td>
+          <td class="num">80%</td><td class="num"><b>61%</b><br><span class="muted" style="font-size:11px">966/1584</span></td><td class="num">76%</td>
+          <td><div class="track"><div class="fill" style="width:76%;background:var(--cat-2)"></div></div><div class="foot" style="margin-top:3px">Behind ▬ flat 3 months</div></td>
+        </tr>
+        <tr>
+          <td><b>Referral loop closure rate</b><br><span class="muted" style="font-size:11.5px">Outcome recorded and verified ÷ all mature referrals</span></td>
+          <td class="muted">CMS50 closed-loop logic, adapted</td>
+          <td class="num">70%</td><td class="num"><b>52%</b><br><span class="muted" style="font-size:11px">460/893</span></td><td class="num">74%</td>
+          <td><div class="track"><div class="fill" style="width:74%;background:var(--cat-2)"></div></div><div class="foot" style="margin-top:3px">Behind ▲ +6pp this quarter</div></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="foot">
+      Denominator maturation: the loop-closure denominator excludes referrals raised in the final 30 days of the period, so the
+      rate is not mechanically depressed at every period boundary. Without that exclusion, staff learn to stop raising referrals
+      late in the quarter.
+    </div>
+  </div>
+
+  <div class="grid g12" style="margin-top:14px">
+    <div class="card">
+      <div class="eyebrow">One axis · 2 series · direct-labelled · no dual axis</div>
+      <h3>Cumulative youth placed vs target</h3>
+      <div class="den">Both series are counts of youth on the same scale</div>
+      <svg viewBox="0 0 520 250" width="100%" height="230" role="img" aria-label="Line chart: cumulative youth placed against a linear target path, January to July 2026. Values in the table below.">
+        <g font-family="Archivo, sans-serif" font-size="10.5" fill="#7A7568">
+          <line x1="42" y1="20" x2="500" y2="20" stroke="#F4F1EA"/><text x="4" y="24">300</text>
+          <line x1="42" y1="68" x2="500" y2="68" stroke="#F4F1EA"/><text x="4" y="72">225</text>
+          <line x1="42" y1="116" x2="500" y2="116" stroke="#F4F1EA"/><text x="4" y="120">150</text>
+          <line x1="42" y1="164" x2="500" y2="164" stroke="#F4F1EA"/><text x="4" y="168">75</text>
+          <line x1="42" y1="212" x2="500" y2="212" stroke="#E3DED2"/><text x="16" y="216">0</text>
+          <text x="42" y="234">Jan</text><text x="107" y="234">Feb</text><text x="172" y="234">Mar</text>
+          <text x="237" y="234">Apr</text><text x="302" y="234">May</text><text x="367" y="234">Jun</text><text x="432" y="234">Jul</text>
+        </g>
+        <!-- target path (linear to 300 by Dec) -->
+        <polyline fill="none" stroke="#7A7568" stroke-width="2" stroke-dasharray="5 4"
+          points="46,212 111,196 176,180 241,164 306,148 371,132 436,116"/>
+        <text x="440" y="112" font-family="Archivo, sans-serif" font-size="11" font-weight="700" fill="#4E4A42">Target 150</text>
+        <!-- actual -->
+        <polyline fill="none" stroke="#12836B" stroke-width="2.5" stroke-linejoin="round"
+          points="46,212 111,188 176,155 241,125 306,99 371,80 436,75"/>
+        <g fill="#12836B">
+          <circle cx="46" cy="212" r="4.5" data-tip="Jan 2026 · 0 placed"/>
+          <circle cx="111" cy="188" r="4.5" data-tip="Feb 2026 · 38 placed"/>
+          <circle cx="176" cy="155" r="4.5" data-tip="Mar 2026 · 90 placed"/>
+          <circle cx="241" cy="125" r="4.5" data-tip="Apr 2026 · 137 placed"/>
+          <circle cx="306" cy="99" r="4.5" data-tip="May 2026 · 178 placed"/>
+          <circle cx="371" cy="80" r="4.5" data-tip="Jun 2026 · 207 placed"/>
+          <circle cx="436" cy="75" r="5.5" stroke="#fff" stroke-width="2" data-tip="Jul 2026 · 214 placed — growth flattening"/>
+        </g>
+        <text x="440" y="66" font-family="Archivo, sans-serif" font-size="12" font-weight="700" fill="#0B4A38">Actual 214</text>
+      </svg>
+      <div class="legend">
+        <span><i style="background:var(--cat-1)"></i>Actual cumulative placements</span>
+        <span><i style="background:var(--ink-400)"></i>Target path (300 by Dec 2026)</span>
+      </div>
+      <div class="foot">Ahead of the target path, but the July slope is flat. That deceleration, not the 214, is the number to discuss.</div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Suppression rule applied and visible</div>
+      <h3>Disaggregation — youth placed</h3>
+      <div class="den">n = 842 registered, 214 placed. Rates suppressed below n = 10, marked provisional below n = 30.</div>
+      <table class="tbl" style="margin-top:8px">
+        <thead><tr><th>Group</th><th class="num">Registered</th><th class="num">Placed</th><th class="num">Rate</th></tr></thead>
+        <tbody>
+          <tr><td><b>Sex</b></td><td></td><td></td><td></td></tr>
+          <tr><td style="padding-left:18px">Female</td><td class="num">397</td><td class="num">84</td><td class="num"><b>21%</b></td></tr>
+          <tr><td style="padding-left:18px">Male</td><td class="num">445</td><td class="num">130</td><td class="num"><b>29%</b></td></tr>
+          <tr><td><b>Age band</b> <span class="muted" style="font-weight:400;font-size:11px">Ethiopian youth definition 15–29</span></td><td></td><td></td><td></td></tr>
+          <tr><td style="padding-left:18px">15–17</td><td class="num">96</td><td class="num">11</td><td class="num"><b>11%</b></td></tr>
+          <tr><td style="padding-left:18px">18–24</td><td class="num">468</td><td class="num">127</td><td class="num"><b>27%</b></td></tr>
+          <tr><td style="padding-left:18px">25–29</td><td class="num">278</td><td class="num">76</td><td class="num"><b>27%</b></td></tr>
+          <tr><td><b>PSNP status</b></td><td></td><td></td><td></td></tr>
+          <tr><td style="padding-left:18px">Enrolled (PW)</td><td class="num">512</td><td class="num">118</td><td class="num"><b>23%</b></td></tr>
+          <tr><td style="padding-left:18px">Enrolled (PDS/TDS)</td><td class="num">184</td><td class="num">51</td><td class="num"><b>28%</b></td></tr>
+          <tr><td style="padding-left:18px">Graduated</td><td class="num">109</td><td class="num">38</td><td class="num"><b>35%</b></td></tr>
+          <tr><td style="padding-left:18px">Not PSNP</td><td class="num">37</td><td class="num">7</td><td class="num suppressed">— too few</td></tr>
+          <tr><td><b>Disability status</b></td><td></td><td></td><td></td></tr>
+          <tr><td style="padding-left:18px">With disability</td><td class="num">28</td><td class="num">4</td><td class="num"><b>14%*</b></td></tr>
+          <tr><td style="padding-left:18px">No disability</td><td class="num">814</td><td class="num">210</td><td class="num"><b>26%</b></td></tr>
+        </tbody>
+      </table>
+      <div class="foot">
+        <b>*</b> provisional, denominator below 30 — indicative only, not for comparison or ranking.<br>
+        <b>—</b> suppressed, denominator below 10. Where one cell in a group is suppressed, a second is suppressed too, so the
+        hidden value cannot be recovered by subtracting from the group total.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g12" style="margin-top:14px">
+    <div class="card">
+      <div class="eyebrow">Point estimates with intervals</div>
+      <h3>Retention at each checkpoint</h3>
+      <div class="den">Mature cohorts only. Denominators differ by checkpoint and are shown on every row.</div>
+      <table class="tbl" style="margin-top:8px">
+        <thead><tr><th>Checkpoint</th><th class="num">Retained</th><th class="num">Eligible</th><th class="num">Rate [95% CI]</th><th>Vs prior cohort</th></tr></thead>
+        <tbody>
+          <tr><td>30 days from placement</td><td class="num">181</td><td class="num">207</td><td class="num"><b>87%</b> [82–91]</td><td><span class="vd as">▬ +1pp</span></td></tr>
+          <tr><td>60 days from placement</td><td class="num">141</td><td class="num">178</td><td class="num"><b>79%</b> [73–85]</td><td><span class="vd as">▬ −1pp</span></td></tr>
+          <tr><td>90 days from placement</td><td class="num">97</td><td class="num">137</td><td class="num"><b>71%</b> [63–78]</td><td><span class="vd below">▼ −3pp</span></td></tr>
+          <tr style="background:var(--surface-alt)"><td>3 months from programme exit<br><span class="muted" style="font-size:11.5px">Unsubsidised employment only</span></td><td class="num">71</td><td class="num">111</td><td class="num"><b>64%</b> [55–73]</td><td><span class="vd above">▲ +4pp</span></td></tr>
+        </tbody>
+      </table>
+      <div class="note info">
+        <b>Two retention layers, deliberately.</b> The 30/60/90-day cascade is anchored on placement date and drives case manager
+        follow-up. The 3-month figure is anchored on programme exit and excludes subsidised placements — that is the one that
+        rolls up to the World Bank. They will never be equal, so both definitions sit in the indicator handbook and the anchor is
+        stated on every row.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">A sentence beats another chart</div>
+      <h3>What changed, and what is uncertain</h3>
+      <p style="font-size:14px;margin-top:8px">
+        <b>Placements reached 214 against a 300 target</b>, ahead of the linear target path but decelerating sharply in July
+        (+7, against +29 in June). The slowdown traces to a single bottleneck: median time from partner confirmation to the
+        youth actually presenting is 52 days, and 145 youth are sitting in that gap.
+      </p>
+      <p style="font-size:14px">
+        <b>Livelihood grant disbursement is the weakest indicator</b> at 37% of target. The business plans exist; the transfers
+        have not followed. This mirrors the target-versus-actual shortfall pattern in the parent PSNP 5 operation and should be
+        treated as a financing-process problem, not a demand problem.
+      </p>
+      <p style="font-size:14px">
+        <b>Female placement rate is 8 percentage points below male</b> (21% vs 29%) on stable denominators. Worth investigating;
+        the disability disaggregation (14%, n = 28) is too small to say anything about and should not be reported as a finding.
+      </p>
+      <p style="font-size:14px;margin-bottom:0">
+        <b>Three caveats on these numbers.</b> Placement counts are gross, not net of deadweight or displacement — they are not
+        "jobs created". 41 of the 214 outcomes are self-reported and not yet employer-confirmed; the verified subset is 173.
+        And with roughly 87% of Ethiopian youth employment being informal, a formal-wage-only reading of these figures will
+        understate what the pilot actually achieved.
+      </p>
+      <div class="foot" style="margin-top:12px">Delivered as a monthly PDF and email subscription to the task team. Five cards, no more.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TIER 5: RATIONALE ==================== -->
+<section class="panel doc" id="p5" hidden>
+  <div class="pagehead">
+    <h2>Variables and visualisation choices</h2>
+    <div class="sub">Why each variable sits where it does, and why each chart is the chart it is</div>
+  </div>
+
+  <p style="font-size:15px">
+    This replaces Section 8 of the Development Specification, which lists nine dashboards in one flat table with no audience
+    split, no indicator definitions, and no visualisation guidance. The nine are all still here — they are distributed across
+    four audiences and given formulas, denominators and chart types.
+  </p>
+
+  <div class="rule">
+    <b>The organising decision.</b> Build four small dashboards, not one dashboard with role-based hiding. A single dashboard
+    with permissions always converges on the union of every stakeholder's requirements, and the case manager ends up looking at
+    donor indicators. Four dashboards, six cards each, hard cap nine.
+  </div>
+
+  <h3>1. The four tiers and what belongs on each</h3>
+  <table class="tbl">
+    <thead><tr><th>Tier</th><th>User</th><th>Question answered</th><th>Refresh</th><th>Primary medium</th><th>What must NOT appear</th></tr></thead>
+    <tbody>
+      <tr><td><b>Operational</b></td><td>Case manager</td><td>What do I do next?</td><td>Live</td><td>Lists, counts, exception queues</td><td>Percentages, charts, comparison with other case managers, trend lines</td></tr>
+      <tr><td><b>Tactical</b></td><td>Woreda supervisor</td><td>Which staff, which cases need me?</td><td>Daily 06:00</td><td>Ranked tables, small bars</td><td>Donor indicators, annual targets, unadjusted staff leaderboards</td></tr>
+      <tr><td><b>Analytical</b></td><td>Programme manager</td><td>Where is the process breaking, for whom?</td><td>Nightly 02:00</td><td>Pipeline bars, cohort tables, partner comparisons</td><td>Live case detail, PII, real-time counts</td></tr>
+      <tr><td><b>Strategic</b></td><td>M&amp;E / World Bank</td><td>Are we hitting targets?</td><td>Monthly, frozen</td><td>Indicator table vs target, one trend line, narrative</td><td>Operational noise, unstable disaggregations, anything needing a paragraph to define</td></tr>
+    </tbody>
+  </table>
+
+  <div class="rule">
+    <b>Build order: inside out.</b> Case manager first, donor last. The donor dashboard has the loudest stakeholder and the least
+    operational value — and if case managers do not use the system, there is no data to report on anyway.
+  </div>
+
+  <h3>2. Variable dictionary — what each tier reads from the data model</h3>
+  <p>Every variable below traces to a field in Dev Spec Section 4. Nothing here requires a new form.</p>
+
+  <h4>Tier 1 · Case manager (Django view, not Metabase)</h4>
+  <table class="tbl">
+    <thead><tr><th>Variable</th><th>Source fields</th><th>Definition</th><th>Visualisation</th></tr></thead>
+    <tbody>
+      <tr><td>Needs action today</td><td><code>alert.status</code>, <code>triggered_date</code>, <code>threshold_days</code>, <code>assigned_to_id</code></td><td>Open alerts assigned to me, past threshold or due today</td><td>Count tile + list sorted by days overdue</td></tr>
+      <tr><td>Referrals awaiting partner</td><td><code>referral.confirmation_status = Pending</code>, <code>initiated_date</code></td><td>My referrals with no partner confirmation, by age in days</td><td>List, age as the sort key</td></tr>
+      <tr><td>Caseload by status</td><td><code>case.case_status</code></td><td>Count per status, semantic order</td><td>5-row table with links — not a pie, not a bar</td></tr>
+      <tr><td>Youth at risk of dropout</td><td><code>followup.contact_outcome</code>, <code>case.last_activity_date</code>, <code>training.dropout_flag</code></td><td>No contact 30+ days, or 3 consecutive absences, or unexplained placement exit</td><td>Exception list of named youth</td></tr>
+      <tr><td>Referral stack</td><td><code>referral.*</code> for one <code>case_id</code>, ordered by <code>initiated_date</code>, chained by <code>parent_referral_id</code></td><td>All referrals for one youth, with parallel groups and replacement chains</td><td>Inline SVG timeline + chronological event table</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Tier 2 · Woreda supervisor</h4>
+  <table class="tbl">
+    <thead><tr><th>Variable</th><th>Source fields</th><th>Definition</th><th>Visualisation</th></tr></thead>
+    <tbody>
+      <tr><td>Team caseload by status</td><td><code>case.case_status</code> × <code>case_manager_id</code></td><td>Six statuses collapsed to four for display; six retained in drill-down</td><td>100% stacked row per case manager, ≤4 segments, direct-labelled</td></tr>
+      <tr><td>Unassigned youth</td><td><code>youth</code> with no linked <code>case.case_manager_id</code></td><td>Registered but never assigned</td><td>Big number + link</td></tr>
+      <tr><td>Overdue actions by staff</td><td><code>alert</code> where <code>status = Open</code> past threshold</td><td>Count per case manager, shown beside caseload size</td><td>Sorted row chart, counts labelled — never a rate</td></tr>
+      <tr><td>Referral response time by partner</td><td><code>confirmed_date − initiated_date</code></td><td><b>Median</b> days, this woreda, last 90 days, n shown</td><td>Row chart of medians</td></tr>
+      <tr><td>Woreda pipeline</td><td>Stage timestamps per youth</td><td>Registered → placed for this woreda</td><td>Row chart with drop-off column</td></tr>
+      <tr><td>Data completeness</td><td>Null counts on required fields</td><td>Missing phone, profile, consent, outcome type, failure reason</td><td>Table, worst case manager named</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Tier 3 · Programme manager</h4>
+  <table class="tbl">
+    <thead><tr><th>Variable</th><th>Definition / formula</th><th>Visualisation</th></tr></thead>
+    <tbody>
+      <tr><td>Pipeline conversion</td><td>Count at each stage; drop-off = <code>n(stage) − n(stage+1)</code>; <b>median days in stage</b></td><td>Row chart, shared left baseline, drop-off annotated per transition</td></tr>
+      <tr><td>Pipeline by woreda</td><td>Same, filtered</td><td>Small multiples, shared x-scale — not a map</td></tr>
+      <tr><td>Referral category → outcome</td><td>Completed referrals cross-tabulated</td><td>Pivot table with a single-hue scale — not a Sankey</td></tr>
+      <tr><td>Partner completion rate</td><td><code>Completed ÷ (Completed + Failed)</code>, 180 days</td><td>Constrained league table sorted by n, with funnel-plot verdict flags</td></tr>
+      <tr><td>Partner failure reasons</td><td><code>failure_reason_code</code> distribution per partner</td><td>Drill-down table from the league table</td></tr>
+      <tr><td>Parallel referral load</td><td>Cases with 2+ Active referrals sharing a <code>parallel_group_id</code></td><td>Count tile + list; a chart adds nothing</td></tr>
+      <tr><td>Cohort retention</td><td>% still in same placement at 30/60/90 days, by placement-month cohort</td><td>Cohort heatmap with censoring hatched and maturation dates shown</td></tr>
+      <tr><td>90-day disposition</td><td>Still placed / left for better / left involuntarily / lost to follow-up</td><td>100% stacked bar, 4 segments</td></tr>
+    </tbody>
+  </table>
+
+  <h4>Tier 4 · M&amp;E and donor</h4>
+  <table class="tbl">
+    <thead><tr><th>Indicator</th><th>Numerator ÷ denominator</th><th>Framework source</th></tr></thead>
+    <tbody>
+      <tr><td>Youth clients with business plans financed or enrolled in wage employment</td><td>Count, no denominator</td><td>PSNP 5 / SEASN (P172479) — use this wording verbatim so woreda figures roll up without reconciliation</td></tr>
+      <tr><td>Youth who received livelihood grant</td><td>Count</td><td>PSNP 5 / SEASN (P172479)</td></tr>
+      <tr><td>Share of beneficiaries completing training</td><td>Completed ÷ initially enrolled</td><td>World Bank Jobs M&amp;E Toolkit (2017), intermediate</td></tr>
+      <tr><td>Number of self- and/or wage employed beneficiaries</td><td>Count meeting the ILO-adapted employment criterion</td><td>Jobs M&amp;E Toolkit, PDO-level</td></tr>
+      <tr><td>Wage-employed 3 months after completion</td><td>Unsubsidised employed at 3 months ÷ youth who exited 3+ months ago</td><td>Ethiopia UPSNJP (P169943)</td></tr>
+      <tr><td>Referrals confirmed within 7 days</td><td>Confirmed ≤7d ÷ all referrals raised in period</td><td>Adapted from the PSNP "% of transfers within 45 days" construction</td></tr>
+      <tr><td>Referral loop closure rate</td><td>Outcome recorded and verified ÷ mature referrals</td><td>Adapted from CMS50 "Closing the Referral Loop"</td></tr>
+    </tbody>
+  </table>
+
+  <div class="rule">
+    <b>Disaggregation applies to everything above:</b> sex; age band <b>15–29 (Ethiopia's youth definition, not 15–24)</b> with
+    15–17 / 18–24 / 25–29 splits; rural/urban; woreda; pathway; PSNP client category; disability; and <b>verification source</b>.
+    Ethiopia's national labour statistics also use a working age of 10+ and count discouraged job-seekers as unemployed, which
+    the ILO definition excludes — carry both, or your figures reconcile with neither.
+  </div>
+
+  <h3>3. Chart choices, and what was rejected</h3>
+  <table class="tbl">
+    <thead><tr><th>Data shape</th><th>Chosen</th><th>Rejected</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Pipeline with drop-off</td><td>Row chart, shared left baseline, drop-off annotated</td><td>Funnel chart</td>
+        <td>A funnel highlights what remains; the question is what is lost. Metabase's funnel cannot be recoloured or broken out by woreda, the taper breaks with sharp drop-offs, and comparing two funnels is near impossible. And no funnel shows median days in stage — the most actionable pipeline number.</td>
+      </tr>
+      <tr>
+        <td>Six-status workflow distribution</td><td>Table at case-manager tier; 100% stacked bar collapsed to 4 segments above it</td><td>Six-segment stacked bar; pie or donut</td>
+        <td>Four stacks is the practical ceiling; six adjacent segments cannot hold the 3:1 non-text contrast WCAG requires. A six-slice pie is unreadable without labels. Order statuses semantically, never by size, or segments swap places across time and the chart becomes unreadable.</td>
+      </tr>
+      <tr>
+        <td>Referral category → outcome type</td><td>Pivot table, single-hue scale, counts visible</td><td>Sankey diagram</td>
+        <td>Up to 40 ribbons; unreadable at 5 inches; needs hover, which is the interaction least available to these users; breaks on circular flows; and it hides zero cells — which here are the actual finding.</td>
+      </tr>
+      <tr>
+        <td>Per-youth referral chain</td><td>Inline SVG timeline (LifeLines pattern) + event table</td><td>Any BI chart</td>
+        <td>This is a detail view of one record, not a BI question. Hand-built SVG is a few KB, renders on any Android browser, prints, and costs one request. Metabase has no timeline visualisation at all.</td>
+      </tr>
+      <tr>
+        <td>Partner rates on small denominators</td><td>League table sorted by <b>n</b>, with three-state verdict flags from funnel-plot limits</td><td>Sorted bar chart of rates; RAG traffic-light grid; funnel plot itself</td>
+        <td>Ranking on unstable rates sorts by luck and is politically irreversible once published. A funnel plot is statistically correct but needs training to read — so compute the funnel logic in SQL and render the verdict as a word plus a symbol.</td>
+      </tr>
+      <tr>
+        <td>Retention over 30/60/90 days</td><td>Cohort heatmap + disposition stacked bar</td><td>Survival curve as the primary; a single retention percentage</td>
+        <td>A heatmap separates decay-with-tenure (read across) from cohort-over-cohort improvement (read down); one curve conflates them. A single percentage hides voluntary exits, which are not failures.</td>
+      </tr>
+      <tr>
+        <td>Three-woreda comparison</td><td>Three bars, or small multiples</td><td>Choropleth map</td>
+        <td>Area is a confound — the largest woreda dominates visually regardless of its data. At n = 3 there is no spatial pattern to find, and a map is the most expensive card on the page: GeoJSON plus tiles, on 3G. Revisit past roughly 15–20 woredas, and prefer proportional symbols even then.</td>
+      </tr>
+      <tr>
+        <td>Progress vs target</td><td>One line chart, one axis, both series in counts, direct-labelled</td><td>Dual-axis chart; gauge; speedometer</td>
+        <td>Dual axes invent correlations that are not in the data and tested poorly on both accuracy and speed. Gauges spend a whole card on one number with no comparative context.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>4. The rules that stop the dashboard lying</h3>
+
+  <h4>Minimum denominator — three bands, enforced once in SQL</h4>
+  <table class="tbl">
+    <thead><tr><th>Band</th><th>Condition</th><th>Display</th></tr></thead>
+    <tbody>
+      <tr><td><b>Report</b></td><td>denominator ≥ 30</td><td>Rate, plus n/N counts, plus 95% CI where it matters</td></tr>
+      <tr><td><b>Provisional</b></td><td>10 ≤ denominator &lt; 30</td><td>Rate with a persistent visible marker (<code>52%*</code>) and a footnote. Never used in a comparison or a ranking.</td></tr>
+      <tr><td><b>Suppress</b></td><td>denominator &lt; 10</td><td><code>—</code> and "too few to assess"</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>Never show a percentage without its denominator.</b> Not on a tile, not in a tooltip, not in the donor PDF.</li>
+    <li><b>Apply the rule to every disaggregation, not just the headline.</b> Female × PWD × Woreda C is exactly where denominators collapse, and it is exactly what donors ask for.</li>
+    <li><b>Suppression must be non-complementary.</b> Suppress one cell in a row and publish the total, and the hidden value is recoverable by subtraction. Suppress a second.</li>
+    <li><b>Distinguish "0" from "no data".</b> Zero placements from 40 referrals and no report submitted are completely different findings and must look different on screen.</li>
+    <li><b>Whole percentage points only.</b> 49%, never 48.81%.</li>
+  </ul>
+
+  <h4>Denominator maturation</h4>
+  <div class="warn">
+    Every checkpoint metric needs an explicit eligible denominator. A youth placed 20 days ago is not a 30-day retention failure,
+    and a referral raised three days before period end is not an unclosed loop. Without maturation windows, rates collapse at
+    every period boundary and staff learn to stop raising referrals late in the quarter.
+  </div>
+
+  <h4>Vanity metrics to keep off every screen</h4>
+  <ul>
+    <li><b>"Referrals made."</b> The textbook vanity metric for a referral platform. A referral costs nothing and produces nothing. Count <i>confirmed</i>, <i>attended</i>, <i>outcome recorded</i>.</li>
+    <li><b>Placement rate shown to a case manager.</b> Creates cream-skimming pressure with no compensating information value.</li>
+    <li><b>Raw placement-rate leaderboards across woredas.</b> Programmes serving harder cases report lower placement rates. An unadjusted leaderboard rewards creaming and penalises the woreda doing the difficult work. Show intake vulnerability profile alongside, or do not rank.</li>
+    <li><b>Real-time refresh on the donor dashboard.</b> Freeze it monthly with a visible as-of date.</li>
+  </ul>
+
+  <h4>Attribution rules to settle before Sprint 7</h4>
+  <ul>
+    <li>A youth referred to three partners and placed via one: whose numerator? Decide, document it, and put the rule in the card subtitle.</li>
+    <li>Deduplicate at person level within a reporting period, or a youth with three referrals inflates counts threefold.</li>
+    <li>Carry a <code>verification_source</code> field on every outcome (self-reported / employer-confirmed / document-verified / provider-confirmed) and let the dashboard filter on it. Report the verified subset as the headline.</li>
+    <li>Label placements <b>gross</b>. They are not "jobs created" — that claim requires netting out deadweight and displacement, which this platform cannot do.</li>
+  </ul>
+
+  <h3>5. Colour, accessibility and bandwidth</h3>
+  <p>
+    Series colours use a machine-validated palette. Categorical
+    <code>#12836B · #D08A0A · #B0442A · #7A4CA8</code> and the sequential ramp
+    <code>#84BEAC → #0C5346</code> both pass lightness-band, chroma-floor, colour-vision-deficiency separation,
+    normal-vision separation and surface-contrast checks. The gold sits below 3:1 against the page, which is why every gold
+    segment on this prototype carries a visible label rather than relying on fill alone.
+  </p>
+  <ul>
+    <li><b>Never colour alone.</b> Every status pairs a colour with a word and a geometric mark — this survives monochrome screens, colour-blind readers, and a phone in direct sunlight.</li>
+    <li><b>Every chart has a table twin.</b> That is the WCAG 1.1.1 text alternative and the fallback when SVG fails on a low-end browser. It is also what users actually read.</li>
+    <li><b>Adjacent chart segments need 3:1 contrast</b> against each other (WCAG 1.4.11). This is what kills the six-segment stacked bar, not aesthetics.</li>
+    <li><b>Sunlight:</b> no shadows, no gradients, no light-grey secondary text, minimum 2px strokes, weight 600+ on any number that matters.</li>
+    <li><b>Bandwidth:</b> chart type barely affects page weight. What matters is card count (each is a query round-trip — cap at 6, hard cap 9), result-set size (aggregate in SQL, never return detail rows), and external requests (which is where maps lose badly).</li>
+    <li><b>Pre-aggregate.</b> Materialised views refreshed nightly — <code>mv_funnel_daily</code>, <code>mv_referral_outcomes</code>, <code>mv_cohort_retention</code> — not five-CTE queries run live on every dashboard load.</li>
+    <li><b>Server-rendered email beats an interactive dashboard on 3G.</b> A 07:00 snapshot in the supervisor's inbox works when the network does not.</li>
+  </ul>
+
+  <h3>6. Two architecture calls this implies for the Dev Spec</h3>
+  <div class="rule">
+    <b>The case manager dashboard is not a Metabase dashboard.</b> It belongs in Django, inside the case management app. It needs
+    per-user row filtering, sub-second response on 3G, and an action affordance next to every number. Metabase covers tiers 2, 3
+    and 4. Relying on Metabase row-level security for per-youth PII isolation puts your data-protection boundary in a paid BI
+    feature — that boundary belongs in the Django ORM, enforced and tested.
+  </div>
+  <div class="rule">
+    <b>Sprint 7 needs to move earlier, and split.</b> Dev Spec Section 8 puts all nine dashboards in one late sprint. The case
+    manager work queue is not a reporting feature — it is the thing that makes the system worth opening, and it should ship with
+    the referral engine in Sprint 3–4. Only tiers 2 to 4 belong in Sprint 7.
+  </div>
+
+  <h3>7. What still needs a decision</h3>
+  <ul>
+    <li>Retention convention: 30/60/90 days from <i>placement</i> for operations, 3/6/12 months from <i>programme exit</i> for reporting. Both are implemented here; the donor-facing anchor needs task-team sign-off.</li>
+    <li>Whether subsidised placements (PSNP public works) count in the employment numerator. They should not, but that needs stating.</li>
+    <li>The caseload ceiling and stall threshold defaults, which drive half the alerts on the case manager screen.</li>
+    <li>Whether the suppression thresholds above (30 / 10) are accepted, or the World Bank task team prescribes its own.</li>
+    <li>Metabase's rendering of Amharic and Afaan Oromo in card titles, axis labels and exports — verify before committing, not after.</li>
+  </ul>
+
+  <p class="foot" style="margin-top:24px;font-size:12px">
+    Frameworks referenced: World Bank Jobs M&amp;E Toolkit (2017); WBG Scorecard FY24–30; PSNP 5 / SEASN (P172479); Ethiopia
+    UPSNJP (P169943); ILO Guide on Measuring Decent Jobs for Youth, Notes 2 and 3; ILO School-to-Work Transition Survey;
+    Ethiopian Statistical Service 2013 EFY Labour Force Survey; CMS50 Closing the Referral Loop; MEASURE Evaluation completed-referrals
+    indicator; NNSI Health &amp; Human Services Referral Systems Measurement Playbook; Primero CPIMS; DHIS2 tracker analytics;
+    Stephen Few, Information Dashboard Design; UK Government Analysis Function data visualisation guidance; Spiegelhalter (2005)
+    funnel plots; NCHS data presentation standards for proportions; WCAG 2.1.
+  </p>
+</section>
+
+</main>
+
+<script>
+(function(){
+  var tabs = document.querySelectorAll('.tabs button');
+  tabs.forEach(function(b){
+    b.addEventListener('click', function(){
+      tabs.forEach(function(x){ x.setAttribute('aria-selected','false'); });
+      b.setAttribute('aria-selected','true');
+      document.querySelectorAll('.panel').forEach(function(p){ p.hidden = true; });
+      document.getElementById(b.dataset.p).hidden = false;
+      window.scrollTo(0,0);
+    });
+  });
+
+  document.querySelectorAll('.filterrow').forEach(function(row){
+    var groups = [], cur = [];
+    row.childNodes.forEach && Array.prototype.forEach.call(row.children, function(el){
+      if(el.classList.contains('lbl')){ if(cur.length) groups.push(cur); cur = []; }
+      else if(el.classList.contains('chip')) cur.push(el);
+    });
+    if(cur.length) groups.push(cur);
+    groups.forEach(function(g){
+      g.forEach(function(c){
+        c.addEventListener('click', function(){
+          g.forEach(function(x){ x.setAttribute('aria-pressed','false'); });
+          c.setAttribute('aria-pressed','true');
+        });
+      });
+    });
+  });
+
+  var tip = document.getElementById('tip');
+  function show(e){
+    var t = e.target.closest('[data-tip]');
+    if(!t){ tip.classList.remove('on'); return; }
+    tip.textContent = t.getAttribute('data-tip');
+    tip.classList.add('on');
+    var x = e.clientX + 14, y = e.clientY + 16;
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    if(x + w > window.innerWidth - 8) x = window.innerWidth - w - 8;
+    if(y + h > window.innerHeight - 8) y = e.clientY - h - 12;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  document.addEventListener('mousemove', show);
+  document.addEventListener('mouseleave', function(){ tip.classList.remove('on'); });
+})();
+</script>
+</body>
+</html>

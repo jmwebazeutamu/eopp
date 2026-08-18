@@ -2,7 +2,7 @@ import { App } from "antd";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { LanguageProvider } from "../i18n/LanguageContext";
+import { LanguageProvider } from "../../i18n/LanguageContext";
 
 /**
  * The dashboard's failure path, in its own file.
@@ -15,21 +15,21 @@ import { LanguageProvider } from "../i18n/LanguageContext";
  */
 
 const get = vi.fn();
-vi.mock("../api/client", () => ({
+vi.mock("../../api/client", () => ({
   api: { get: (...args: unknown[]) => get(...args) },
   errorMessage: (_: unknown, fallback: string) => fallback,
 }));
 
-const { default: DashboardPage } = await import("./DashboardPage");
+const { default: ProgrammePage } = await import("./ProgrammePage");
 
-describe("DashboardPage, when the figures cannot be loaded", () => {
+describe("ProgrammePage, when the figures cannot be loaded", () => {
   it("says so, rather than rendering a programme at zero", async () => {
     get.mockImplementation(() => Promise.reject(new Error("network")));
 
     render(
       <LanguageProvider>
         <App>
-          <DashboardPage />
+          <ProgrammePage />
         </App>
       </LanguageProvider>,
     );
@@ -37,7 +37,7 @@ describe("DashboardPage, when the figures cannot be loaded", () => {
     // What the user sees is the whole point: a dashboard that failed to load
     // must say it failed. Rendering empty panels would read as a programme that
     // has registered nobody and placed nobody.
-    expect(await screen.findByText("Could not load the dashboard.")).toBeInTheDocument();
+    expect(await screen.findByText("Could not load this dashboard.")).toBeInTheDocument();
     expect(screen.queryByText("Registration to placement")).not.toBeInTheDocument();
     expect(screen.queryByText("Placements this quarter")).not.toBeInTheDocument();
   });

@@ -40,6 +40,12 @@ class ReferralSerializer(serializers.ModelSerializer):
     confirmation_status_display = serializers.CharField(source="get_confirmation_status_display", read_only=True)
     receiving_partner_detail = PartnerSummarySerializer(source="receiving_partner", read_only=True)
     initiated_by_name = serializers.CharField(source="initiated_by.full_name", read_only=True)
+    # Null when the partner confirmed through their own login; a staff name when
+    # somebody recorded the answer on their behalf. The screen has to be able to
+    # tell those apart, and so does the partner-performance card.
+    confirmation_recorded_by_name = serializers.CharField(
+        source="confirmation_recorded_by.full_name", read_only=True, default=None
+    )
     outcome_type_label = serializers.CharField(source="outcome_type.label", read_only=True, default=None)
     failure_reason_label = serializers.CharField(source="failure_reason_code.label", read_only=True, default=None)
     youth_name = serializers.CharField(source="case.youth.full_name", read_only=True)
@@ -77,6 +83,8 @@ class ReferralSerializer(serializers.ModelSerializer):
             "confirmation_status_display",
             "confirmed_date",
             "confirmed_by",
+            "confirmation_recorded_by",
+            "confirmation_recorded_by_name",
             "status",
             "status_display",
             "allowed_transitions",
@@ -141,7 +149,14 @@ class ReplacementReferralSerializer(OnwardReferralSerializer):
 
 
 class ConfirmReferralSerializer(serializers.Serializer):
-    """Partner-side confirmation. §4.6 types confirmed_by as free text."""
+    """The partner's confirmation, entered by the partner or by staff.
+
+    §4.6 types `confirmed_by` as free text because the person confirming is
+    often partner-side staff with no platform account. When a case manager
+    records the answer on the partner's behalf, `confirmed_by` still names who
+    at the partner gave it, and the state machine stamps
+    `confirmation_recorded_by` with the account that typed it.
+    """
 
     confirmed_by = serializers.CharField(max_length=255)
     confirmed_date = serializers.DateField(required=False)

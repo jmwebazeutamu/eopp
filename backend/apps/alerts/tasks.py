@@ -226,3 +226,50 @@ def run_all_detections():
         "replacement_prompts": generate_replacement_prompts(),
         "auto_resolved": resolve_cleared_alerts(),
     }
+
+
+@shared_task(name="alerts.fail_abandoned_referrals")
+def fail_abandoned_referrals():
+    """Close referrals no partner ever answered — §5.4, §6.2.
+
+    §6.2 gives Pending Confirmation two exits: the partner answers, or a case
+    manager cancels. Neither happens to a referral the partner has forgotten, so
+    it sits in Pending indefinitely, holds a slot against the §6.3 parallel cap,
+    and stays in the loop-closure denominator forever. A pilot can end up with a
+    sixth of its pipeline frozen that way.
+
+    `PARTNER_NON_RESPONSIVE` already exists in §5.4 and nothing set it until now.
+
+    Off by default. `REFERRAL_ABANDONMENT_DAYS = None` disables the sweep, and
+    that is deliberate: failing a referral is a decision about a real young
+    person's case, and the threshold is programme management's to set, not ours
+    (TODO(open-question): OQ-13).
+    """
+    threshold = settings.REFERRAL_ABANDONMENT_DAYS
+    if not threshold:
+        logger.info("fail_abandoned_referrals: disabled (REFERRAL_ABANDONMENT_DAYS unset)")
+        return 0
+
+    from apps.referrals.taxonomy import FailureReasonCode
+
+    reason = FailureReasonCode.objects.filter(code="PARTNER_NON_RESPONSIVE").first()
+    cutoff = date.today() - timedelta(days=threshold)
+    failed = 0
+
+    for referral in Referral.objects.filter(
+        status=ReferralStatus.PENDING_CONFIRMATION, initiated_date__lt=cutoff
+    ).select_related("case"):
+        # Through the state machine, never by assignment: §6.2 is the only
+        # supported way to move a referral, and the transition is what stamps
+        # the failure date and frees the parallel slot.
+        referral.transition_to(
+            ReferralStatus.FAILED,
+            actor=None,
+            failure_reason_code=reason,
+            failure_date=date.today(),
+            notes=f"No partner response in {threshold} days.",
+        )
+        failed += 1
+
+    logger.info("fail_abandoned_referrals: %s referral(s) failed as abandoned", failed)
+    return failed

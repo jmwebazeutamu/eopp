@@ -70,9 +70,20 @@ run with `DEBUG` off unless forced):
 $C exec web python manage.py seed_demo_referrals            # six backdated cases
 $C exec web python manage.py seed_demo_referrals --refresh  # delete and rebuild
 $C exec web python manage.py seed_demo_referrals --reset    # delete only
+
+$C exec web python manage.py seed_pilot_scale               # ~600 youth, pilot scale
+$C exec web python manage.py seed_pilot_scale --youth 1000  # the acceptance-criteria size
+$C exec web python manage.py seed_pilot_scale --refresh     # delete and rebuild
 ```
 
-One case per shape the §6.4 timeline has to draw — sequential chain, parallel
+`seed_pilot_scale` is the one to use when a number has to be believable rather
+than illustrative: six cases cannot exercise a suppression band, a caseload
+budget or a median. It registers into the brief's three live sites (Adama,
+Bishoftu, Lume), backdates registration across 18 months so cohorts and
+maturation windows bite, and runs the **real** §4.13 detection tasks rather than
+inventing alert rows. Deterministic — same `--seed`, same database.
+
+`seed_demo_referrals`: one case per shape the §6.4 timeline has to draw — sequential chain, parallel
 pair plus an exempt third stream, failure and replacement, three onward hops,
 pending and cancelled, and an empty case. Referrals go through `services` and
 `transition_to`, so the rows are the ones the application would produce; only
@@ -108,6 +119,7 @@ a new port).
 | 8008 | MinIO console |
 | 8009 | Metabase (Sprint 7, not yet running) |
 | 8100 | Vite dev server (`web/`) |
+| 8101 | nginx serving `docs/` read-only (`docs` service, dev overlay only) |
 | 5407 | Postgres |
 | 6307 | Redis |
 
@@ -153,25 +165,231 @@ scripts/     bootstrap.sh
 - **Timezone `Africa/Addis_Ababa`**, stored UTC.
 - Every user-facing string goes through `gettext`, including the English baseline.
 
-## Open questions (spec §11)
+## The dashboard handoff (`docs/dashboard_handoff_youth_employment/`)
 
-Working defaults are implemented and flagged `# TODO(open-question)`. Do not
-resolve these silently — they need Phase 1 sign-off:
+Authoritative for spec §8, which it replaces: four tier-specific dashboards
+instead of nine in a flat table. README §3 is the build order. The v1 prototype
+HTML below is its design reference.
 
-- Complementary Service referrals sit **outside** the two-referral parallel cap
-  (`COMPLEMENTARY_SERVICE_EXEMPT_FROM_PARALLEL_CAP = True`, spec §6.3).
-- `STALL_ALERT_THRESHOLD_DAYS = 30`, `REFERRAL_CONFIRMATION_OVERDUE_DAYS = 7`,
-  `CASELOAD_CEILING = 50` — placeholders, not agreed values.
-- `PLACEMENT_TARGET_PER_QUARTER = 0` — the dashboard's quarterly placement
-  target. 0 means nobody has stated one, and the card shows the count alone.
-- `vulnerability_index_score` methodology undefined (spec §4.3).
-- `failure_reason_code` list is a starter, pending frontline validation (§5.4).
-- Offline conflict resolution rules undecided (§9, blocks Sprint 9).
-- `YOUTH_AGE_MIN = 15` / `YOUTH_AGE_MAX = 29` — §4.1 requires an age band but
-  never states it. Out-of-band registration warns rather than blocks, so staff
-  are not pushed into falsifying a date of birth.
-- The seeded woredas in `seed_locations` are illustrative. The actual 2-3 pilot
-  woredas are a programme decision.
+**All four tiers are built in the app, as submenus under `/dashboard`.** This
+overrides the handoff's placement of tiers 2-4 in Metabase, at the programme's
+request. Metabase is out of scope for now; the consequence is that the §7
+boundary stays in the ORM where it is tested, and every rate goes through
+`rules.py` — which makes the handoff's own "no inline percentage arithmetic"
+rule enforceable rather than aspirational.
+
+| Tier | Route | Endpoint | For |
+|---|---|---|---|
+| 1 Operational | `/dashboard/my-work` | `/api/v1/dashboard/my-work/` | Case manager |
+| 2 Tactical | `/dashboard/woreda` | `/api/v1/dashboard/woreda/` | Supervisor |
+| 3 Analytical | `/dashboard/programme` | `/api/v1/dashboard/programme/` | Programme manager |
+| 4 Strategic | `/dashboard/results` | `/api/v1/dashboard/results/` | M&E / donor |
+
+Tabs are gated by §7 scope (`visibleTiers`), and `/dashboard` lands each role on
+its own tier — a case manager must not open the programme's conversion rates,
+which is the cream-skimming pressure §4 warns about. **The tab gate is not the
+security boundary**: every tier is scoped server-side and a LINKED scope gets
+403 on all four.
+
+Tier 1 exists twice on purpose — a server-rendered Django page at
+`/dashboard/` on the 8007 origin (the handoff's contract: one request, works
+with CSS disabled, ≤12 queries) and a React tab reading the same `queues`
+module. One definition of "needs action today", two renderings, so they cannot
+drift.
+
+Statistics ported from `sql/002` into `rules.py`: Wilson score intervals,
+Spiegelhalter funnel verdicts, and medians. `funnel_verdict` returns `too_few`
+for anything below the *report* band, not merely below the suppression floor — a
+verdict is a comparison, and the provisional band is defined as never compared.
+At pilot scale that means every partner currently reads "too few to assess",
+which is the machinery working, not a bug.
+
+**Also built: step 1 and step 2 of the SQL layer.**
+
+- **Steps 1-2 — the SQL reporting layer, verified.** `sql/000`…`005` run clean
+  and `sql/900` prints `ALL REPORTING LAYER ASSERTIONS PASSED` (A-Q). Wired into
+  CI as the `reporting-sql` job, a blocking gate, per README §3. It runs against
+  a scratch database seeded by `sql/000`, which is the only way it can run —
+  see below.
+- **Tier 1 server-rendered page** at `GET /dashboard/` on the Django origin,
+  with drill-downs at `/dashboard/queue/<slug>/`. `apps/dashboard/scoping.py`,
+  `queues.py`, `case_manager.py`, `templates/dashboard/`. One request, ~26 KB,
+  no percentages, no charts, works with CSS disabled.
+
+**Cards still absent, and why.** Retention, the 90-day disposition and training
+completion need Placement (§4.7) and Training Enrolment (§4.5), both Sprint 5.
+They report `available: false` with a reason rather than a zero. `WS-2 unassigned
+youth` is absent for a different reason: §4.2 makes `case_manager` required, so
+it is a state the schema cannot hold (OQ-12).
+
+**Not built, and why.** Step 3 and the Metabase steps are blocked, not skipped:
+
+- **The `rpt` schema cannot be built against the real database.** Verified, not
+  assumed: `001` and `002` apply cleanly, `003` fails with
+  `column y.youth_id does not exist` and `relation "placements_placement" does
+  not exist`. The bundle's `sql/000` fixture models an idealised schema —
+  `youth_id`/`case_id`/`referral_id` primary keys where Django uses `id`, text
+  columns where Django has taxonomy FKs, lowercase status codes where Django
+  uses uppercase — plus five tables from Sprints 5-6 that do not exist. The
+  fixture says "if a column here disagrees with the Django model, the Django
+  model wins", so the adaptation is a compatibility layer of source views under
+  `rpt`, feeding `dim_youth` and `fct_referral`. Those two are the only seams:
+  everything downstream reads `rpt.*`.
+- **Metabase (steps 5-8)** is not deployed; port 8009 is reserved and idle.
+
+**Tier 1 decisions worth keeping:**
+
+- **`scoping.py` delegates to `permissions.scope_queryset`.** The contract
+  sketches scoping as a chain of `if user.role ==` branches; CLAUDE.md forbids
+  inline role tests. Delegating gives the contract its single entry point and
+  keeps `ACCESS_MATRIX` the only description of §7. It also means the
+  administrator widening of 2026-08-16 is not silently reverted by a handoff
+  that restates §7 as written — a test pins that.
+- **`scoped_referrals` is not `case__in=scoped_cases()`.** One youth can hold
+  referrals to several partners; case-level scoping alone hands Partner A the
+  referral sent to Partner B. That exact case is tested.
+- **CM-4 checks one of its four conditions** and says so on screen. The other
+  three need Training Enrolment, Placement and Follow-Up. A card that silently
+  checks one of four while calling itself the at-risk list is worse than one
+  that names what it cannot see.
+- **A 12-query budget and a no-percentage assertion** are tests, not comments.
+  The budget is what forces the counts to be separate cheap queries rather than
+  `len()` over a fetched page.
+
+**`PUNCH_LIST_v1.md` v3 (17 Aug 21:25) is answered.** Its Tier 3 findings are
+fixed except G-7 (filter row), G-9 (small multiples) and G-11 (needs OQ-9).
+Two of its P1s were misdiagnosed in a way worth recording:
+
+- **G-1, "the matrix is a tautology"** — correct observation, wrong cause. The
+  build does not derive `outcome_type` from `referral_category`; §5.3's
+  `applies_to` admits exactly one specific outcome per category plus Other, so
+  the crossover PM-3 exists to expose is **forbidden by the taxonomy**, not
+  merely unrecorded. The card now says so (`crossovers_possible`). Widening it
+  is an admin decision — taxonomy is configuration (§9).
+- **G-3, "56% Other"** — a seed artefact (uniform choice over `[specific,
+  Other]`), now weighted. The underlying point stands, so a high Other share is
+  surfaced on the card as a data-quality warning.
+
+**Funnel stages are `gating` or coverage.** Profiling and pathway assignment are
+not prerequisites — the referral engine raises a referral without either — so
+counting them as funnel stages put "Referred 168" above "Profiled 0" and read as
+a broken programme rather than a profiling gap. Drop-off is annotated only
+between gates, and the nesting invariant is only claimed where it holds.
+
+**`PUNCH_LIST_v1.md` v2 (17 Aug 20:40).** v2 withdrew P1-1 and
+restated P1-3 in the same direction found here independently. Its Tier 1 P2s and
+Tier 2 W-items are fixed, except W-4 (filter row) and W-6 (woreda pipeline,
+which the handoff admits is missing from its own prototype).
+
+**`REFERRAL_ABANDONMENT_DAYS` closes a real gap in §6.2.** Pending Confirmation
+has only two exits — the partner answers, or a case manager cancels — so a
+referral nobody answers sits there forever, holding a slot against the §6.3 cap
+and staying in the loop-closure denominator. `alerts.fail_abandoned_referrals`
+closes it as `PARTNER_NON_RESPONSIVE` (§5.4, a code nothing previously set).
+**Off by default**: failing a referral is a decision about a real young person
+and the threshold is programme management's (OQ-13).
+
+**Settled 2026-08-18:**
+
+- **`CASELOAD_CEILING` is 50.** The handoff's `reporting_parameters` default of
+  120 is superseded. Tier 2 flags against 50.
+- **A case manager may record a partner's confirmation** (§8.1). `confirmed_by`
+  still names who at the partner gave the answer; `Referral.confirmation_recorded_by`
+  is the account that typed it, stamped by `transition_to` and **null when the
+  partner confirmed through their own login**. The two must never be merged:
+  partner response medians count only the partner's own answers, and
+  staff-recorded ones sit beside them as a separate number. Fold them together
+  and a partner who never replies scores like one who replies the same day.
+- **P1-2 stands.** The administrator's case access is the deliberate
+  `ACCESS_MATRIX` widening, confirmed rather than a defect. Do not "fix" it to
+  §7-as-written.
+
+Still open: `referral_abandonment_days` (the sweep is built and disabled), the
+7-vs-14-day confirmation threshold, and OQ-9's retention anchor.
+
+**`PUNCH_LIST_v1.md` v1 background.** Its nine P2 items on the My Work
+tab are fixed and tested. Its three **P1s are not code defects** — each was an
+artefact of reviewing the screen signed in as `admin`, and the diagnosis is
+worth keeping because it will recur:
+
+- **P1-1** "the alert engine is not firing": 113 confirmation-overdue alerts
+  existed and all were assigned. CM-1 shows alerts assigned to *me*, and the
+  administrator has none. The card now says "No alerts are assigned to you.
+  N are open on cases you can see" rather than "Nothing is overdue" — the
+  second is a claim about the programme, and it was false.
+- **P1-2** "RBAC is not scoping": the administrator seeing case content is the
+  deliberate `ACCESS_MATRIX` widening of 2026-08-16, pinned by a test. Do not
+  "fix" it back to §7 as written without reversing that decision first.
+- **P1-3** "confirmation never advances": the state machine spreads across all
+  six statuses. The 500-day pending referrals were a seed defect, since fixed.
+
+**Open questions OQ-1…OQ-12 are unresolved**, and six of them are schema
+changes that must land *before* Sprint 5 records its first placements or that
+cohort is permanently unreportable: `service_start_date` (OQ-1),
+`verification_source` (OQ-2), `is_subsidised` (OQ-3), `psnp_client_category`
+(OQ-4), `Placement.exit_reason` as an enum (OQ-5), `Case.case_manager` nullable
+(OQ-12).
+
+## The dashboard prototype (`docs/Youth_Employment_Dashboard_Prototype_v1.html`)
+
+A four-tier role-based dashboard proposal — case manager · supervisor ·
+programme manager · M&E/donor — plus a method panel that proposes **replacing
+spec §8**. Reference only, like the design handoff's `.dc.html`: read panel 5,
+do not port the markup (it loads Google Fonts, which the brief forbids).
+
+What is adopted: the reporting rules above. What is **not** adopted and needs
+your sign-off:
+
+- Replacing §8 and resequencing Sprint 7 (§10 sprint order is rule 1 here).
+- The four-tier split, and moving tiers 2–4 into Metabase. The dashboard that
+  exists serves tiers 2–4 mixed together, in React.
+- Its new nine-colour chart palette (`--cat-1..4`, `--seq-1..5`), which is not in
+  the handoff's token tables — the handoff is final on colour.
+
+Its claim that "nothing here requires a new form" does not hold. Verified
+against the models, it needs at least: a **service-attended** referral state
+(none exists — the 52-day median it calls the most actionable number cannot be
+computed), `verification_source` as an enum (`outcome_verification_method` is
+free text), a **placement exit taxonomy** (left for better job / involuntary /
+lost to follow-up), and **rural/urban** on Youth. The first three must exist
+*before* Sprint 5 records its first placements, or that cohort is permanently
+unreportable. It also assumes six case statuses; `CaseStatus` has five.
+
+It does supply sourced answers to two §11 questions: youth age band **15–29**
+(Ethiopia's definition, not 15–24) and **7-day** referral confirmation — both
+matching the current defaults.
+
+## Open questions (spec §11 and the dashboard handoff)
+
+**Closed 2026-08-18.** Every one below now has an implemented default and a
+reason. They remain *decisions*, not facts: each is a one-line change, and the
+Phase 1 workshops can overturn any of them. What has gone is the state where the
+code had no answer at all.
+
+| Question | Settled at | Why |
+|---|---|---|
+| Confirmation threshold (§11) | **14 days** | Partners answer in a median of 8-10 days, so 7 flagged four cases in five and a queue where everything is overdue prioritises nothing. 14 flags roughly the slowest quartile. Also removes a contradiction: the dashboards said 14 while the alert engine used 7. |
+| `REFERRAL_ABANDONMENT_DAYS` (OQ-13) | **60 days**, sweep on | Six times the median response and four times the standard, so it cannot catch a merely slow partner; inside a quarter, so a stranded referral frees its §6.3 slot within the reporting period. Recoverable: the case keeps its history and a replacement referral is allowed immediately. |
+| `CASELOAD_CEILING` (§11) | **50** | Confirmed by the programme. The handoff's `reporting_parameters` default of 120 is superseded. |
+| Partner confirmation by staff (§8.1) | **Allowed**, recorded separately | `Referral.confirmation_recorded_by` is null when the partner confirmed themselves. Response medians count only the partner's own answers. |
+| Retention anchor (OQ-9) | **3 months from programme exit, unsubsidised** | It is the anchor UPSNJP's "wage-employed 3 months after completion" uses, so woreda figures roll up without reconciliation. Operations keeps 30/60/90 from placement. The build's third anchor ("6 months") came from a mockup with no framework behind it and is dropped. |
+| `service_start_date` (OQ-1) | **Added** | The confirmed-to-outcome gap is the largest loss in the pipeline (50%, median 54 days) and could not be split without it. Renders as not-instrumented until intake populates it, never as zero. |
+| `verification_source` (OQ-2) | **Added**, four-value enum | §8.3 makes the externally-verified subset the reportable headline, which is not expressible while the only record is free text. |
+| Outcome taxonomy (G-1) | **`applies_to` widened** | Each category admitted one outcome plus Other, so the outcome matrix could only restate its own lookup table and the onward-referral gap was unrepresentable. Widened only where the path is real — a training referral can end in a job. Still administrator-owned (§9). |
+| `settlement_type` (OQ-11) | **Added**, optional | Both frameworks require a rural/urban cut. Never proxied from woreda: an Ethiopian woreda routinely contains both, so inferring it gives a confident wrong number rather than an honest blank. |
+| Suppression bands (OQ-8) | **30 / 10**, unchanged | NCHS Data Presentation Standards for Proportions. No reason to depart from a published standard. |
+| Complementary Service and the cap (OQ-7) | **Outside the cap**, unchanged | A health or legal-aid referral should not consume an employment-pathway slot. `mv_parallel_load` evidences it: zero cases breach. |
+| `Case.case_manager` nullable (OQ-12) | **No change** | WS-2 wanted it for an "unassigned youth" count, but §4.2 makes the assignment an accountability record and "registered, no case yet" already answers the question honestly. Weakening a required FK to satisfy one card is the wrong trade. |
+| System administrator case access | **Widened**, confirmed | The 2026-08-16 deviation from §7 stands. Do not "fix" it back. |
+
+Still genuinely open, because they need data that does not exist yet:
+
+- `vulnerability_index_score` methodology (§4.3).
+- `failure_reason_code` list — a starter pending frontline validation (§5.4).
+- Offline conflict resolution (§9, blocks Sprint 9).
+- `Placement.exit_reason` as an enum (OQ-5) and `is_subsidised` (OQ-3) — decided in
+  principle, but Placement lands in Sprint 5, so there is nothing to add them to.
+- The seeded woredas are illustrative; the actual pilot woredas are a programme decision.
 
 Marked `# TODO(spec-gap)` rather than `# TODO(open-question)`: values the spec
 names but never enumerates — `education_level` and `disability_status` (§4.1).
@@ -254,6 +472,56 @@ Metabase work** — §2 puts "supervisor and programme manager dashboards" on th
 React frontend, and §8's nine analytical dashboards are a separate Metabase
 deliverable against a read-only Postgres role. Building one does not discharge
 the other.
+
+### Reporting rules (`apps/dashboard/rules.py`)
+
+Adopted from `docs/Youth_Employment_Dashboard_Prototype_v1.html` panel 5, which
+proposes replacing spec §8. **Only these rules are adopted — the four-tier
+restructure, the resequencing of Sprint 7 and the new chart palette are not, and
+need sign-off.** They live in one module because a rule applied in four places is
+four rules, and the one that gets forgotten is always the disaggregated cell.
+
+- **A percentage never travels without its counts.** No shape in the API or in
+  `api/types.ts` carries a bare percentage: `rate()` returns `{percent, n, d,
+  band, note}` and the screen renders all of it.
+- **Three denominator bands.** ≥30 report · 10–29 provisional, marked `25%*` and
+  never used in a comparison or ranking · <10 withheld entirely.
+  `REPORT_MIN_DENOMINATOR` / `PROVISIONAL_MIN_DENOMINATOR`, both
+  `TODO(open-question)` — the thresholds follow NCHS but nobody has agreed them.
+- **Suppressed is not zero.** 0 of 40 is a finding; 0 of 4 is not measurable.
+  They must not render alike — the screen says "too few to assess", never 0%.
+- **Averages band like rates.** A mean over four referrals is as unstable as a
+  rate over four; `mean_days()` applies the same thresholds.
+- **Nothing is ranked by rate.** Partners and woredas order by `n` — by how much
+  evidence there is, not by who is winning. Rate-ranking at these denominators
+  sorts by luck, rewards creaming, and is hard to withdraw once published. The
+  vulnerability profile that would let us adjust for intake difficulty does not
+  exist (§4.3's index is undefined).
+- **Progress against a target is read against elapsed time.** The quarter card
+  carries `quarter_elapsed_percent` and marks it on the track, or every quarter
+  opens saying the programme is failing.
+- **Whole percentage points only.** 49%, never 48.81%.
+
+Worth knowing before reading any of it: the pilot is 500–1,000 youth across two
+or three woredas (§1). Applied honestly these thresholds suppress much of what a
+donor will ask for — every partner-level rate early on, and most of the sex ×
+age × woreda × disability disaggregation throughout. That is the correct answer,
+not a defect, but somebody has to agree in advance what the donor tier says when
+most cells are dashes.
+
+### Routes
+
+**`/dashboard` points at the prototype, not at this code.** It redirects to
+`VITE_DASHBOARD_URL` (default: the copy served on 8101), because the prototype is
+what is currently under review. The screen built on real §7-scoped data is at
+**`/dashboard/live`**, and that is what the sign-in redirect for supervisory
+roles uses — signing in must not throw anyone out of the app to a static page.
+
+The prototype's figures are illustrative. If `/dashboard` is ever pointed at a
+deployed environment, that has to change first: 842 registered youth and 214
+placements are not this programme's numbers.
+
+### The screen
 
 - **A figure with no source entity is absent, not zero.** Retention at six months
   needs Placement and its 30/60/90-day checkpoints (§4.7, Sprint 5), so both the

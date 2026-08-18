@@ -50,11 +50,17 @@ def test_retired_terms_disappear_from_the_lookup(taxonomy, case_manager, as_user
 
 def test_outcome_types_can_be_filtered_by_category(taxonomy, case_manager, as_user):
     """§5.3: each outcome applies to specific categories; Other applies to all."""
-    response = as_user(case_manager).get("/api/v1/referrals/outcome-types/?category=TRAINING")
+    response = as_user(case_manager).get("/api/v1/referrals/outcome-types/?category=EMPLOYMENT")
     codes = {row["code"] for row in response.data}
-    assert "TRAINING_COMPLETION" in codes
+    assert "JOB_PLACEMENT" in codes
     assert "OTHER" in codes  # unrestricted
-    assert "JOB_PLACEMENT" not in codes
+    # Finishing a course is not an outcome of an employment referral.
+    assert "TRAINING_COMPLETION" not in codes
+
+    # Widened by G-1: a training referral can end in a job, and the picker has
+    # to offer it or the crossover can never be recorded.
+    training = as_user(case_manager).get("/api/v1/referrals/outcome-types/?category=TRAINING")
+    assert "JOB_PLACEMENT" in {row["code"] for row in training.data}
 
 
 # ---------------------------------------------------------------------------
