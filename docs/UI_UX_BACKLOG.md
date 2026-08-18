@@ -9,13 +9,12 @@ already correct, or a matter of taste, and is recorded under
 
 ## Where it stands
 
-67 findings. 20 fixed (`033c171`, `1f875b3`), 5 partially, **42 open**.
+79 findings. 30 fixed (`033c171`, `1f875b3`, `160d947`), 6 partial, **38 open**,
+4 rejected on inspection, 1 deferred pending a decision.
 
-| | P1 | P2 | P3 | total |
-|---|---:|---:|---:|---:|
-| **done** | 10 | 7 | 3 | 20 |
-| **open / part** | **9** | **23** | **15** | **47** |
-| total | 19 | 30 | 18 | 67 |
+Section 4b covers the Woreda dashboard layout brief of 2026-08-18 and is
+closed. Four of its twelve items did not reproduce and are recorded as
+rejected with the reason, so they are not re-opened.
 
 23 findings were verified independently (`✔`); the remaining 44 are carried on
 the reviewing agent's word (`○`) and should be confirmed before work starts —
@@ -114,17 +113,36 @@ constraint is a cheap LCD at half brightness in Ethiopian sunlight.
 | LAY-02 | P2 | done `1f875b3` | ✔ | `.page` had a max-width and no auto margins, so collapsing the rail freed 176px the content never used — the control appeared to do nothing. | `styles/base.css` |
 | LAY-03 | P2 | part | ✔ | Confirmation-lag reference mark sat at exactly 100% and was clipped by the track's overflow — **fixed**. Still open: an empty track is drawn under every "too few to assess" row, which is a chart of nothing. | `components/dashboard/panels.tsx` |
 | LAY-04 | P2 | **open** | ○ | The `▲` and its count wrap apart on the Woreda team row — the mark is stranded on one line, the number on the next. Needs `white-space: nowrap` on that span. | `pages/dashboard/WoredaPage.tsx` |
-| LAY-05 | P2 | **open** | ○ | Partner response table is crushed into a third of the row: every column wraps, one data row takes ~90px, while the card beside it has empty space. Give it `gridColumn: span 2` as the team and completeness cards already do. | `pages/dashboard/WoredaPage.tsx` |
-| LAY-06 | P2 | **open** | ○ | My work KPI numbers do not share a baseline — one tile's caps label wraps to two lines and drops its number 14px. Reserve two label lines in `Tile` and `StatTile`. | `pages/dashboard/{MyWorkPage,WoredaPage}.tsx` |
+| LAY-05 | P2 | done `160d947` | ✔ | Partner response table is crushed into a third of the row: every column wraps, one data row takes ~90px, while the card beside it has empty space. Give it `gridColumn: span 2` as the team and completeness cards already do. | `pages/dashboard/WoredaPage.tsx` |
+| LAY-06 | P2 | part `160d947` | ✔ | My work KPI numbers do not share a baseline — one tile's caps label wraps to two lines and drops its number 14px. Reserve two label lines in `Tile` and `StatTile`. | `pages/dashboard/{MyWorkPage,WoredaPage}.tsx` |
 | LAY-07 | P2 | **open** | ○ | Users on phone: one card puts its caseload below the woreda chips while its siblings put it top-right — `flexWrap` with a `minWidth: 200` left block reflows when the right-hand string is ~20px wider. | `pages/UsersPage.tsx` |
 | LAY-08 | P2 | **open** | ○ | **Alerts is the one list screen not on `ListPage`** — no search box, no density toggle, `.stack`'s 16px gaps instead of `.list-page`'s 12px. `ListPage` exists precisely to stop this drift. If alerts has no searchable field, that argues for adding server-side search, not for a second frame. | `pages/AlertsPage.tsx` |
 | LAY-09 | P3 | done `1f875b3` | ✔ | Phone cards ran two place names together — "Adama Adama 12". | `pages/{CaseListPage,YouthListPage}.tsx` |
 | LAY-10 | P3 | done `1f875b3` | ✔ | Gender bar's 16% segment was silently unlabelled at an 18% threshold, though it measured 50px. | `components/dashboard/MetricCards.tsx` |
 | LAY-11 | P3 | **open** | ○ | Referral arrows point two ways — leading `→` on the laptop, trailing on the phone card — and the wrapped partner name has no hanging indent. | `pages/ReferralsPage.tsx` |
 | LAY-12 | P3 | **open** | ○ | The Reveal button is vertically centred across the PHONE label and its value, so it reads as attached to neither. | `pages/CaseDetailPage.tsx` |
-| LAY-13 | P3 | **open** | ○ | Two warnings on one Woreda row get different treatments — `▲ over ceiling` is a chip, `▲ 110 overdue` is bare red bold text. | `pages/dashboard/WoredaPage.tsx` |
+| LAY-13 | P3 | done `160d947` | ✔ | Two warnings on one Woreda row get different treatments — `▲ over ceiling` is a chip, `▲ 110 overdue` is bare red bold text. | `pages/dashboard/WoredaPage.tsx` |
 | LAY-14 | P3 | **open** | ○ | On a phone the alerts filter row costs ~240px before the first alert — six long chips, roughly one per line. | `pages/AlertsPage.tsx` |
-| LAY-15 | P3 | **open** | ○ | **Latent.** The Woreda caseload bar decides whether a count fits from its share of the manager's own total, while the bar's rendered width is scaled against the largest caseload. A small caseload therefore puts a number inside a few-pixel segment, and the outside-label fallback is keyed off the same threshold so it never fires. `overflow: hidden` currently clips it, so the shipped fault has not returned — it is one CSS property away. | `pages/dashboard/WoredaPage.tsx` |
+| LAY-15 | P3 | done `160d947` | ✔ | ~~Latent.~~ Closed: the test is measured against the track now. The Woreda caseload bar decides whether a count fits from its share of the manager's own total, while the bar's rendered width is scaled against the largest caseload. A small caseload therefore puts a number inside a few-pixel segment, and the outside-label fallback is keyed off the same threshold so it never fires. `overflow: hidden` currently clips it, so the shipped fault has not returned — it is one CSS property away. | `pages/dashboard/WoredaPage.tsx` |
+
+## 4b. Woreda dashboard layout (brief of 2026-08-18)
+
+Fixed in `160d947`. Recorded so the reasoning survives.
+
+| ID | Sev | Status | V | Finding | Where |
+|---|---|---|---|---|---|
+| WOR-01 | P1 | done `160d947` | ✔ | KPI values sat at three different heights — two labels and one caption wrap, so equal-height cards lined up nothing inside them. Three fixed rows with two lines reserved for the label. | `pages/dashboard/WoredaPage.tsx` |
+| WOR-02 | P2 | done `160d947` | ✔ | "Median days to confirm" rendered a bare em dash floating between label and caption. Muted text on the value's line box. | same |
+| WOR-03 | P2 | done `160d947` | ✔ | **~500px of blank white.** The "Unassigned youth" card held two lines, duplicated the "Registered, no case yet" KPI, and stretched to match the table beside it. Dropped; its deliberate "not measurable yet" message folded under data completeness. | same |
+| WOR-04 | P2 | done `160d947` | ✔ | Caseload / ceiling / overdue landed wherever the neighbouring text ended, with no right gutter. Fixed columns. | same |
+| WOR-05 | P2 | done `160d947` | ✔ | Partner table cramped into a third of the row: three columns wrapped, and one cell stacked the confirmed count and the staff-recorded count as two unrelated facts. Full width, 40/20/20/20, split columns. | same |
+| WOR-06 | P3 | done `160d947` | ✔ | Legend sat at the foot of the card, away from the bars it explains. Moved under the subtitle. | same |
+| WOR-07 | P3 | done `160d947` | ✔ | Completeness column widths 30/20/50; a raw count and a "Complete" chip shared a column as different object types, now both chips on one axis. | same |
+| WOR-08 | — | **rejected** | ✔ | "App bar not pinned, logo and search clip mid-scroll" — does not reproduce. The shell owns the viewport and `main` is the scroll container. |  |
+| WOR-09 | — | **rejected** | ✔ | "Content off-centre" — measured equal gutters at 1280/1440/1920 once the rail is discounted. |  |
+| WOR-10 | — | **rejected** | ✔ | "Sidebar icons have no labels" — visible labels when expanded, tooltip plus `aria-label` when collapsed. |  |
+| WOR-11 | — | **rejected** | ✔ | "Every bar starts and ends at the same x" — bar length is the deliberate encoding of caseload size. Starts and tracks equalised; ends left proportional. |  |
+| WOR-12 | — | **deferred** | ✔ | Card padding 24px and the 900/640 breakpoints the brief asks for. `.card` is used on every screen, so padding is a global change; and the design system fixes one breakpoint at 780px, which `auto-fit` satisfies without adding two more. Both need a decision, not a Woreda-local edit. |  |
 
 ## 5. Design system conformance
 
