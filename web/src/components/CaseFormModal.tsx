@@ -161,7 +161,7 @@ export default function CaseFormModal({ open, record, onClose, onSaved }: Props)
               type="warning"
               showIcon
               style={{ marginBottom: 12 }}
-              message="Exiting closes the case"
+              title="Exiting closes the case"
               description="Cases are never deleted — an exit reason and date are the record of why it ended (spec §9)."
             />
             <Form.Item name="closed_date" label="Closed" rules={[{ required: true }]}>

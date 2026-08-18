@@ -71,13 +71,13 @@ export default function CaseAlerts({ caseId, onChanged }: { caseId: string; onCh
         </Space>
       }
     >
-      <Space direction="vertical" size={8} style={{ width: "100%" }}>
+      <Space orientation="vertical" size={8} style={{ width: "100%" }}>
         {alerts.map((alert) => (
           <AntAlert
             key={alert.id}
             type={alert.alert_type === "STALL" ? "error" : "warning"}
             showIcon
-            message={
+            title={
               <Space wrap>
                 <Tag color={ALERT_TYPE_COLOURS[alert.alert_type]}>{alert.alert_type_display}</Tag>
                 <Typography.Text style={{ fontSize: 13 }}>{alert.summary}</Typography.Text>
@@ -92,7 +92,7 @@ export default function CaseAlerts({ caseId, onChanged }: { caseId: string; onCh
             }
             action={
               canResolve && (
-                <Space direction="vertical">
+                <Space orientation="vertical">
                   <Button size="small" type="primary" loading={busy === alert.id} onClick={() => resolve(alert, "action")}>
                     Action
                   </Button>

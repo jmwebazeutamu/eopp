@@ -272,7 +272,7 @@ export default function ReferralActionModal({ action, caseId, woreda, onClose, o
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
-            message={
+            title={
               action.kind === "onward"
                 ? "The completed referral stays as it is; this creates the next one in the chain."
                 : "The failed referral moves to Replaced and this becomes its replacement."
@@ -285,7 +285,7 @@ export default function ReferralActionModal({ action, caseId, woreda, onClose, o
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
-            message="Withdrawing is not the same as a partner declining"
+            title="Withdrawing is not the same as a partner declining"
             description={
               "Cancelled is kept separate from Failed so the §8 partner performance figures do not " +
               "count a withdrawal against the partner. No replacement is prompted."

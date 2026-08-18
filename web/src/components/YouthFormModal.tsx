@@ -179,7 +179,7 @@ export default function YouthFormModal({ open, youth, onClose, onSaved }: Props)
           type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message="Consent is required to hold this record"
+          title="Consent is required to hold this record"
           description="Data protection (spec §9). A youth cannot be registered without recorded consent."
         />
         <Row gutter={12}>

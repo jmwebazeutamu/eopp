@@ -149,7 +149,7 @@ export default function YouthImportModal({ open, onClose, onImported }: Props) {
         {t("import.intro")}
       </p>
 
-      <Alert type="info" showIcon style={{ marginBottom: 12 }} message={t("import.consentNote")} />
+      <Alert type="info" showIcon style={{ marginBottom: 12 }} title={t("import.consentNote")} />
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         {/* A native input, not an antd Upload: the file dialog is the whole of
@@ -197,10 +197,10 @@ export default function YouthImportModal({ open, onClose, onImported }: Props) {
           </div>
 
           {blocked && (
-            <Alert type="error" showIcon style={{ marginTop: 12 }} message={t("import.blocked")} />
+            <Alert type="error" showIcon style={{ marginTop: 12 }} title={t("import.blocked")} />
           )}
           {!blocked && importable === 0 && (
-            <Alert type="warning" showIcon style={{ marginTop: 12 }} message={t("import.allDuplicates")} />
+            <Alert type="warning" showIcon style={{ marginTop: 12 }} title={t("import.allDuplicates")} />
           )}
 
           <RowList rows={report.rows} />
