@@ -2,7 +2,6 @@ import type { CompletenessRow, WoredaDashboard } from "../../api/types";
 import { CapsLabel, Card, MutedChip } from "../../components/ui";
 import { useLang } from "../../i18n/LanguageContext";
 import TierPage from "./TierPage";
-import { NotYet } from "../../components/dashboard/panels";
 import { formatAsOf } from "../../i18n/asOf";
 import { useTier } from "./useTier";
 
@@ -150,16 +149,28 @@ export default function WoredaPage() {
   if (!data) return null;
 
   const biggest = Math.max(1, ...data.team_caseload.map((row) => row.total));
+  const totalRegisteredYouth = Math.max(0, ...data.data_completeness.map((row) => row.of));
+  const partnerResponse = [...data.partner_response].sort((a, b) => {
+    if (a.median_days === null && b.median_days === null) return a.partner.localeCompare(b.partner);
+    if (a.median_days === null) return 1;
+    if (b.median_days === null) return -1;
+    return b.median_days - a.median_days;
+  });
 
   return (
     <TierPage
       title={t("tier.woredaFull")}
       subtitle={`${t("tier.woredaWhy")} · ${data.scope_label} · ${t("ws.asOf", { when: formatAsOf(data.as_of) })}`}
     >
-
       {/* W-5. Four of these were already computed further down the page and
           only needed surfacing; the fifth is the ceiling nobody was reading. */}
-      <div className="kpi-row">
+      <div
+        className="kpi-row"
+        style={{
+          gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
+        }}
+      >
+        <StatTile label={t("ws.totalRegistered")} value={totalRegisteredYouth} meta={data.scope_label} />
         <StatTile label={t("ws.openCases")} value={data.tiles.open_cases} meta={data.scope_label} />
         <StatTile
           label={t("ws.overdueActions")}
@@ -339,12 +350,17 @@ export default function WoredaPage() {
               </tr>
             </thead>
             <tbody>
-              {data.partner_response.map((row) => (
+              {partnerResponse.map((row) => (
                 <tr key={row.partner}>
                   <td>{row.partner}</td>
                   <td className="tabular">
                     {row.median_days === null ? (
-                      <span style={{ color: "var(--ink-400)", whiteSpace: "nowrap" }}>— {t("dash.tooFew")}</span>
+                      // --ink-400, not the handoff's #9b9282: that literal is
+                      // 3.07:1 on white and sits outside the token layer.
+                      // Italic is the handoff's and stays.
+                      <span style={{ color: "var(--ink-400)", whiteSpace: "nowrap", fontStyle: "italic" }}>
+                        — {t("dash.tooFew")}
+                      </span>
                     ) : (
                       `${row.median_days}d${row.band === "provisional" ? "*" : ""}`
                     )}
@@ -375,7 +391,12 @@ export default function WoredaPage() {
           <div className="card__rule" style={{ margin: "16px 0 12px" }} />
           <CapsLabel>{t("ws.unassigned")}</CapsLabel>
           <div style={{ marginTop: 8 }}>
-            <NotYet reason={data.unassigned_youth.reason} />
+            <div className="t-body-strong" style={{ fontSize: 20 }}>
+              {t("dash.notYet")}
+            </div>
+            <div className="t-meta" style={{ marginTop: 4, fontSize: 13.5 }}>
+              {data.unassigned_youth.reason}
+            </div>
           </div>
         </Card>
       </div>

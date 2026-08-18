@@ -170,6 +170,7 @@ export const STRINGS = {
 
   // Tier 2 cards
   "ws.openCases": "Open cases",
+  "ws.totalRegistered": "Total registered youth",
   "ws.overdueActions": "Overdue actions",
   "ws.medianConfirm": "Median days to confirm",
   "ws.verified": "Outcomes verified",
@@ -235,6 +236,7 @@ export const STRINGS = {
   "me.registered": "Registered",
   "me.placed": "Placed",
   "me.caveats": "What is uncertain",
+  "me.provisionalNote": "* Provisional — too few records for the rate to be stable. Not used in any comparison.",
   "me.noRural": "Rural/urban is not available: nothing in the record says which a youth lives in.",
 
   // Programme dashboard

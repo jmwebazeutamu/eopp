@@ -36,7 +36,11 @@ export default function ResultsPage() {
     >
       <Card>
         <CapsLabel style={{ marginBottom: 10 }}>{t("me.framework")}</CapsLabel>
-        <table className="table">
+        {/* Scrolls inside its own box; the page body never scrolls sideways.
+            Without this the Framework column ran off the right edge at 390px
+            and could not be reached at all — on the donor-facing screen. */}
+        <div style={{ overflowX: "auto" }} tabIndex={0} role="group" aria-label={t("me.framework")}>
+        <table className="table" style={{ minWidth: 560 }}>
           <thead>
             <tr>
               <th>{t("me.indicator")}</th>
@@ -55,11 +59,11 @@ export default function ResultsPage() {
                     </div>
                   )}
                 </td>
-                <td className="tabular" style={{ whiteSpace: "nowrap" }}>
+                <td className="tabular">
                   {!indicator.available ? (
                     <span style={{ color: "var(--ink-400)" }}>{t("dash.notYet")}</span>
                   ) : indicator.kind === "count" ? (
-                    <span style={{ fontWeight: 700 }}>{indicator.value?.toLocaleString()}</span>
+                    <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{indicator.value?.toLocaleString()}</span>
                   ) : indicator.rate ? (
                     <>
                       <RateValue rate={indicator.rate} />
@@ -86,6 +90,7 @@ export default function ResultsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </Card>
 
       <div className="grid-panels">
@@ -154,7 +159,9 @@ export default function ResultsPage() {
                 <tbody>
                   {cut.rows.map((row) => (
                     <tr key={row.value}>
-                      <td>{row.value}</td>
+                      <th scope="row" style={{ fontWeight: 400 }}>
+                        {row.value}
+                      </th>
                       <td className="tabular">{row.registered}</td>
                       <td className="tabular">{row.placed}</td>
                       <td>
@@ -168,7 +175,10 @@ export default function ResultsPage() {
           ))}
         </div>
         <div className="t-meta" style={{ marginTop: 10 }}>
-          {t("me.noRural")}
+          {/* The asterisk RateValue puts on a provisional band carried only a
+              `title`, which a touch or keyboard user never sees. */}
+          <div>{t("me.provisionalNote")}</div>
+          <div style={{ marginTop: 4 }}>{t("me.noRural")}</div>
         </div>
       </Card>
 
