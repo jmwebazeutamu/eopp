@@ -1,0 +1,27 @@
+{
+  "name": "referral-platform",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "NODE_MAJOR": "22"
+    }
+  },
+  "remoteUser": "vscode",
+  "postCreateCommand": "cd web && npm install",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-python.python",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  },
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ]
+}

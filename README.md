@@ -47,6 +47,34 @@ The React app runs on the host rather than in a container:
 cd web && npm install && npm run dev
 ```
 
+## Dev container
+
+If you want Codex or VS Code to start with `sudo`, Node.js, and npm already
+available, open the repository in the included dev container:
+
+```bash
+code /home/ubuntu/referral-platform
+```
+
+Then choose **Dev Containers: Reopen in Container**. The container definition in
+[`/.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json) builds an
+Ubuntu 24.04 workspace with:
+
+- `sudo`
+- Node.js 22 and `npm`
+- Python 3 and `pip`
+- the host Docker socket mounted, so the existing Compose-based backend workflow
+  remains usable from inside the container
+
+After the container is created it runs `cd web && npm install`, so the frontend
+is ready for:
+
+```bash
+cd web
+npm run dev
+npm test
+```
+
 ## Repository layout
 
 ```

@@ -54,6 +54,7 @@ export const STRINGS = {
   "login.submit": "Sign in",
   "shell.language": "Language",
   "shell.allWoredas": "All woredas",
+  "shell.allShort": "ALL",
   "shell.scope": "Woreda scope",
   "shell.appMark": "EOPP",
   "common.close": "Close",

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import type { CurrentUser } from "../../api/types";
 import { useLang } from "../../i18n/LanguageContext";
 import GlobalSearch from "./GlobalSearch";
+import ScopeSelector from "./ScopeSelector";
 import { Icon, ICON_PATHS } from "../ui";
 import { ALERT_BADGE_ATTENTION_AT, isActivePath, type NavSection } from "./navModel";
 
@@ -130,6 +131,18 @@ export default function Sidebar({
         <div style={{ padding: "0 12px 4px" }}>
           <GlobalSearch />
         </div>
+      )}
+
+      {/* Scope sits with search: the two shell-global controls, both answering
+          "what am I looking at" before any page decides anything. It is not in
+          a page header on purpose — the scope frames every screen, and a
+          per-page control reads as a page-local filter. */}
+      {!collapsed ? (
+        <div style={{ padding: "0 12px 8px" }}>
+          <ScopeSelector />
+        </div>
+      ) : (
+        <ScopeSelector variant="collapsed" onExpand={onToggleCollapse} />
       )}
 
       {sections.map((section, index) => (
