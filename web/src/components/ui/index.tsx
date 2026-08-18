@@ -209,6 +209,10 @@ export const ICON_PATHS = {
   registry: "M5 3h11l3 3v15H5V3zM8 8h8M8 12h8M8 16h5",
   partners: "M3 20V9l5-4 5 4v11M13 20V12h8v8",
   users: "M8 11a3 3 0 100-6 3 3 0 000 6zm8 0a3 3 0 100-6 3 3 0 000 6zM2 20c0-3 3-5 6-5s6 2 6 5m2-5c3 0 6 2 6 5",
+  // Rail collapse chevrons. Two paths rather than one rotated, so the icon
+  // reads correctly in a right-to-left layout if one is ever added.
+  railCollapse: "M15 6l-6 6 6 6",
+  railExpand: "M9 6l6 6-6 6",
   check: "M4 13l5 5L20 7",
 } as const;
 

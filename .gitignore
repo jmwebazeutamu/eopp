@@ -30,3 +30,6 @@ mobile/.dart_tool/
 # Claude Code local state (settings.json is shared and IS committed if present)
 .claude/settings.local.json
 .claude/*.tmp.*
+
+# Local verification screenshots (scripts/shoot.mjs)
+.shots/

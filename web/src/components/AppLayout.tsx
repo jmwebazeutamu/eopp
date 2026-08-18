@@ -5,14 +5,16 @@ import { api } from "../api/client";
 import type { AlertSummary } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { LANGUAGES, useLang } from "../i18n/LanguageContext";
-import type { StringKey } from "../i18n/strings";
-import { CountBadge, Icon, ICON_PATHS, LogoMark } from "./ui";
+import { Icon } from "./ui";
+import Sidebar from "./shell/Sidebar";
+import { buildNav, isActivePath } from "./shell/navModel";
+import { usePreference } from "./shell/preferences";
 
 /**
  * The application shell — the handoff's navigation model.
  *
- * Laptop: a 236px --green-700 rail with 44px items, the active one filled
- * --green-500, and a footer block naming the signed-in user and their caseload.
+ * Laptop: a --green-700 rail, 240px expanded or 64px icon-only, grouped into
+ * Work and Directory with a footer block naming the signed-in user.
  * Phone: a 56px bottom tab bar, icon-only, sticky *inside* the main column
  * rather than position:fixed — fixed escapes a constrained shell and lands in
  * the wrong place inside an embedded frame.
@@ -22,13 +24,6 @@ import { CountBadge, Icon, ICON_PATHS, LogoMark } from "./ui";
 
 const BADGE_POLL_MS = 120_000;
 const BREAKPOINT = 780;
-
-interface NavEntry {
-  path: string;
-  labelKey: StringKey;
-  icon: string;
-  badge?: number;
-}
 
 function useIsPhone() {
   const [isPhone, setIsPhone] = useState(() => window.innerWidth < BREAKPOINT);
@@ -49,6 +44,8 @@ export default function AppLayout() {
   const location = useLocation();
   const isPhone = useIsPhone();
   const [openAlerts, setOpenAlerts] = useState(0);
+  // Per user, not per browser: these are shared office machines.
+  const [railCollapsed, setRailCollapsed] = usePreference("rail.collapsed", user?.id, false);
 
   const refreshBadge = useCallback(async () => {
     // The alert endpoints are gated on case access, so a role with none would
@@ -73,32 +70,10 @@ export default function AppLayout() {
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
 
-  // Nav follows the access matrix, not the role: the API is the authority, and
-  // hiding an item only avoids a screen that would 403 or come back empty.
-  // The programme dashboard totals a case population, so it is offered to the
-  // scopes that have one. A LINKED role — partner staff, trainers — has none,
-  // and the API refuses it rather than serving a screen of zeroes.
-  const hasCasePopulation = ["ALL", "OWN_WOREDA", "OWN_CASELOAD"].includes(user.access.case_scope);
-
-  const nav: NavEntry[] = [
-    ...(hasCasePopulation
-      ? [{ path: "/dashboard", labelKey: "nav.dashboard" as const, icon: ICON_PATHS.dashboard }]
-      : []),
-    ...(user.access.case_scope === "NONE" ? [] : [{ path: "/cases", labelKey: "nav.cases" as const, icon: ICON_PATHS.cases }]),
-    ...(user.access.referral_scope === "NONE"
-      ? []
-      : [{ path: "/referrals", labelKey: "nav.referrals" as const, icon: ICON_PATHS.queue }]),
-    ...(user.access.case_scope === "NONE"
-      ? []
-      : [{ path: "/alerts", labelKey: "nav.alerts" as const, icon: ICON_PATHS.alerts, badge: openAlerts }]),
-    ...(user.access.case_scope === "NONE"
-      ? []
-      : [{ path: "/youth", labelKey: "nav.registry" as const, icon: ICON_PATHS.registry }]),
-    { path: "/partners", labelKey: "nav.partners", icon: ICON_PATHS.partners },
-    ...(user.role === "SYSTEM_ADMIN" ? [{ path: "/users", labelKey: "nav.users" as const, icon: ICON_PATHS.users }] : []),
-  ];
-
-  const active = (path: string) => location.pathname.startsWith(path);
+  const sections = buildNav(user, { openAlerts });
+  // The bottom bar has no room for section headings; item 7 reduces this list.
+  const flatNav = sections.flatMap((section) => section.items);
+  const active = (path: string) => isActivePath(path, location.pathname);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--paper)" }}>
@@ -150,80 +125,44 @@ export default function AppLayout() {
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         {!isPhone && (
-          <nav
-            style={{
-              width: "var(--rail-width)",
-              flexShrink: 0,
-              background: "var(--green-700)",
-              color: "var(--on-dark)",
-              display: "flex",
-              flexDirection: "column",
-              padding: "16px 12px",
-              gap: 4,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px 16px" }}>
-              <LogoMark />
-              <div style={{ lineHeight: 1.2 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>Case</div>
-                <div style={{ color: "var(--on-dark-2)", fontSize: 13 }}>{t("app.subtitle")}</div>
+          <Sidebar
+            user={user}
+            sections={sections}
+            pathname={location.pathname}
+            collapsed={railCollapsed}
+            onToggleCollapse={() => setRailCollapsed(!railCollapsed)}
+            footer={
+              <div style={{ paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.15)" }}>
+                {!railCollapsed && (
+                  <>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{user.full_name}</div>
+                    <div style={{ color: "var(--on-dark-2)", fontSize: 13 }}>{user.role_display}</div>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={logout}
+                  title={t("nav.signOut")}
+                  aria-label={t("nav.signOut")}
+                  style={{
+                    marginTop: 8,
+                    minHeight: 36,
+                    width: "100%",
+                    borderRadius: "var(--r-button)",
+                    border: "1px solid rgba(255,255,255,.25)",
+                    background: "transparent",
+                    color: "var(--on-dark-2)",
+                    font: "inherit",
+                    fontSize: 13,
+                    fontFamily: "var(--font-body)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {railCollapsed ? "\u23fb" : t("nav.signOut")}
+                </button>
               </div>
-            </div>
-
-            {nav.map((entry) => (
-              <button
-                key={entry.path}
-                type="button"
-                onClick={() => navigate(entry.path)}
-                style={{
-                  minHeight: 44,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "0 12px",
-                  borderRadius: "var(--r-button)",
-                  border: "none",
-                  background: active(entry.path) ? "var(--green-500)" : "transparent",
-                  color: "var(--on-dark)",
-                  font: "inherit",
-                  fontSize: 15,
-                  fontWeight: active(entry.path) ? 600 : 400,
-                  fontFamily: "var(--font-body)",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  width: "100%",
-                }}
-              >
-                <Icon path={entry.icon} />
-                <span style={{ flex: 1 }}>{t(entry.labelKey)}</span>
-                {entry.badge ? <CountBadge>{entry.badge}</CountBadge> : null}
-              </button>
-            ))}
-
-            <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid rgba(255,255,255,.15)" }}>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{user.full_name}</div>
-              <div style={{ color: "var(--on-dark-2)", fontSize: 13 }}>{user.role_display}</div>
-              <button
-                type="button"
-                onClick={logout}
-                style={{
-                  marginTop: 8,
-                  minHeight: 36,
-                  width: "100%",
-                  borderRadius: "var(--r-button)",
-                  border: "1px solid rgba(255,255,255,.25)",
-                  background: "transparent",
-                  color: "var(--on-dark-2)",
-                  font: "inherit",
-                  fontSize: 13,
-                  fontFamily: "var(--font-body)",
-                  cursor: "pointer",
-                }}
-              >
-                {t("nav.signOut")}
-              </button>
-            </div>
-          </nav>
+            }
+          />
         )}
 
         <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
@@ -242,7 +181,7 @@ export default function AppLayout() {
                 alignItems: "stretch",
               }}
             >
-              {nav.map((entry) => (
+              {flatNav.map((entry) => (
                 <button
                   key={entry.path}
                   type="button"
