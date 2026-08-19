@@ -719,8 +719,11 @@ jsdom applies no stylesheet, so the test suite cannot see a layout fault.
 
 ## The user manual (`web/public/manual.html`)
 
-One standalone HTML file, reached from the account menu at the foot of the rail
-(and from the More sheet on a phone), opening in a new tab.
+One standalone HTML file, reached from the account menu at the foot of the rail,
+from the More sheet on a phone, and from the sign-in card — all opening in a
+new tab. It is on the sign-in screen for the same reason the language switch
+is: a password that will not work and a first sign-in are both on that side of
+the door.
 
 - **A static file, not a route.** A manual is wanted precisely when the app is
   not working — an uncached bundle on 3G, a printout, a copy saved to disk. It

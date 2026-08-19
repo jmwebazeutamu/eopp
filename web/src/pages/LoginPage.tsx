@@ -63,6 +63,33 @@ export default function LoginPage() {
             language before they have an account menu to find it in. */}
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
           <LanguageSwitch />
+
+          {/* And the manual, for the same reason: the times somebody most needs
+              it — a password that will not work, a first sign-in, a screen they
+              have never seen — are all on this side of the sign-in. It is a
+              static file, so it opens whether or not the account does. */}
+          <a
+            href="/manual.html"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 14,
+              minHeight: 44,
+              color: "var(--green-700)",
+              fontFamily: "var(--font-body)",
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            {t("nav.manual")}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="sr-only">{t("shell.opensNewTab")}</span>
+          </a>
         </div>
       </Card>
     </div>
