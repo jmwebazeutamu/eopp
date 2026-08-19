@@ -209,7 +209,7 @@ Recorded so they are not re-opened.
 
 | ID | Sev | Status | V | Finding | Where |
 |---|---|---|---|---|---|
-| PROFILE-1 | P2 | **open** | ✔ | **A password change does not sign other devices out.** simplejwt runs without the blacklist app, so refresh tokens already issued stay valid for their full 14-day window. The success message says so rather than implying otherwise. Closing it needs the blacklist app, or a `password_changed_at` stamp checked during authentication — an auth change, not a profile one. | `config/settings/base.py` |
+| PROFILE-1 | P2 | done `b1607d8` | ✔ | **A password change now ends every other session.** `password_changed_at` is stamped in `User.set_password` and compared against each token's issue time, which covers access *and* refresh tokens — the blacklist app would have covered refresh only, leaving a stolen access token alive for its remaining hour. Verified against production: old token 401, fresh token 200. | `apps/users/authentication.py` |
 | PROFILE-2 | P3 | **open** | ✔ | Neither email column carries a unique constraint; uniqueness is enforced in the serializer across both. That holds for anything going through the API and not for the admin or a shell. It becomes load-bearing the moment mail is sent to an address — decide the constraint before then. | `apps/users/models.py` |
 | PROFILE-3 | P3 | **open** | ○ | Nothing decides *which* address a reset would use when both are set. No mail is sent today, so it is a question rather than a defect. | — |
 
