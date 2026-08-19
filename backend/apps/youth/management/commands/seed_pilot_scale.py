@@ -217,6 +217,14 @@ class Command(BaseCommand):
             raise CommandError("No referral taxonomy. Run `manage.py seed_referral_taxonomy` first.")
 
         self.partners = list(Partner.objects.filter(active_status=True))
+        # Partner staff by institution, so a confirmation can come from the
+        # partner rather than always from staff. Empty is fine: every
+        # confirmation then falls back to the case manager, which is what
+        # happened before and leaves the response medians withheld.
+        self._partner_staff = {
+            user.partner_id: user
+            for user in User.objects.filter(role=Role.PARTNER_STAFF, is_active=True, partner__isnull=False)
+        }
         if len(self.partners) < 3:
             raise CommandError("Needs at least three active partners.")
 
@@ -468,9 +476,16 @@ class Command(BaseCommand):
             attended = None
             if self.rng.random() < 0.72:
                 attended = min(confirmed + timedelta(days=self.rng.randint(3, 60)), self.today)
+            # Most partners answer through their own login; some are recorded
+            # by staff on the phone. `transition_to` leaves
+            # `confirmation_recorded_by` null for the first and stamps the
+            # second, which is the whole basis of the partner-response median —
+            # confirming everything as staff left that panel unpopulated and
+            # unreviewable.
+            confirmer = self._partner_staff.get(referral.receiving_partner_id)
             referral.transition_to(
                 ReferralStatus.ACTIVE,
-                actor=case.case_manager,
+                actor=confirmer if confirmer and self.rng.random() < 0.7 else case.case_manager,
                 confirmed_date=confirmed,
                 service_start_date=attended,
             )

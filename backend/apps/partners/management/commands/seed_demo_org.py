@@ -66,7 +66,22 @@ ACCOUNTS = [
     ("outreach1", "Outreach Worker One", Role.OUTREACH_WORKER, ["Adama", "Bishoftu"]),
     ("pm1", "Programme Manager One", Role.PROGRAMME_MANAGER, []),
     ("me1", "M and E Officer One", Role.MNE_STAFF, []),
-    ("partner1", "Tigist Bekele", Role.PARTNER_STAFF, []),
+]
+
+# One partner-staff login per institution.
+#
+# Not decoration: a confirmation entered by the partner leaves
+# `confirmation_recorded_by` null, and that is the only thing the
+# partner-response median counts. With staff recording every answer, the whole
+# "confirmation lag by partner" panel reads "too few to assess" forever —
+# correct, and impossible to review.
+PARTNER_STAFF = [
+    ("partner1", "Tigist Bekele", "Adama Polytechnic College"),
+    ("partner2", "Meseret Alemu", "Adama Skills Hub"),
+    ("partner3", "Dr Hailu", "Adama Health Centre"),
+    ("partner4", "Solomon Girma", "Bishoftu Automotive Plc"),
+    ("partner5", "Almaz Tesfaye", "Oromia Credit and Savings"),
+    ("partner6", "Bekele Wolde", "Rift Valley Enterprise Agency"),
 ]
 
 CHANGE_REASON = "Seeded by manage.py seed_demo_org"
@@ -94,7 +109,8 @@ class Command(BaseCommand):
             )
 
         if options["reset"]:
-            users, _ = User.objects.filter(username__in=[a[0] for a in ACCOUNTS]).delete()
+            usernames = [a[0] for a in ACCOUNTS] + [p[0] for p in PARTNER_STAFF]
+            users, _ = User.objects.filter(username__in=usernames).delete()
             partners, _ = Partner.objects.filter(partner_name__in=[p[0] for p in PARTNERS]).delete()
             self.stdout.write(f"  removed {users} account row(s) and {partners} partner row(s)")
             return
@@ -117,9 +133,8 @@ class Command(BaseCommand):
         self.stdout.write(f"  partners: {len(PARTNERS)}")
 
         password = options["password"] or secrets.token_urlsafe(12)
-        partner_org = Partner.objects.get(partner_name="Adama Polytechnic College")
 
-        for username, full_name, role, woredas in ACCOUNTS:
+        def upsert(username, full_name, role, woredas, partner=None):
             user, _ = User.objects.update_or_create(
                 username=username,
                 defaults={
@@ -129,13 +144,20 @@ class Command(BaseCommand):
                     "account_status": AccountStatus.ACTIVE,
                     # §4.12: a partner staff account is meaningless without the
                     # institution it is scoped to.
-                    "partner": partner_org if role == Role.PARTNER_STAFF else None,
+                    "partner": partner,
                 },
             )
             user.set_password(password)
             user._change_reason = CHANGE_REASON
             user.save()
-        self.stdout.write(f"  accounts: {len(ACCOUNTS)}")
+
+        for username, full_name, role, woredas in ACCOUNTS:
+            upsert(username, full_name, role, woredas)
+
+        for username, full_name, partner_name in PARTNER_STAFF:
+            upsert(username, full_name, Role.PARTNER_STAFF, [], Partner.objects.get(partner_name=partner_name))
+
+        self.stdout.write(f"  accounts: {len(ACCOUNTS) + len(PARTNER_STAFF)}")
 
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS(f"  every seeded account signs in with:  {password}"))
