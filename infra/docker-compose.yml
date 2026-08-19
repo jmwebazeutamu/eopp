@@ -53,7 +53,15 @@ services:
       # this the provider never connects and every route 404s.
       DOCKER_API_VERSION: "1.44"
     ports:
-      - "${TRAEFIK_HTTP_PORT:-8007}:80"
+      # Bound to the loopback, not to every interface.
+      #
+      # `8007:80` publishes on 0.0.0.0, which on a public host means the app is
+      # reachable over plain HTTP on the server's IP, bypassing TLS entirely —
+      # and this one carries youth case records. A reverse proxy in front
+      # terminates TLS and forwards here; nothing else should reach it.
+      #
+      # `TRAEFIK_BIND` is overridable for a host where that is not the shape.
+      - "${TRAEFIK_BIND:-127.0.0.1}:${TRAEFIK_HTTP_PORT:-8007}:80"
     volumes:
       # Read-only: Traefik only needs to discover containers, never to control them.
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -99,7 +107,9 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set in infra/.env}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set in infra/.env}
     ports:
-      - "${MINIO_CONSOLE_PORT:-8008}:9001"
+      # Loopback only: the console is an administrative surface over the
+      # object store, and it has no business being on a public interface.
+      - "${MINIO_BIND:-127.0.0.1}:${MINIO_CONSOLE_PORT:-8008}:9001"
     volumes:
       - minio_data:/data
     healthcheck:
