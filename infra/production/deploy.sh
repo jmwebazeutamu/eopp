@@ -41,9 +41,14 @@ ssh "$HOST" "set -euo pipefail
 say "Building and starting"
 # Only docker-compose.yml. The dev overlay carries development defaults and
 # publishes ports this host must not expose.
+#
+# Both images, every time. `build web` alone shipped the backend and left the
+# client at whatever was built last: `up -d` reuses an image that already
+# exists, so a frontend-only commit deployed cleanly, passed every smoke test,
+# and changed nothing a user could see.
 ssh "$HOST" "set -euo pipefail
   cd '$DIR/infra'
-  $COMPOSE build web
+  $COMPOSE build web spa
   $COMPOSE up -d --remove-orphans"
 
 say "Migrating"
@@ -59,7 +64,9 @@ ssh "$HOST" "curl -fsS -o /dev/null \
   -H 'X-Forwarded-Proto: https' -H 'Host: eopp.johnsonmwebaze.info' \
   -w 'healthz via loopback: %{http_code}\n' http://127.0.0.1:8007/healthz/"
 
-for path in / /login /api/docs/ /admin/login/; do
+# /manual.html is a static file the client image carries: if the spa image is
+# stale it 404s or serves an old copy, which is the failure the build above fixes.
+for path in / /login /manual.html /api/docs/ /admin/login/; do
   curl -fsS -o /dev/null -w "  https://eopp.johnsonmwebaze.info$path -> %{http_code}\n" \
     "https://eopp.johnsonmwebaze.info$path"
 done
