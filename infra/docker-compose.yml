@@ -206,7 +206,11 @@ services:
       - traefik.http.routers.yep-spa.entrypoints=web
       - traefik.http.services.yep-spa.loadbalancer.server.port=80
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/index.html"]
+      # 127.0.0.1, not localhost. The name resolves to ::1 first here, and a
+      # healthcheck that cannot connect leaves the container unhealthy —
+      # which Traefik treats as absent, so the route 404s with nginx serving
+      # the file perfectly well. The web container failed the same way.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/index.html"]
       interval: 15s
       timeout: 5s
       retries: 5
