@@ -46,6 +46,18 @@ services:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
+      # Trust X-Forwarded-* from the proxy in front.
+      #
+      # Traefik replaces forwarded headers from sources it does not trust, so
+      # behind a TLS-terminating proxy it overwrote X-Forwarded-Proto: https
+      # with http. Django then saw a plain request, SECURE_SSL_REDIRECT sent a
+      # 301 to the URL that had just arrived, and every page was a redirect
+      # loop — 50 hops, with a valid certificate and a healthy app behind it.
+      #
+      # The ranges are loopback and the private blocks Docker bridges use. The
+      # entrypoint is published on 127.0.0.1 only, so nothing off-host can
+      # reach it to forge these in the first place.
+      - --entrypoints.web.forwardedHeaders.trustedIPs=127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
       - --log.level=INFO
     environment:
       # Traefik's embedded Docker client negotiates from API v1.24, which Docker
