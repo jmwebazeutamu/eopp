@@ -23,7 +23,7 @@ from apps.referrals.models import ReferralStatus
 
 pytestmark = pytest.mark.django_db
 
-DASHBOARD = "/dashboard/"
+DASHBOARD = "/ops/dashboard/"
 
 
 @pytest.fixture

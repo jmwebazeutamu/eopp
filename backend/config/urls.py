@@ -35,7 +35,14 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # Tier 1 of the dashboard handoff: a server-rendered page, not an API
     # endpoint, so it sits outside the /api/v1/ namespace.
-    path("dashboard/", include("apps.dashboard.dashboard_urls")),
+    # Mounted at /ops/dashboard/ rather than /dashboard/.
+    #
+    # Both this and the React tiers answered to /dashboard/, which never
+    # collided while the client ran on its own origin in development. On one
+    # origin the client wins that path — it is what a supervisor navigates to —
+    # so the server-rendered page, which exists to work with CSS disabled and
+    # in one request, keeps its own prefix.
+    path("ops/dashboard/", include("apps.dashboard.dashboard_urls")),
     path("api/v1/", include((api_v1_patterns, "v1"), namespace="v1")),
     # api_version is required because DEFAULT_VERSIONING_CLASS is
     # NamespaceVersioning: this view sits outside the "v1" namespace, so without

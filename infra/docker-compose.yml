@@ -168,7 +168,16 @@ services:
         condition: service_healthy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.yep-web.rule=PathPrefix(`/`)
+      # Django owns these prefixes; the client owns everything else. Listed
+      # explicitly rather than relying on rule length for precedence.
+      #
+      # `/dashboard/` is deliberately NOT here. It resolves to two different
+      # things — a server-rendered tier-1 page in Django and the React tiers —
+      # which never collided in development because they sat on two origins.
+      # On one origin the client has to win: it is what a supervisor navigates
+      # to. The server-rendered page is reachable at /ops/dashboard/.
+      - traefik.http.routers.yep-web.rule=PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`) || PathPrefix(`/media`) || PathPrefix(`/healthz`) || PathPrefix(`/ops`)
+      - traefik.http.routers.yep-web.priority=100
       - traefik.http.routers.yep-web.entrypoints=web
       - traefik.http.services.yep-web.loadbalancer.server.port=8000
     healthcheck:
@@ -177,6 +186,31 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
+    networks: [yep]
+
+  spa:
+    # The built React client. Static files behind nginx: no Node at runtime,
+    # and the 3G budget the brief sets is a build-time concern, not a serving
+    # one.
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    image: ${SPA_IMAGE_TAG:-eopp-spa}
+    container_name: yep_spa
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      # Lowest precedence: whatever Django did not claim.
+      - traefik.http.routers.yep-spa.rule=PathPrefix(`/`)
+      - traefik.http.routers.yep-spa.priority=1
+      - traefik.http.routers.yep-spa.entrypoints=web
+      - traefik.http.services.yep-spa.loadbalancer.server.port=80
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/index.html"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks: [yep]
 
   celery:
