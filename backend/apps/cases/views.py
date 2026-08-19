@@ -1,9 +1,9 @@
 """Case API — spec §4.2, §10 Sprint 1."""
 
-from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Q
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import filters, status, viewsets
@@ -17,8 +17,8 @@ from apps.users.permissions import CanAccessCases, IsOperational, ScopedQuerySet
 
 from .models import Case, CaseAction, CaseActionStatus, CaseActionType, CaseStatus, PathwayAssignment, ProfilingRecord
 from .serializers import (
-    CaseAssignmentSerializer,
     CaseActionSerializer,
+    CaseAssignmentSerializer,
     CaseListSerializer,
     CaseSerializer,
     PathwayAssignmentSerializer,
@@ -63,7 +63,16 @@ class CaseViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         case.touch()
 
     def perform_update(self, serializer):
-        previous_action = serializer.instance.next_action
+        # Read the previous value from the database, not from
+        # `serializer.instance`.
+        #
+        # By the time `perform_update` runs, the in-memory instance already
+        # carries the incoming value — validation has bound it — while the row
+        # still holds the old one. Comparing against the instance therefore
+        # always said "unchanged", so a PATCH to `next_action` updated the case
+        # and silently wrote no CaseAction: no §9 record of who set it, and the
+        # previous one never superseded.
+        previous_action = Case.objects.values_list("next_action", flat=True).get(pk=serializer.instance.pk)
         case = serializer.save()
         new_action = serializer.validated_data.get("next_action")
         if new_action is not None and not new_action.strip():
@@ -240,7 +249,9 @@ class CaseActionViewSet(_CaseChildViewSet):
         action.resolved_at = timezone.now()
         action.full_clean()
         action.save(update_fields=["status", "resolved_at", "updated_at"])
-        CaseAction.sync_case_summary(action.case)
+        # Resolving a feedback note likewise leaves the next action alone.
+        if action.action_type == CaseActionType.NEXT_ACTION:
+            CaseAction.sync_case_summary(action.case)
         action.case.touch()
         return Response(CaseActionSerializer(action, context=self.get_serializer_context()).data)
 

@@ -257,7 +257,9 @@ class CaseAction(BaseModel):
         related_name="assigned_case_actions",
         verbose_name=_("assigned to"),
     )
-    status = models.CharField(_("status"), max_length=20, choices=CaseActionStatus.choices, default=CaseActionStatus.OPEN)
+    status = models.CharField(
+        _("status"), max_length=20, choices=CaseActionStatus.choices, default=CaseActionStatus.OPEN
+    )
     due_date = models.DateField(_("due date"), null=True, blank=True)
     resolved_at = models.DateTimeField(_("resolved at"), null=True, blank=True)
 

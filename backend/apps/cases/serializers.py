@@ -207,7 +207,12 @@ class CaseActionSerializer(serializers.ModelSerializer):
                 status=CaseActionStatus.OPEN,
             ).update(status=CaseActionStatus.SUPERSEDED)
         action = super().create(validated_data)
-        CaseAction.sync_case_summary(action.case)
+        # Only a next action changes the next-action summary. Syncing after a
+        # FEEDBACK note looked for an open NEXT_ACTION, found none where the
+        # case carried its next action directly, and blanked it — a note about
+        # a partner erased the case's next step.
+        if action.action_type == CaseActionType.NEXT_ACTION:
+            CaseAction.sync_case_summary(action.case)
         action.case.touch()
         return action
 
