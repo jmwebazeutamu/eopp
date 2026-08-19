@@ -148,6 +148,31 @@ export default function MobileTabBar({
           <LanguageSwitch />
         </div>
 
+        <a
+          href="/manual.html"
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => setMoreOpen(false)}
+          style={{
+            marginTop: 12,
+            minHeight: 48,
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "var(--r-button)",
+            border: "1px solid var(--line)",
+            background: "transparent",
+            color: "var(--ink-900)",
+            fontFamily: "var(--font-body)",
+            fontSize: 15,
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          {t("nav.manual")}
+        </a>
+
         <button
           type="button"
           onClick={onSignOut}

@@ -88,6 +88,44 @@ export default function UserMenu({
             <LanguageSwitch />
           </div>
 
+          {/*
+           * A real link to a real file, not a route.
+           *
+           * The manual is a standalone page served as a static file, so it has
+           * to survive the app not loading — which is one of the times somebody
+           * reaches for a manual. It opens in a new tab so a half-finished form
+           * behind it is not thrown away.
+           */}
+          <a
+            href="/manual.html"
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => setOpen(false)}
+            style={{
+              marginTop: 12,
+              minHeight: 44,
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              borderRadius: "var(--r-button)",
+              border: "1px solid var(--line)",
+              background: "transparent",
+              color: "var(--ink-900)",
+              fontFamily: "var(--font-body)",
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            {t("nav.manual")}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="sr-only">{t("shell.opensNewTab")}</span>
+          </a>
+
           <button
             type="button"
             onClick={() => {

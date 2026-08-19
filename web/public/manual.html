@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User manual — Economic Opportunities Pathway Platform</title>
+<style>
+/*
+ * Self-contained on purpose.
+ *
+ * The token values below are copied from src/styles/tokens.css rather than
+ * imported, which is the one place in this project that is allowed. This page
+ * has to open when the application will not: on a phone with the bundle
+ * uncached, from a printout, or saved to disk and read offline in a woreda
+ * with no signal. A manual that needs the app running is no use on the day you
+ * need the manual. If the palette changes, change it here too.
+ */
+:root {
+  --green-900:#0a3a2c; --green-700:#0f4f3c; --green-500:#1c7a5b; --green-100:#e4efe9;
+  --gold-700:#7a5308; --gold-100:#fbf1dc;
+  --terra-700:#8a3a1e; --terra-100:#f7e7df;
+  --red-700:#8c1d18; --red-100:#fae6e4;
+  --ink-900:#1a1915; --ink-600:#4e4a42; --ink-400:#6b665a;
+  --line:#e3ded2; --paper:#f7f4ee; --surface:#ffffff; --fill-muted:#f1eee7;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink-900);
+  font-family: "Archivo", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.6;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; }
+header.mast { background: var(--green-900); color: #fff; }
+.mast-inner { max-width: 1180px; margin: 0 auto; padding: 40px 24px 32px; }
+.mast h1 { font-size: clamp(26px, 4vw, 34px); margin: 0 0 8px; letter-spacing: -.02em; }
+.mast p { margin: 0; color: rgba(255,255,255,.85); max-width: 70ch; }
+.layout { display: grid; grid-template-columns: 240px 1fr; gap: 40px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } nav.toc { position: static !important; } }
+nav.toc { position: sticky; top: 24px; padding-top: 32px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: s; }
+nav.toc a { display: block; padding: 5px 0; color: var(--ink-600); text-decoration: none; font-size: 14px; }
+nav.toc a:hover, nav.toc a:focus { color: var(--green-700); text-decoration: underline; }
+main { padding-top: 32px; min-width: 0; }
+section { margin-bottom: 48px; scroll-margin-top: 20px; }
+h2 { font-size: 24px; letter-spacing: -.01em; margin: 0 0 6px; padding-bottom: 8px; border-bottom: 2px solid var(--green-700); }
+h3 { font-size: 18px; margin: 28px 0 6px; }
+h4 { font-size: 15px; margin: 20px 0 4px; }
+p, li { max-width: 78ch; }
+code { background: var(--fill-muted); border: 1px solid var(--line); border-radius: 4px; padding: .08em .35em; font-size: .9em; }
+table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 15px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--surface); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-600); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.note, .warn, .tip {
+  border-left: 4px solid var(--green-500); background: var(--green-100);
+  padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 16px 0; max-width: 78ch;
+}
+.warn { border-left-color: var(--terra-700); background: var(--terra-100); }
+.tip { border-left-color: var(--gold-700); background: var(--gold-100); }
+.note p:first-child, .warn p:first-child, .tip p:first-child { margin-top: 0; }
+.note p:last-child, .warn p:last-child, .tip p:last-child { margin-bottom: 0; }
+.chip { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.c-active { background: var(--green-100); color: var(--green-700); }
+.c-wait { background: var(--gold-100); color: var(--gold-700); }
+.c-stall { background: var(--terra-100); color: var(--terra-700); }
+.c-fail { background: var(--red-100); color: var(--red-700); }
+.c-done { background: var(--green-700); color: #fff; }
+.c-closed { background: var(--fill-muted); color: var(--ink-600); }
+.steps { counter-reset: step; list-style: none; padding-left: 0; }
+.steps > li { counter-increment: step; position: relative; padding-left: 40px; margin-bottom: 14px; }
+.steps > li::before {
+  content: counter(step); position: absolute; left: 0; top: 0;
+  width: 26px; height: 26px; border-radius: 50%; background: var(--green-700); color: #fff;
+  display: grid; place-items: center; font-size: 13px; font-weight: 700;
+}
+.lede { font-size: 17px; color: var(--ink-600); }
+footer { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 16px; color: var(--ink-400); font-size: 14px; }
+@media print {
+  header.mast { background: none; color: #000; }
+  .mast p { color: #000; }
+  nav.toc { display: none; }
+  .layout { grid-template-columns: 1fr; }
+  section { page-break-inside: avoid; }
+  body { font-size: 11pt; }
+}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="mast-inner">
+    <h1>User manual</h1>
+    <p>Economic Opportunities Pathway Platform (EOPP) — the case management and referral system for the youth employment programme. This manual covers every screen, what each one is for, and how to read the numbers it shows you.</p>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="layout">
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#start">1. Before you start</a></li>
+    <li><a href="#around">2. Finding your way around</a></li>
+    <li><a href="#roles">3. What your role can see</a></li>
+    <li><a href="#youth">4. The youth registry</a></li>
+    <li><a href="#cases">5. Cases</a></li>
+    <li><a href="#referrals">6. Referrals</a></li>
+    <li><a href="#alerts">7. Alerts</a></li>
+    <li><a href="#dashboards">8. Dashboards</a></li>
+    <li><a href="#partners">9. Partners</a></li>
+    <li><a href="#users">10. User accounts</a></li>
+    <li><a href="#profile">11. Your profile</a></li>
+    <li><a href="#numbers">12. Reading the numbers</a></li>
+    <li><a href="#trouble">13. If something looks wrong</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="start">
+  <h2>1. Before you start</h2>
+  <p class="lede">EOPP records young people, the cases opened for them, and the referrals sent to partner institutions on their behalf. It exists so that no young person is referred and then forgotten.</p>
+
+  <h3>What the system is for</h3>
+  <p>Three things happen in EOPP, in order:</p>
+  <ol class="steps">
+    <li><strong>A young person is registered</strong> in the youth registry, with their consent recorded.</li>
+    <li><strong>A case is opened</strong> for them and assigned to a case manager, who is accountable for what happens next.</li>
+    <li><strong>Referrals are raised</strong> to partner institutions — a training college, an employer, a savings group — and followed until they close.</li>
+  </ol>
+  <p>Everything else in the system exists to support those three things or to report on them.</p>
+
+  <h3>Signing in</h3>
+  <ol class="steps">
+    <li>Open the address your administrator gave you.</li>
+    <li>Enter your <strong>username</strong> — not your email address. Usernames are short, like <code>cm1</code>.</li>
+    <li>Enter your password and select <strong>Sign in</strong>.</li>
+  </ol>
+  <p>You can change the language on the sign-in screen before you sign in, using the <strong>EN</strong>, <strong>አማርኛ</strong> and <strong>Afaan Oromoo</strong> buttons at the bottom of the card.</p>
+
+  <div class="warn">
+    <p><strong>Accounts are personal.</strong> Everything you record is stamped with your name and the date, because these are personal records about real young people and the programme has to be able to say who did what. Do not share your password or work under someone else's sign-in — if a colleague needs access, ask an administrator for an account.</p>
+  </div>
+
+  <div class="tip">
+    <p><strong>If you cannot sign in.</strong> After several failed attempts the system locks the account for a period, to stop someone guessing their way in. Wait, then try again, or ask an administrator to unlock it. If you have forgotten your password, an administrator can set a new one — there is no self-service reset.</p>
+  </div>
+</section>
+
+<section id="around">
+  <h2>2. Finding your way around</h2>
+
+  <h3>The rail down the left</h3>
+  <p>Everything you can reach is in the dark green rail on the left of the screen, in three groups:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Group</th><th>What is in it</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Dashboard</strong></td><td>The summary screens for your role — see <a href="#dashboards">section 8</a>. You may see one, two, three or none, depending on your role.</td></tr>
+      <tr><td><strong>Work</strong></td><td>Cases, Referrals and Alerts. The day-to-day screens.</td></tr>
+      <tr><td><strong>Directory</strong></td><td>Youth registry, Partners, and Users. Reference lists.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Select the <strong>&lsaquo;</strong> button at the top of the rail to collapse it to icons and give the page more room. Hover an icon to see its name. The rail remembers your choice for your account, so a colleague signing in on the same computer gets their own setting.</p>
+
+  <h3>Search</h3>
+  <p>The search box at the top of the rail looks across <strong>youth, cases, partners and referrals at once</strong>, and groups the results by what they are. Press <code>/</code> or <code>Ctrl</code>+<code>K</code> from anywhere to jump into it. Two characters are enough to start.</p>
+  <p>Phone numbers appear masked in the results, as they do everywhere else.</p>
+
+  <h3>The woreda scope</h3>
+  <p>Underneath the search box is the woreda selector. It sets what <em>every</em> screen shows: choose <strong>Adama</strong> and the case list, the referral queue, the alert inbox and the dashboards all narrow to Adama together.</p>
+  <ul>
+    <li>The scope you choose is remembered for your account.</li>
+    <li>It is written into the web address, so you can copy a link to a narrowed view and send it to a colleague — they will see what you saw.</li>
+    <li>Every screen states its scope underneath the title, so a woreda figure can never be mistaken for a programme one.</li>
+  </ul>
+  <p>If your account covers a single woreda, there is nothing to choose and the selector shows the woreda's name instead.</p>
+
+  <h3>Your account</h3>
+  <p>At the foot of the rail is your name and role. Select it to open a menu with your details, the language switch, this manual, and <strong>Sign out</strong>.</p>
+
+  <h3>On a phone</h3>
+  <p>Below 780 pixels the rail becomes a bar along the bottom with five destinations — My work, Cases, Referrals, Alerts and <strong>More</strong>. The More sheet holds the rest, along with the language switch and sign out. Lists become cards instead of tables, so nothing has to be scrolled sideways.</p>
+</section>
+
+<section id="roles">
+  <h2>3. What your role can see</h2>
+  <p class="lede">EOPP shows different people different things, on purpose. These are personal case records, and each role sees what its job requires and no more.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Role</th><th>Case records</th><th>Dashboards</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Youth case manager</strong></td><td>Their own caseload</td><td>My work</td></tr>
+      <tr><td><strong>Outreach worker / community facilitator</strong></td><td>Their woreda</td><td>My work</td></tr>
+      <tr><td><strong>Woreda / programme supervisor</strong></td><td>Their woreda, read only</td><td>My work, Woreda</td></tr>
+      <tr><td><strong>Programme manager</strong></td><td>All woredas, read only</td><td>Woreda, Programme, Results</td></tr>
+      <tr><td><strong>M&amp;E staff</strong></td><td>All woredas, read only</td><td>Woreda, Programme, Results</td></tr>
+      <tr><td><strong>Referral partner staff</strong></td><td>Only referrals sent to their own institution</td><td>None</td></tr>
+      <tr><td><strong>Trainer, employer liaison, enterprise development officer</strong></td><td>Only the records they are linked to</td><td>None</td></tr>
+      <tr><td><strong>System administrator</strong></td><td>All, plus user accounts</td><td>All four</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><strong>Why a screen can look empty.</strong> If a list has no rows, it is usually because your role's scope does not include those records — not because the programme has none. The empty message on each screen says which it is. A partner staff account, for example, is told plainly that it works from referrals rather than case records.</p>
+  </div>
+
+  <p>If you believe you should see something you cannot, ask an administrator rather than working around it. Roles, woreda assignments and partner links are set by administrators and cannot be changed from your own profile.</p>
+</section>
+
+<section id="youth">
+  <h2>4. The youth registry</h2>
+  <p class="lede">Every young person the programme works with is registered here first. A case cannot be opened for someone who is not on the register.</p>
+
+  <h3>Registering one young person</h3>
+  <ol class="steps">
+    <li>Open <strong>Youth registry</strong> and select <strong>Register youth</strong>.</li>
+    <li>Fill in the name, sex and date of birth. The date of birth confirms the age band the programme works with.</li>
+    <li>Record the location — region, zone, woreda and kebele — using the pickers, which only offer places that exist beneath the one above.</li>
+    <li>Tick <strong>Consent given</strong> and record the consent date.</li>
+    <li>Select <strong>Register</strong>.</li>
+  </ol>
+
+  <div class="warn">
+    <p><strong>Consent is not optional.</strong> The form will not save without it. Consent is the basis on which the programme is allowed to hold a young person's record at all, so it is recorded before anything else about them is.</p>
+  </div>
+
+  <h3>Importing a register from a spreadsheet</h3>
+  <p>Woreda registers usually arrive as a spreadsheet. You can load one directly.</p>
+  <ol class="steps">
+    <li>Select <strong>Import from Excel</strong> on the youth registry screen.</li>
+    <li>Download the blank template if you do not already have one. It is built from the same list of columns the importer reads, so it can never describe a column the importer does not accept.</li>
+    <li>Choose your file. The system reads it and shows you a report: which rows are new, which are already on file, and which have problems — <em>without saving anything yet</em>.</li>
+    <li>Check the report. If it looks right, confirm the import.</li>
+  </ol>
+  <h4>What the report tells you</h4>
+  <ul>
+    <li><span class="chip c-active">● New</span> — will be added.</li>
+    <li><span class="chip c-closed">⊘ Already on file</span> — matched on ID, or on name and date of birth where the register has no ID. These are skipped, not duplicated, so a register that is re-sent with more names appended will not double your registry.</li>
+    <li><span class="chip c-fail">✕ Cannot import</span> — something is missing or invalid. The row and the reason are named.</li>
+  </ul>
+  <div class="note">
+    <p><strong>One bad row stops the whole file.</strong> Nothing is saved unless everything can be. A half-imported register leaves nobody able to say which half went in, so the system refuses the file and tells you what to fix.</p>
+  </div>
+
+  <h3>Finding and opening a record</h3>
+  <p>Use the search box for a name, phone number or ID. The chips beneath it filter the list — <strong>With a case</strong> and <strong>No case yet</strong> — and each chip carries its own count. Select a young person's name to open their record; opening it does not change it, and editing is a separate, deliberate step.</p>
+  <p><strong>Phone numbers are hidden by default</strong> and shown only where there is a reason to see one. There is no reveal on the registry list at all.</p>
+</section>
+
+<section id="cases">
+  <h2>5. Cases</h2>
+  <p class="lede">A case is the file that follows a young person through the programme. It has one case manager, who is accountable for it.</p>
+
+  <h3>Opening a case</h3>
+  <p>Select <strong>New case</strong> on the Cases screen. You can only choose from young people who are registered and do not already have a case. Choose the case manager who will own it.</p>
+
+  <h3>Case statuses</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Status</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip c-active">● Active</span></td><td>Being worked on.</td></tr>
+      <tr><td><span class="chip c-wait">◔ Referral Pending</span></td><td>A referral has been sent and the partner has not answered yet.</td></tr>
+      <tr><td><span class="chip c-stall">▲ Stalled</span></td><td>Nothing has happened for longer than the programme's threshold. It is a prompt to look, not a judgement.</td></tr>
+      <tr><td><span class="chip c-done">✓ Placed</span></td><td>The young person has reached a job, an apprenticeship or their own enterprise.</td></tr>
+      <tr><td><span class="chip c-closed">■ Exited</span></td><td>The case has ended. It records why and when.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Every status carries a colour, a word <em>and</em> a shape, so it can still be read on a monochrome screen, by a colour-blind reader, or on a cheap phone in bright sunlight.</p>
+
+  <div class="warn">
+    <p><strong>Cases are never deleted.</strong> A case that ends is set to Exited with a reason and a date. The record of why something ended is part of the case, and deleting it would remove the only account of what happened to that young person.</p>
+  </div>
+
+  <h3>The case screen</h3>
+  <p>Opening a case shows, in order: who the young person is, their profiling and eligibility, the pathway they are on, how many referral slots are in use, the referral timeline, and the full referral history.</p>
+
+  <h4>Next action</h4>
+  <p>Each case carries a single <strong>next action</strong> — the one thing that has to happen next, and who owns it. Setting a new one supersedes the previous one and records who changed it. It is what the case list's Next action column shows, and what the dashboards count when they ask what needs doing today.</p>
+
+  <h4>The referral timeline</h4>
+  <p>The timeline draws each referral as a bar along a calendar, in the slot it occupies. Colour shows <strong>status</strong> only. Referrals running at the same time are shown by a bracket, not by a colour, because two referrals can run in parallel <em>and</em> one of them can have failed — those are separate facts and one colour cannot carry both.</p>
+</section>
+
+<section id="referrals">
+  <h2>6. Referrals</h2>
+  <p class="lede">A referral is a request to a partner institution to take a young person — into training, a job, a loan, or a service. This is the core of the system, and it has rules.</p>
+
+  <h3>Raising a referral</h3>
+  <ol class="steps">
+    <li>Open the case and select <strong>New referral</strong>.</li>
+    <li>Choose the <strong>category</strong> — what the referral is for.</li>
+    <li>Choose the <strong>receiving partner</strong>. Only partners that are active and cover the young person's woreda are offered.</li>
+    <li>Name the contact at the partner, if you have one, and add any note.</li>
+    <li>Save. The referral is now <span class="chip c-wait">◔ Pending confirmation</span>.</li>
+  </ol>
+
+  <h3>What happens next</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Status</th><th>Meaning</th><th>What you can do</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip c-wait">◔ Pending confirmation</span></td><td>Sent; the partner has not answered.</td><td>Partner confirmed · Partner declined · Withdraw referral</td></tr>
+      <tr><td><span class="chip c-active">● Active</span></td><td>The partner accepted. The young person is with them.</td><td>Record outcome · Record failure</td></tr>
+      <tr><td><span class="chip c-done">✓ Completed</span></td><td>It ended with a recorded outcome.</td><td>Onward referral</td></tr>
+      <tr><td><span class="chip c-fail">✕ Failed</span></td><td>It ended without one, with a reason.</td><td>Replacement referral</td></tr>
+      <tr><td><span class="chip c-stall">↻ Replaced</span></td><td>A replacement referral was raised for it.</td><td>—</td></tr>
+      <tr><td><span class="chip c-closed">⊘ Cancelled</span></td><td>Withdrawn before the partner answered.</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Only the moves listed above are possible from each status. The buttons you see on a referral are the moves that are actually allowed from where it is — if an action is not offered, it is not permitted from that state.</p>
+
+  <div class="note">
+    <p><strong>Cancelled is not the same as Failed.</strong> Withdrawing a referral nobody has answered is an administrative tidy-up. A failure is a real outcome for a young person, and it carries a reason. Keeping them apart is what stops the partner failure figures being inflated by housekeeping.</p>
+  </div>
+
+  <h3>Recording a confirmation</h3>
+  <p>A partner can confirm through their own login, or you can record their answer for them — by telephone, for example. Both are supported and both are recorded, but they are <strong>counted separately</strong>: the partner response times on the dashboards only count answers the partner entered themselves. Otherwise a partner who never replies would score the same as one who replies the same day.</p>
+
+  <h3>Two at a time</h3>
+  <p>A young person may hold <strong>two active referrals at once</strong>. If both slots are full, the button reads <strong>New referral (blocked)</strong> and says why — rather than disappearing and leaving you wondering where it went.</p>
+  <p>Complementary services — health, psychosocial support, legal aid — run <strong>outside</strong> that limit, as a third stream. A young person needing counselling should not have to give up a training place to get it.</p>
+  <p>The <strong>Parallel referral slots</strong> panel on the case screen shows which slots are in use and which are free.</p>
+
+  <h3>Onward and replacement referrals</h3>
+  <ul>
+    <li>When a referral <strong>completes</strong>, the system prompts for an <strong>onward</strong> referral — finishing a training course is rarely the end of the journey.</li>
+    <li>When a referral <strong>fails</strong>, it prompts for a <strong>replacement</strong> — a young person whose referral fell through should not simply stop.</li>
+  </ul>
+  <p>These are prompts, not automatic actions. The system will not create a referral on your behalf: a referral is a commitment made to a partner about a real person, and a person decides to make it.</p>
+
+  <h3>The referrals queue</h3>
+  <p>The Referrals screen groups work by urgency rather than listing everything at once:</p>
+  <ul>
+    <li><strong>Needs a decision</strong> — you owe the next move: a partner is overdue, or an onward or replacement referral is waiting on you.</li>
+    <li><strong>Awaiting confirmation</strong> — sent and still inside the window.</li>
+    <li><strong>Active</strong> — accepted and running.</li>
+  </ul>
+  <p>Each group pages independently, so moving through one does not disturb the others.</p>
+</section>
+
+<section id="alerts">
+  <h2>7. Alerts</h2>
+  <p class="lede">Alerts are raised by scheduled checks, not by anything you did. They are the system noticing something has gone quiet.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Alert</th><th>Raised when</th></tr></thead>
+    <tbody>
+      <tr><td>Stall</td><td>A case has had no activity past the threshold.</td></tr>
+      <tr><td>Referral confirmation overdue</td><td>A partner has not answered within the window.</td></tr>
+      <tr><td>Onward referral prompt</td><td>A referral completed and no next step exists.</td></tr>
+      <tr><td>Replacement referral prompt</td><td>A referral failed and the young person is unplaced.</td></tr>
+      <tr><td>Follow-up due</td><td>A scheduled check-in has come round.</td></tr>
+      <tr><td>Retention check due</td><td>A retention checkpoint has been reached.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Clearing an alert</h3>
+  <p>Open the Alerts screen, select an alert to preview it, then either:</p>
+  <ul>
+    <li><strong>Mark actioned</strong> — you have done something about it. Recorded against the alert with your name and the date.</li>
+    <li><strong>Dismiss</strong> — closes it without recording an action on the case.</li>
+  </ul>
+  <p>Add a note saying what you did or why you are dismissing it. That note is the audit trail.</p>
+
+  <div class="note">
+    <p><strong>An alert about a case is not a mark against you.</strong> A stall alert says a case has gone quiet, which is often for good reasons outside anyone's control. It is a prompt to look, and the system deliberately does not change the case's status on its own — that judgement is yours.</p>
+  </div>
+  <p>Alerts close themselves when the condition that raised them clears, judged against the threshold recorded when the alert was raised, not today's setting.</p>
+</section>
+
+<section id="dashboards">
+  <h2>8. Dashboards</h2>
+  <p class="lede">Four dashboards, for four different jobs. You see the ones your role needs. They are not the same screen with things hidden — they answer different questions.</p>
+
+  <h3>My work — for whoever holds a caseload</h3>
+  <p>What needs doing today: alerts assigned to you past their threshold, referrals waiting on a partner longest-first, your caseload by status, and young people at risk of dropping out. Every number links to the named list behind it.</p>
+
+  <h3>Woreda — for supervisors</h3>
+  <p>Which staff and which cases need you. Caseload by case manager against the ceiling, partner response times, and data completeness — which required fields are missing, and what each gap costs.</p>
+
+  <h3>Programme — for programme managers</h3>
+  <p>Where young people are lost between stages, how long each stage takes, how woredas compare, and how partners are performing.</p>
+
+  <h3>Results — for M&amp;E and reporting</h3>
+  <p>Framework indicators with their sources, cumulative placements by month, disaggregation by sex, age band, woreda, disability, settlement type and PSNP status, and a standing note on what is uncertain.</p>
+
+  <div class="tip">
+    <p><strong>Dashboards follow the woreda scope.</strong> If a figure looks smaller than you expect, check the scope selector at the top of the rail — you may be looking at one woreda.</p>
+  </div>
+</section>
+
+<section id="partners">
+  <h2>9. Partners</h2>
+  <p>The institutions referrals can be sent to. A partner must exist here, be active, and cover the young person's woreda before it can receive one.</p>
+  <p>Each partner card shows its type, the woredas it covers, its contact, its MOU status — <span class="chip c-done">Signed</span>, <span class="chip c-wait">Draft</span>, <span class="chip c-fail">Expired</span>, <span class="chip c-fail">Terminated</span> or <span class="chip c-closed">No MOU</span> — and whether it is accepting referrals. Use the chips at the top to filter; each carries its own count.</p>
+  <p>Anyone may open a partner record to read it. Only some roles may then edit it. <strong>Deactivate a partner rather than deleting it</strong> — its referral history has to remain.</p>
+</section>
+
+<section id="users">
+  <h2>10. User accounts</h2>
+  <p>Visible to system administrators only.</p>
+  <p>Each account carries a role, the woredas it covers, and — for partner staff — the institution it belongs to. Those three settings decide everything that account can see, so they are the most consequential fields in the system.</p>
+  <ul>
+    <li>An account with a woreda-scoped role and no woreda would see nothing at all.</li>
+    <li>A partner staff account must be linked to an institution.</li>
+    <li>Accounts are <strong>deactivated, never deleted</strong>: their name is attached to case records and referral decisions that have to remain attributable.</li>
+  </ul>
+  <p>Setting a password here signs that account out of every device it was signed in on — see the next section.</p>
+</section>
+
+<section id="profile">
+  <h2>11. Your profile</h2>
+  <p>Open the account menu at the foot of the rail and choose <strong>Your profile</strong>.</p>
+
+  <h3>What you can change</h3>
+  <ul>
+    <li>Your full name.</li>
+    <li>A work email and a personal email.</li>
+    <li>A work phone and a personal phone.</li>
+  </ul>
+  <p>All of them are optional, and none are shown to youth or partners. An email address can only be held by one account.</p>
+
+  <h3>What only an administrator can change</h3>
+  <p>Your role, your woredas, your username and your partner organisation are shown on the same screen but cannot be edited. They decide what you can see, so they are not yours to set.</p>
+
+  <h3>Changing your password</h3>
+  <ol class="steps">
+    <li>Enter your <strong>current</strong> password. It is asked for because a screen left unlocked should not be enough for someone else to take your account.</li>
+    <li>Enter the new one and save.</li>
+  </ol>
+  <div class="warn">
+    <p><strong>Changing your password signs out every other device.</strong> If you think someone else has been using your account, changing your password ends their session immediately — that is what it is for. The device you are using stays signed in.</p>
+  </div>
+</section>
+
+<section id="numbers">
+  <h2>12. Reading the numbers</h2>
+  <p class="lede">The dashboards are deliberately cautious. This section explains what they will and will not tell you, because the caution is easy to mistake for a fault.</p>
+
+  <h3>A percentage never travels alone</h3>
+  <p>Every rate is shown with the counts behind it — <em>54% (375 of 699)</em>, never a bare 54%. A percentage without its denominator cannot be judged.</p>
+
+  <h3>Three bands</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>How many records</th><th>What is shown</th></tr></thead>
+    <tbody>
+      <tr><td>30 or more</td><td>The rate, reported normally.</td></tr>
+      <tr><td>10 to 29</td><td>The rate marked with an asterisk — provisional. Never used in a comparison or a ranking.</td></tr>
+      <tr><td>Fewer than 10</td><td><strong>&mdash; too few to assess.</strong> Not a zero.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><strong>“Too few to assess” is not “none”.</strong> Zero out of forty is a finding. Zero out of four is not measurable. The system refuses to show them the same way, because acting on the second as though it were the first is how a partner gets a reputation they did not earn.</p>
+  </div>
+
+  <h3>“Not measurable yet”</h3>
+  <p>Some figures — retention after exit, training completion — need records the system does not yet hold. Those cards say <strong>Not measurable yet</strong> and explain what is missing. They do not show a zero. A zero would be a claim that nobody was retained, which is a different and false statement.</p>
+
+  <h3>Nothing is ranked by rate</h3>
+  <p>Partner and woreda lists are ordered by <strong>how much evidence there is</strong>, not by who is performing best. At these numbers, ranking by rate mostly sorts by luck, and it rewards partners who take the easiest young people.</p>
+
+  <h3>Recorded is not verified</h3>
+  <p>An outcome someone recorded and an outcome verified by someone other than the young person are different numbers. Where both exist, both are shown, and the reports say which is which.</p>
+
+  <h3>Progress against a target</h3>
+  <p>A quarterly figure is shown against how much of the quarter has elapsed. Otherwise every quarter opens with the programme apparently failing.</p>
+</section>
+
+<section id="trouble">
+  <h2>13. If something looks wrong</h2>
+
+  <h4>A list is empty</h4>
+  <p>Check the woreda scope at the top of the rail, and check whether any filter chips are selected — a selected chip is filled in. The empty message distinguishes “there is nothing here” from “your filters are hiding everything”, and offers to clear them.</p>
+
+  <h4>A number is different on two screens</h4>
+  <p>They are usually answering different questions. “Open alerts assigned to me” and “open alerts on cases I can see” are both correct and different. Read the line underneath each figure — it says what is being counted.</p>
+
+  <h4>An action I expected is missing</h4>
+  <p>Buttons appear only when the action is permitted from where the record currently is, and when your role may perform it. A referral that is already Completed offers an onward referral, not a confirmation.</p>
+
+  <h4>I cannot open a record I was sent a link to</h4>
+  <p>If the record is outside your scope, the system says it does not exist rather than confirming it exists and refusing. Ask a colleague whose role covers it.</p>
+
+  <h4>The screen looks stale</h4>
+  <p>Alerts are raised by scheduled checks, so counts change on their own schedule rather than the moment you act. Reload the page.</p>
+
+  <h4>Reporting a problem</h4>
+  <p>Tell your administrator what you did, what you expected, and what happened — and the address in the browser bar, which identifies the exact screen and any filters you had set.</p>
+</section>
+
+<footer>
+  <p>Economic Opportunities Pathway Platform. This manual describes the system as built; where it disagrees with the screen, the screen is right and the manual needs updating.</p>
+</footer>
+
+</main>
+</div>
+</div>
+</body>
+</html>

@@ -717,6 +717,31 @@ Screens are photographed with `scripts/shoot.mjs`, which mints a JWT through
 mutation. It also reports console errors. Run it before and after UI work;
 jsdom applies no stylesheet, so the test suite cannot see a layout fault.
 
+## The user manual (`web/public/manual.html`)
+
+One standalone HTML file, reached from the account menu at the foot of the rail
+(and from the More sheet on a phone), opening in a new tab.
+
+- **A static file, not a route.** A manual is wanted precisely when the app is
+  not working — an uncached bundle on 3G, a printout, a copy saved to disk. It
+  is served by nginx (Traefik gives `/manual.html` to the `spa` service), has no
+  JavaScript, and prints. 33 kB, 11 kB gzipped.
+- **It duplicates the token hex values in its own `<style>`.** This is the one
+  sanctioned exception to "no literal hex outside `design/status.ts` and
+  `ANTD_THEME`": the page cannot import `tokens.css` and still open on its own.
+  The block says so; if the palette changes, change it there too.
+- **It states the screens as built, and quotes their real strings.** Status
+  labels and marks come from `design/status.ts`, button and chip text from
+  `i18n/strings.ts`, the role table from `ACCESS_MATRIX` and `TIER_ACCESS`.
+  Checked against those, not written from memory — a manual that names a button
+  nobody can find is worse than none.
+- **No threshold days are printed.** Confirmation, stall and abandonment windows
+  are configuration and three of them are still open questions; the manual says
+  "past the threshold" and leaves the number to the screen.
+- **Section 12 is the one to keep current.** It explains suppression bands,
+  "too few to assess" and "not measurable yet" — the parts of the dashboards
+  that read as faults until somebody explains that they are not.
+
 ## Definition of Done (spec §10.1)
 
 1. Automated tests cover the referral transitions and RBAC boundaries touched.

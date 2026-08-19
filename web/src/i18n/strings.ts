@@ -42,6 +42,8 @@ export const STRINGS = {
   "nav.more": "More",
   "nav.partners": "Partners",
   "nav.users": "Users",
+  "nav.manual": "User manual",
+  "shell.opensNewTab": "(opens in a new tab)",
   "nav.signOut": "Sign out",
   "shell.woreda": "Woreda",
   "shell.account": "Account",
