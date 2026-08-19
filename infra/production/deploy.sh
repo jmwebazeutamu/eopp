@@ -53,7 +53,16 @@ say "Collecting static files"
 ssh "$HOST" "cd '$DIR/infra' && $COMPOSE exec -T web python manage.py collectstatic --noinput" >/dev/null
 
 say "Smoke test"
-ssh "$HOST" "curl -fsS -o /dev/null -w 'healthz via loopback: %{http_code}\n' http://127.0.0.1:8007/healthz/"
-curl -fsS -o /dev/null -w "healthz via https:    %{http_code}\n" "https://eopp.johnsonmwebaze.info/healthz/"
+# The forwarded-protocol header is what the proxy sets; without it Django's
+# SECURE_SSL_REDIRECT answers 301 and the line reads like a failure.
+ssh "$HOST" "curl -fsS -o /dev/null \
+  -H 'X-Forwarded-Proto: https' -H 'Host: eopp.johnsonmwebaze.info' \
+  -w 'healthz via loopback: %{http_code}\n' http://127.0.0.1:8007/healthz/"
+
+for path in / /login /api/docs/ /admin/login/; do
+  curl -fsS -o /dev/null -w "  https://eopp.johnsonmwebaze.info$path -> %{http_code}\n" \
+    "https://eopp.johnsonmwebaze.info$path"
+done
+curl -fsS -o /dev/null -w "  https://eopp.johnsonmwebaze.info/healthz/ -> %{http_code}\n" "https://eopp.johnsonmwebaze.info/healthz/"
 
 say "Deployed $LOCAL_SHA"
