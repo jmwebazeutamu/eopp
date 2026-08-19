@@ -248,6 +248,16 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
 
+    # When the password last changed. Every JWT issued before this moment is
+    # refused at authentication, which is how changing a password signs other
+    # devices out.
+    #
+    # Stamped in `set_password`, so an administrator reset and the
+    # `set_password` management command cut off stolen sessions exactly as a
+    # self-service change does — the case that matters most is the one where
+    # the account holder is not the one asking.
+    password_changed_at = models.DateTimeField(null=True, blank=True, editable=False)
+
     history = HistoricalRecords()  # §9 audit trail
 
     objects = UserManager()
@@ -260,6 +270,36 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = _("users")
         ordering = ["full_name"]
         indexes = [models.Index(fields=["role", "account_status"])]
+
+    def set_password(self, raw_password):
+        """Stamp the moment, so tokens issued earlier stop working.
+
+        Overridden here rather than in the serializer because the serializer is
+        not the only caller: the admin, `createsuperuser` and the
+        `set_password` management command all arrive through this method, and a
+        rule that holds on one route only is not a rule. The case that matters
+        most is the one where the account holder is not the one asking.
+        """
+        super().set_password(raw_password)
+        self.password_changed_at = timezone.now()
+
+    def save(self, *args, **kwargs):
+        """Keep `password_changed_at` with the password it describes.
+
+        Every caller that resets a password saves narrowly —
+        `update_fields=["password"]` — which wrote the new hash and dropped the
+        stamp, so the sessions the change was meant to end carried on. The
+        administrator reset was the one that mattered most and the one that
+        failed. Rather than fix three call sites and hope the fourth remembers,
+        the stamp travels with the column.
+        """
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            update_fields = set(update_fields)
+            if "password" in update_fields:
+                update_fields.add("password_changed_at")
+                kwargs["update_fields"] = update_fields
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.full_name} ({self.get_role_display()})"

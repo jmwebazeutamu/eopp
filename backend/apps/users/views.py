@@ -3,11 +3,12 @@
 from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from apps.cases.models import CaseStatus
@@ -157,14 +158,18 @@ class UserViewSet(viewsets.ModelViewSet):
         are shared machines, so an unlocked screen must not be enough to take
         the account over.
 
-        Note what this does *not* do. simplejwt is configured without the
-        blacklist app, so refresh tokens already issued stay valid for their
-        full window — changing a password does not sign other devices out.
-        Closing that needs either the blacklist app or a `password_changed_at`
-        stamp checked during authentication; it is deliberately out of scope
-        here and recorded in the UI backlog.
+        Every other session ends. `set_password` stamps `password_changed_at`
+        and authentication refuses any token issued earlier, so a device
+        holding a stolen token is cut off — which is the point of changing a
+        password when you think you are compromised.
+
+        The device doing the changing is not, though: it gets a fresh token
+        pair in the response. Signing someone out of the screen they just used
+        correctly would teach them not to.
         """
         serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        user = serializer.save()
+
+        refresh = RefreshToken.for_user(user)
+        return Response({"access": str(refresh.access_token), "refresh": str(refresh)})

@@ -1,7 +1,7 @@
 import { App, Form, Input, Modal } from "antd";
 import { useState } from "react";
 
-import { api, errorMessage } from "../api/client";
+import { api, errorMessage, tokens } from "../api/client";
 import type { CurrentUser } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useLang } from "../i18n/LanguageContext";
@@ -49,7 +49,11 @@ export default function ProfileModal({ open, onClose }: { open: boolean; onClose
   async function savePassword(values: { current_password: string; new_password: string }) {
     setSavingPassword(true);
     try {
-      await api.post("/users/me/password/", values);
+      const { data } = await api.post<{ access: string; refresh: string }>("/users/me/password/", values);
+      // The server ends every session issued before the change, including this
+      // one. It hands back a fresh pair for the device that did it — storing
+      // them is what keeps the user on the screen they just used correctly.
+      tokens.set(data.access, data.refresh);
       passwordForm.resetFields();
       message.success(t("profile.passwordChanged"));
     } catch (error) {

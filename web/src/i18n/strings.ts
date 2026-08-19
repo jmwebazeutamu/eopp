@@ -68,7 +68,7 @@ export const STRINGS = {
   "profile.currentPasswordRequired": "Enter your current password.",
   "profile.newPassword": "New password",
   "profile.newPasswordRequired": "Enter a new password.",
-  "profile.passwordChanged": "Password changed. Other devices stay signed in.",
+  "profile.passwordChanged": "Password changed. Any other device signed in to this account has been signed out.",
   "profile.passwordFailed": "Could not change your password.",
   "users.role": "Role",
   "common.saving": "Saving…",

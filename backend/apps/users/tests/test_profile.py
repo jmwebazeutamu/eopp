@@ -5,7 +5,11 @@ authenticated role, so anything writable there is writable by everyone —
 including a case manager who would like a wider §7 scope.
 """
 
+from datetime import timedelta
+
 import pytest
+from django.utils import timezone
+from freezegun import freeze_time
 
 from apps.users.models import AccountStatus, Role, User
 
@@ -149,7 +153,8 @@ def test_a_user_can_change_their_own_password(person, as_user):
         {"current_password": PASSWORD, "new_password": "new-Passw0rd-9876"},
         format="json",
     )
-    assert response.status_code == 204
+    assert response.status_code == 200
+    assert set(response.data) == {"access", "refresh"}
     person.refresh_from_db()
     assert person.check_password("new-Passw0rd-9876")
 
@@ -307,7 +312,7 @@ def test_every_role_can_read_and_edit_its_own_profile(role, partner, as_user):
             {"current_password": PASSWORD, "new_password": "brand-New-Pass-42"},
             format="json",
         ).status_code
-        == 204
+        == 200
     )
 
 
@@ -336,3 +341,89 @@ def test_user_administration_stays_with_the_administrator(role, partner, as_user
     user = _make(role, partner)
     expected = 200 if role == Role.SYSTEM_ADMIN else 403
     assert as_user(user).get("/api/v1/users/").status_code == expected
+
+
+# ---------------------------------------------------------------------------
+# Changing a password ends every other session
+# ---------------------------------------------------------------------------
+
+
+def _tokens_for(user):
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    refresh = RefreshToken.for_user(user)
+    return str(refresh.access_token), str(refresh)
+
+
+def test_a_token_issued_before_the_change_stops_working(person, api):
+    """The point of changing a password when you think you are compromised.
+
+    Before this, a stolen token outlived the change by up to its full window —
+    an hour for an access token, fourteen days for a refresh.
+    """
+    stolen, _ = _tokens_for(person)
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {stolen}")
+    assert api.get("/api/v1/users/me/").status_code == 200
+
+    # A minute later, not the same second: `iat` is whole seconds and the
+    # check allows one second of slack so a freshly issued token is not
+    # refused on its first use.
+    with freeze_time(timezone.now() + timedelta(minutes=1)):
+        person.set_password("brand-New-Pass-42")
+        person.save()
+
+    assert api.get("/api/v1/users/me/").status_code == 401
+
+
+def test_a_token_issued_after_the_change_works(person, api):
+    person.set_password("brand-New-Pass-42")
+    person.save()
+    fresh, _ = _tokens_for(person)
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {fresh}")
+    assert api.get("/api/v1/users/me/").status_code == 200
+
+
+def test_an_administrator_reset_also_cuts_off_stolen_sessions(person, api):
+    """The case that matters most is the one where the account holder is not
+    the one asking. The stamp is in `set_password`, so every route that resets
+    a password — the admin, the management command — ends other sessions too."""
+    stolen, _ = _tokens_for(person)
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {stolen}")
+    assert api.get("/api/v1/users/me/").status_code == 200
+
+    from django.core.management import call_command
+
+    with freeze_time(timezone.now() + timedelta(minutes=1)):
+        call_command("set_password", person.username, "--generate", verbosity=0)
+
+    assert api.get("/api/v1/users/me/").status_code == 401
+
+
+def test_the_device_that_changed_the_password_stays_signed_in(person, as_user):
+    """Signing someone out of the screen they just used correctly would teach
+    them not to use it."""
+    response = as_user(person).post(
+        "/api/v1/users/me/password/",
+        {"current_password": PASSWORD, "new_password": "brand-New-Pass-42"},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert set(response.data) == {"access", "refresh"}
+
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
+    assert client.get("/api/v1/users/me/").status_code == 200
+
+
+def test_accounts_that_have_never_changed_a_password_are_left_alone(person, api):
+    """A deployment must not sign the whole programme out.
+
+    Accounts predating the column have no stamp, so there is nothing to compare
+    against and their sessions stand.
+    """
+    User.objects.filter(pk=person.pk).update(password_changed_at=None)
+    token, _ = _tokens_for(person)
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    assert api.get("/api/v1/users/me/").status_code == 200

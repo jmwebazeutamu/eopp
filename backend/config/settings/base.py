@@ -150,7 +150,9 @@ AXES_LOCKOUT_PARAMETERS = ["ip_address", "username"]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # Refuses tokens issued before the password last changed, so changing
+        # a password signs other devices out. See apps/users/authentication.py.
+        "apps.users.authentication.PasswordChangeAwareJWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
