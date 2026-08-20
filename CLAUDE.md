@@ -387,8 +387,9 @@ Still genuinely open, because they need data that does not exist yet:
 - `vulnerability_index_score` methodology (§4.3).
 - `failure_reason_code` list — a starter pending frontline validation (§5.4).
 - Offline conflict resolution (§9, blocks Sprint 9).
-- `Placement.exit_reason` as an enum (OQ-5) and `is_subsidised` (OQ-3) — decided in
-  principle, but Placement lands in Sprint 5, so there is nothing to add them to.
+- ~~`Placement.exit_reason` as an enum (OQ-5) and `is_subsidised` (OQ-3)~~ — both
+  implemented in Sprint 5, on the entity that now exists. `psnp_client_category`
+  (OQ-4) is on Youth; its three values still need FSCO.
 - The seeded woredas are illustrative; the actual pilot woredas are a programme decision.
 
 Marked `# TODO(spec-gap)` rather than `# TODO(open-question)`: values the spec
@@ -423,9 +424,18 @@ These need validation, but they are not on the §11 list.
   exist; see the dashboard section below. Adds `apps/dashboard`,
   `GET /dashboard/`, `OutcomeType.counts_as_placement`, and
   `permissions.scope_queryset`.
-- **Sprint 5 — next.** Training Enrolment (§4.5) and Placement (§4.7) with the
-  30/60/90-day retention checkpoints, plus trainer and employer-liaison screens.
-  Landing it also fills the dashboard's two absent figures.
+- **Sprint 5 — done.** Training Enrolment (§4.5), Placement (§4.7) with the
+  30/60/90-day retention checkpoints and their reminders, the trainer and
+  employer-liaison screens, and the four dashboard cards that had been reporting
+  `available: false` since the dashboards were built. See the section below.
+- **Sprint 6 — done.** Enterprise (§4.8) with its milestones sub-table,
+  Follow-Up / Contact Log (§4.9) with referral outcome verification, Grievance
+  (§4.10), the enterprise-officer, M&E and grievance screens, and §4.13's last
+  undetected alert type. See the section below.
+- **Sprint 7 — next.** The §8 Metabase deliverable: nine analytical dashboards
+  against a read-only Postgres role, on port 8009. Note that the four-tier
+  React dashboard already built does **not** discharge it — see the dashboard
+  handoff section above.
 
 Later sprints: 6 enterprise/follow-up/grievance · 7 dashboards ·
 8–9 mobile · 10 hardening.
@@ -744,6 +754,478 @@ the door.
 - **Section 12 is the one to keep current.** It explains suppression bands,
   "too few to assess" and "not measurable yet" — the parts of the dashboards
   that read as faults until somebody explains that they are not.
+
+## The WLT group module (`backend/apps/wlt`, `web/src/pages/wlt/`)
+
+**A second programme on the same platform, not a later sprint of the first.**
+PSNP 6 Women's Livelihoods Transformation: 5,000 women in Self Help Groups of
+15-25, saving weekly, lending internally, maturing through four phases and
+federating into Cluster Level Associations. Its subject is a *group*; the youth
+domain's is a *person*. That difference is why it is a separate app and why it
+carries its own roles.
+
+`docs/wlt_module_handoff/` is the specification — read `START_HERE.md` first,
+then `DECISIONS.md`. **`BUILD_RESPONSE.md` in the same directory records what
+was built, every adaptation, and why each departure was made.** Read it before
+changing anything here; several of the differences from the bundled SQL are
+deliberate and each one changes a reported number.
+
+Sprint order (CLAUDE.md rule 1) does not apply to it: it is not in the youth
+spec's §10 at all. Stages 0-8 of the handoff's own sequence are built; stage 9
+(credit facility, federation) is schema and gates only, per its decision D8.
+
+### The load-bearing decisions
+
+- **Decision D4 is implemented in half, deliberately.** The referral *subject*
+  generalises exactly as D4 specifies — `referrals.Referral` now names a case, a
+  youth, an SHG, a CLA or a federation through typed nullable FK columns, an
+  exactly-one check constraint and a generated `subject_type`. The twelve-state
+  gated linkage *lifecycle* does not: it lives in `wlt.ServiceLinkage`, because
+  it shares no state with §6.2 but "active", and folding them into one status
+  field would have meant re-auditing every youth queryset, dashboard tier and
+  alert job for group-subject leakage.
+- **`Referral.objects.youth_side()` is the module boundary**, not an
+  optimisation. Every youth-side entry point goes through it: the referral
+  viewset, the dashboard scoping, all four alert jobs. A `Scope.ALL` user would
+  otherwise read a savings group's bank linkage on a screen built around a young
+  person. Add it to any new consumer of `Referral`.
+- **`ReferralCategory.allowed_subject_types` is a safeguarding control.** A
+  protection category permits `CASE` and `YOUTH` only, so a GBV disclosure can
+  never be created against a group or land on a group timeline. An **empty list
+  means CASE**, not "anything" — reading it as unrestricted would open the rule
+  the moment somebody cleared the field.
+- **Four WLT roles, all with `case_scope: NONE`.** `WLT_FACILITATOR`,
+  `WLT_WOREDA_OFFICER`, `WLT_REGION_OFFICER`, `WLT_FEDERAL_OFFICER`. That is how
+  "a facilitator who can see a group roster must not thereby see those women's
+  youth-side case files" becomes a property of `ACCESS_MATRIX` rather than of
+  every viewset that remembers. Every youth role has `group_scope: NONE` in
+  return, and both directions are tested on the same woman.
+- **Group scoping is `scope_group_queryset`**, keyed on `Group.facilitator` or
+  on `User.wlt_scope_location` — a nullable FK to any level of the hierarchy.
+  `woreda_assignment` stays what it is: woreda *names*, which cannot express a
+  region without re-listing every woreda in it. Fails closed, same as §7 scoping.
+- **A WLT member is a `youth.Youth` row.** Handoff decision D1: one identity, no
+  second person table. The model is named for the programme it was built for;
+  the age band is a warning rather than a constraint, so an adult PSNP woman
+  sits in it honestly.
+
+### Rules that will bite if you skip them
+
+- **Thresholds live in `wlt.PolicyParameter`, never in code.** Effective-dated
+  and geography-scoped, resolved by `wlt/policy.py` most-specific-place-first.
+  The source handbook states group size three ways and the CLA threshold two;
+  values will move mid-pilot. `FALLBACKS` in that module is the whole rule set in
+  one place, used only when the table has no row at all.
+- **Membership, office, bylaws and delegates are dated ranges, never flags.**
+  Every indicator computes against the roster as it stood *on each meeting date*
+  (`Group.roster_on`), and against the bylaw in force *then*. An `is_active`
+  boolean would drift from the dates within a month.
+- **The ledger is append-only and the till must reconcile**, enforced by
+  triggers in migration `wlt/0002_ledger_invariants` as well as in
+  `services/ledger.py`. That is a deliberate departure from "no business rules in
+  the database": the service layer is not the only writer — the admin, a data fix
+  and a future sync reconciler reach these tables too — and members sign the
+  paper register, so the digital record has to be defensible against it.
+  Corrections are reversals with a mandatory reason, never edits.
+- **A phase decision locks when it is decided, not when it is written.** The
+  bundle's `sql/002` blocks every UPDATE on `phase_event`, which would make a
+  submission impossible to approve. Here the trigger tests `OLD.decided_at IS
+  NOT NULL`, which is the property assertion A26 is actually about.
+- **Gates are evaluated at screening and again at approval**, on a subject
+  re-read from the database. A group can drift below threshold while an approval
+  sits in a queue, and re-evaluating from a stale in-memory instance is the same
+  bug as not re-evaluating at all.
+- **The system computes readiness; a human approves.** No job graduates a group.
+  The nightly tasks only observe: at-risk and dormancy are descriptions of the
+  data and clear themselves when it changes.
+
+### Four numbers that differ from the bundled `sql/004`, on purpose
+
+PAR30 references the **earliest unpaid instalment** rather than `loan.due_on`
+(the bundle's own punch list asks for this); fund adequacy is **converted to
+weeks by the group's cadence**, so a monthly group is not reported in months
+under a weeks-denominated threshold; a **completed loan cycle needs every loan
+in the batch settled**; and meeting adherence counts meetings **inside the
+window** rather than the last twelve whenever they happened — a group that
+stopped meeting in March otherwise reads 100%. All four are stated in
+`BUILD_RESPONSE.md` §3.
+
+### Layout and commands
+
+```
+apps/wlt/
+  models/     registry · formation · ledger · phase · structure · linkage · policy
+  services/   ALL business logic: enrolment, formation, ledger, indicators,
+              gates, phase, linkage, structure
+  policy.py   effective-dated, geography-scoped parameter resolution
+  api/        thin DRF viewsets; every status moves through an action, not a PATCH
+  reporting.py + migration 0004: eight materialized views, refreshed nightly
+```
+
+```bash
+$C exec web python manage.py seed_wlt_policy      # parameters, allocations, pilot sites
+$C exec web python manage.py seed_wlt_taxonomy    # linkage types + WLT referral categories
+$C exec web python manage.py refresh_wlt_reporting
+$C exec web pytest apps/wlt -q
+```
+
+Screens: `/wlt/groups`, `/wlt/groups/<id>` (**the readiness card** — every gate
+condition with the actual value beside the threshold, three states not two —
+and **the roster**), `/wlt/linkages` (**the blocked-gate screen**, which the
+handoff calls the most behaviour-changing in the module), `/wlt/cla-readiness`.
+API at `/api/v1/wlt/`.
+
+### The roster (`web/src/pages/wlt/GroupRoster.tsx`)
+
+Added 2026-08-20. The group screen had carried a member *count* and no names, so
+twenty women existed in the database with no screen that listed them, and none
+of the four WLT screens made a single write call. The services underneath were
+complete from stage 1 — this is the route and the panel over them.
+
+- **An exit closes a dated range; it never deletes a row.** A former member
+  stays on the screen with her date and her reason, and the panel says why in as
+  many words. Hide her and February's attendance changes when she leaves in
+  April, because the denominator is the roster as it stood at each meeting.
+- **`exit_member` had no route.** It was written, tested against A11 and never
+  reachable over HTTP, so the only way to close a membership was a shell. It is
+  now `POST /wlt/groups/{id}/members/{membership_id}/exit/`, and the membership
+  is looked up *through* the group so it inherits the group's scoping.
+- **The reason is mandatory in the route, not only in the check constraint.**
+  The constraint can only say "not blank". "Moved away" and "expelled" are
+  opposite programme outcomes and a group losing members to one is not the same
+  finding as a group losing them to the other.
+- **`BeneficiaryProfileQuerySet.unassigned()` was inverted, and had always
+  been.** `exclude(person__wlt_memberships__exited_on__isnull=True)` reads
+  correctly and compiles to a LEFT OUTER JOIN inside the subquery, so a woman
+  with *no* membership row gets a joined NULL, matches `exited_on IS NULL`, and
+  is excluded. Every profile in the database failed it — `candidate_pool()`
+  (backlog S1.5) returned nothing, for anyone, ever. Now an `Exists` subquery.
+- **The API's `candidates` action had the opposite bug** and did not filter
+  eligibility at all: `wlt_memberships__isnull=True` meant never in *any* group,
+  so an exit was permanent, and the pool offered women `add_member` then refused.
+  It now calls the same three queryset methods the service does.
+
+Still not built here: creating a group and closing one. `POST /wlt/groups/`
+exists but bypasses `open_draft`, so it skips the endorsement check — a group
+can be drafted from a mobilisation meeting the community refused. Closing a
+group has no action at all; `DELETE` is the wrong shape, because
+`GroupMembership.group` is `PROTECT` and dissolution is a status transition
+carrying a reason (`DISSOLVED` / `SPLIT` / `MERGED` / `ABANDONED` are all in
+`GroupStatus`).
+
+### The register, and the workflow through it (2026-08-20)
+
+**"Youth registry" is now "Beneficiary registry" on screen.** The registry holds
+two populations on one identity (decision D1): the young people the youth
+programme registered, and the adult PSNP women WLT enrolled. The `Youth` model
+keeps the name it was built with — renaming it would be a migration across every
+app for no gain — but the screen does not, because a facilitator looking for a
+fifty-year-old woman should not have to read "youth" and trust it.
+
+**The workflow is register → group → linkage, and its first step did not exist.**
+`YouthViewSet` is gated on `CanAccessCases` and every WLT role has
+`case_scope: NONE`, so no WLT account could create the `youth.Youth` row that
+`add_by_facilitator` needs. Decision D5's exception route stopped at its first
+step. The ELS import had the mirror problem: `import_batch` worked and had no
+parser, no template and no endpoint. Both routes are now reachable.
+
+- **`POST /wlt/profiles/register/` writes the person and her profile together.**
+  This does not breach the module boundary and the distinction is the point:
+  registering somebody is not reading their case file. She still gets 403 on
+  every case route, which `test_boundary` pins and `test_enrolment_api` re-pins
+  from the other side. `import_row` already created `Youth` rows on the same
+  reasoning.
+- **The place is a kebele, by `code`.** Region, zone and woreda are derived
+  server-side — a hand-typed woreda that disagrees with its kebele scopes to one
+  place and reports in another. `code` because that is what the locations API
+  emits and looks up on; its integer pk appears nowhere a client can see.
+- **`CanEnrolBeneficiaries` is a permission, not a widening.** A woreda officer
+  has `group_write: False` on purpose — meetings and the ledger belong to the
+  facilitator who was in the room — but she is the person who *holds* the ELS
+  extract, and a facilitator's scope is the kebeles of groups she already runs,
+  so she cannot seed the first one. Gating enrolment on `group_write` left the
+  extract importable by nobody who has one. Same shape as `delivery_write`: §7's
+  write column did not fit the person doing the work, so the permission is named
+  for the work rather than stretched to cover it.
+- **A name match never refuses a registration.** Rule 2 forbids turning a fuzzy
+  match into a decision, and two women in one kebele really can share a name.
+  Only the PSNP client id refuses. The check that matters is at group assignment,
+  where one open membership per person is a database constraint.
+- **A row whose cells cannot be read is rejected, not half-imported.** Dropping
+  the bad cell and importing anyway would register a woman with no birth date —
+  a record nothing downstream ever calls incomplete. She is named against her
+  sheet row, and reported separately from rows queued for a woreda officer:
+  those are different problems with different owners.
+- **`read_rows` and `build_template` in `apps/youth/imports.py` now take a column
+  set.** The ELS extract is a different sheet with identical problems, and a
+  second copy of that parser would drift. `coerce_row` was extracted at the same
+  time — `read_rows` returns *raw* cells, which is how the extract first arrived
+  with `None` in every blank cell.
+
+**`GET /wlt/profiles/{id}/journey/` is the four stages, read forwards.** The
+stages existed only as services that refuse things: a facilitator learned a woman
+was ineligible at the moment she tried to seat her, and was told *that* she was
+refused rather than which condition was the problem. `services/journey.py`
+assembles the same refusals using the gate vocabulary the readiness card renders.
+
+- **Four states per stage, not two.** `waiting` is not `blocked`: verification is
+  a woreda officer's judgement, and a facilitator reading "blocked" would go
+  looking for something to fix that is not hers. Only `ready` carries a button.
+- **The threshold shows only where it is still wanted.** Most conditions here are
+  yes/no, and "Yes (need Yes)" says nothing while wrapping the rows that do need
+  reading at 360px. The readiness card shows thresholds always because its values
+  are quantitative.
+- **A linkage type her group cannot reach yet is named with the phase it needs**,
+  not omitted. "Savings account — needs Phase 2, group is at Phase 1" answers the
+  question an empty list provokes.
+- It computes on request, like the readiness card, so an exit or a verification
+  shows immediately.
+
+Screens: `/wlt/beneficiaries` (the register, with both enrolment routes) and
+`/wlt/beneficiaries/<profile>` (the journey). The rail lists them first, in
+workflow order.
+
+### The largest gap
+
+**Offline sync is not built, and it is on the critical path.** Open question Q3
+asks whether the core has a sync layer; it does not. What exists is everything
+that makes one possible without reopening the module — client-generated meeting
+UUIDs, `device_id` and `synced_at` provenance, an append-only ledger, and
+`wlt.SyncConflict`, which keeps a rejected duplicate meeting exactly as the
+device sent it for a facilitator to resolve. **Financial records are never
+auto-merged.** What is missing is the client, the queue and the delta protocol.
+Afar and Somali were selected for weak infrastructure, so this is not a
+deferrable nicety.
+
+## Training and placement (`apps/training`, `apps/placements`) — Sprint 5
+
+§4.5 Training Enrolment and §4.7 Placement, with the 30/60/90-day retention
+checkpoints. Landing them filled four cards that had read "not built yet" since
+the dashboards were written, and resolved the §7 LINKED scope for two roles that
+had carried it since Sprint 0 with nothing to be linked through.
+
+### The decisions worth keeping
+
+- **A placement count and a placement record are different numbers, and both are
+  reported.** `Referral.objects.placements()` is still *the* definition of a
+  referral that ended in a job, and the funnel and loop-closure figures read it.
+  `Placement` rows are what a person wrote up, and they include a youth who
+  found work without a referral and exclude an outcome nobody has written up
+  yet. `dashboard.outcomes.placement_coverage` reports the gap. Merging the two
+  would have been tidier and would have produced a headline that moves when a
+  data-entry backlog moves.
+- **Nothing auto-creates a placement from a referral outcome.** §4.7 marks
+  employer, sector, type and date all required, and a referral outcome carries
+  none of them — an auto-created row would be four invented fields wearing the
+  authority of a record. `services.backfill_from_referral_outcomes` **reports**
+  the missing ones, the same way the alert engine raises a prompt and stops.
+- **The three checkpoints open with the placement**, as `PENDING` rows. A
+  checkpoint that exists only as arithmetic between today and a placement date
+  cannot be listed, counted or assigned, and every screen would recompute it.
+- **An exit closes the outstanding checks**, answering each from the date she
+  left: a checkpoint that fell due before the exit was genuinely retained then.
+  Answering all three as "exited" would understate 30-day retention for a youth
+  who held the job two months.
+- **`UNREACHABLE` is an answer, not a gap.** At 90 days a real share of youth
+  cannot be contacted. Counting them as "not retained" overstates loss; as
+  retained, overstates success. It is banded separately in every figure.
+- **The retention denominator is answered checks, not placements.** Divide by
+  placements and the rate falls every time the programme places somebody new —
+  a figure that drops when the programme succeeds.
+- **A failed assessment is not a dropout.** She attended to the end. It sits in
+  the completion rate's denominator and not its numerator, and filing it as a
+  dropout would hide an assessment problem that belongs to the provider.
+
+### Two open questions closed here, and one that could not be
+
+Both were on the list of schema changes that had to land **before** the first
+placement was recorded or the first cohort would be permanently unreportable:
+
+| Question | Implemented as |
+|---|---|
+| `is_subsidised` (OQ-3) | A flag on Placement. The reported anchor is "unsubsidised", and a placement whose wage the programme pays cannot be told apart afterwards. |
+| `Placement.exit_reason` as an enum (OQ-5) | Eight values, ordered from the outcome the programme wants to the one it does not. "Left for a better job" and "dismissed" are opposite results, and §4.7's free text could not tell a report which had happened. A check constraint refuses an exit with no reason. |
+| `psnp_client_category` (OQ-4) | Added to Youth, optional, three values following PSNP 4/5 practice and marked `TODO(open-question)` — the enumeration still needs FSCO. |
+
+### Delivery records come from referrals, gated by category (2026-08-20)
+
+Training enrolments (§4.5), placements (§4.7) and enterprise records (§4.8) all
+require a `source_referral` on create, and **which referrals qualify is three
+flags on the category row**: `ReferralCategory.creates_training_enrolment`,
+`creates_placement`, `creates_enterprise`.
+
+- **Not lists of codes.** They replaced `TRAINING_REFERRAL_CATEGORY_CODES`,
+  `PLACEMENT_REFERRAL_CATEGORY_CODES` and `ENTERPRISE_REFERRAL_CATEGORY_CODES`
+  in the three apps' `models.py`. §9 makes the taxonomy the administrator's to
+  extend, and a tuple meant a category she added — "Vocational Training", a
+  coaching partner that incubates businesses — silently could not open the
+  record, with nothing on screen to say why and no fix short of a deploy. Same
+  reasoning as `exempt_from_parallel_cap` and `counts_as_placement`. Migrations
+  `referrals/0010` and `0012` turn the flags on for exactly the codes the tuples
+  named, so no existing database changes behaviour.
+- **`<record>_referral_error()` is the single definition** in each app, called by
+  the service, the serializer and `Model.clean`. The serializer is the one that
+  matters: where `perform_create` calls `serializer.save()`, a `ModelSerializer`
+  does **not** run `full_clean`, so a rule stated only in `clean()` is not
+  enforced over the API at all. That was live on **training and enterprises** —
+  both proved by removing the serializer check and watching a wrong-category
+  referral through. Placements already saved through the service and were safe;
+  a test pins it now, because `perform_create` is one edit away from the other
+  shape. Do not let the three callers drift apart.
+- **The case is the referral's, never the client's.** The serializer derives it
+  and refuses a mismatch, the same way `Case.woreda` is read-only.
+- **Validation runs on add, not on every save.** Records written before this rule
+  are still valid rows; re-validating them would make them uneditable rather
+  than merely historical.
+- **`CATEGORIES` in `seed_referral_taxonomy` is keyed, not positional.** The row
+  carries five flags now, and an eight-element tuple is read by counting commas
+  — which is how a flag lands on the wrong category. Omitted flags are False,
+  and every flag is written on every row so a hand-set value is reset to the
+  seeded default rather than kept silently.
+- **`TrainingEnrolment.objects.awaiting_onward_prompt` is now a legacy sweep.**
+  It covers enrolments with no source referral — "a youth put into a course
+  directly" — which no new row can be. Kept rather than deleted: those rows
+  exist, and their youth still need a next step. It raises nothing on a database
+  seeded after this date, and `alerts.generate_training_onward_prompts` says so.
+  The referral-side prompt covers everything else, which is what stops the two
+  jobs raising one prompt twice.
+
+**CM-4's "three consecutive training absences" is still uninstrumented**, and
+now for a different reason: §4.5 asks for an attendance *rate*, and the platform
+has no session-level register. A rate cannot answer the question, and putting
+the condition's name on it would be a wrong label on a right number. The
+condition it replaced — "left a placement with no exit reason" — is now
+**unreachable rather than uninstrumented**, because the check constraint refuses
+that state.
+
+### `delivery_write` — a fifth key in ACCESS_MATRIX
+
+§7 gives an employer liaison LINKED case scope and **no case write**, and she is
+the person who records the placement and makes the 30/60/90-day calls. Gating
+those writes on `case_write` left her looking at a queue she could not action.
+
+`delivery_write` is that permission: true for the case manager, the trainer, the
+employer liaison, the enterprise officer and the administrator; false for every
+role that reads a programme rather than delivering it. It does **not** widen
+case access — an employer liaison still cannot edit a case record.
+
+### The LINKED scope finally resolves
+
+`LINKED_THROUGH` in `apps/users/permissions.py` maps a role to the entity it is
+linked through: a trainer to the enrolments she recorded, an employer liaison to
+the placements she recorded. The lookup is written relative to a **Case**, and
+every viewset over some other model declares `linked_case_prefix` — the path
+back to the case.
+
+**A viewset that omits it raises `FieldError` rather than returning a wrong
+answer**, which is the right way round for a scoping bug, and it is how the
+alerts, cases and youth viewsets were caught: before Sprint 5 the LINKED branch
+returned `none()` for every role that could reach them, so the missing
+declaration was invisible.
+
+### Commands
+
+```bash
+$C exec web python manage.py seed_demo_sprint5            # 12 enrolments, 12 placements
+$C exec web python manage.py seed_demo_sprint5 --refresh  # delete and rebuild
+$C exec web pytest apps/training apps/placements -q
+```
+
+Screens: `/training` (the trainer's queue — **overdue courses lead the sort**,
+because until the outcome is recorded the youth is neither in training nor
+ready for a next step) and `/placements` (the employer liaison's, where the
+**due-checks queue is the screen** and the placement list is behind a tab).
+
+## Enterprise, follow-up and grievance — Sprint 6
+
+`apps/enterprises` (§4.8), `apps/followups` (§4.9), `apps/grievances` (§4.10).
+Landing them closed the last §4.13 alert type without a detector, instrumented
+the last of CM-4's four conditions that could be instrumented, and resolved the
+last §7 LINKED role.
+
+### The one that matters most: verification
+
+§8.3 makes the **externally verified** subset of outcomes the reportable
+headline. That subset was always computable — and there was no way to *move* an
+outcome into it. `verification_source` was a field somebody typed, so the
+difference between the recorded placement rate and the reportable one was a
+permanent shortfall rather than a queue.
+
+`followups.services.verify_referral_outcome` is the route §6.2 always described
+("outcome recorded and verified via follow-up visit"). It refuses three things,
+each of which was reachable before it existed: a follow-up naming no referral, a
+follow-up that **did not reach the youth**, and a referral with no recorded
+outcome. It stamps source, verifier and method together, because those three
+drifted apart when each was set by hand on a different screen.
+
+`verification_source` is now read-only on the referral serializer for the same
+reason `status` is. `/verification` is the M&E screen that works the queue.
+
+### Decisions worth keeping
+
+- **A grievance's `case` is nullable, and everything follows from that.** §4.10
+  makes it optional; a complaints channel that only accepts complaints from
+  people already on file is not a channel. So a grievance carries its **own
+  woreda** and scopes by place rather than by caseload — a supervisor must see a
+  complaint about a partner in her woreda whether or not it names her youth.
+- **Sensitive complaints are narrowed further.** Safeguarding and staff conduct
+  are visible only to the assigned staff member and the administrator, because
+  the person complained about may be the supervisor who would otherwise read it.
+  `GrievanceQuerySet.visible_to` is the one place that decides it.
+- **`RESOLVED` and `CLOSED` are not the same**, and §4.10 is right to separate
+  them. Resolved means something was done; closed means the file is shut, which
+  also happens when a complainant withdraws. Folding them would inflate the
+  resolution rate with every complaint nobody could pursue. Resolving requires
+  saying what was done — in the service and in a check constraint.
+- **A grant disbursed is not a business trading**, and trading is not surviving.
+  Three separate fields, three separate counts, and only the third is an
+  outcome. `record_disbursement` refuses money against an unapproved plan.
+- **A missed milestone is recorded, never deleted.** A plan whose missed
+  milestones vanish reads as a plan that went well.
+- **The contact log is append-only through the API** (no PATCH, no DELETE). An
+  attempt that can be edited afterwards is not evidence of anything, including
+  the four failures CM-4 counts.
+- **"Reached, not engaged" is not a failed contact.** She answered and declined;
+  the case manager knows where she stands. Only `NO_RESPONSE` and `UNREACHABLE`
+  count toward the at-risk condition.
+
+### CM-4 is now three of four
+
+The at-risk queue checks a stalled case **or** a youth with four or more failed
+contact attempts in the current episode. The subquery is inlined into the scoped
+statement rather than materialised, for two reasons that are both tests in
+`apps/dashboard`: a `set()` cost a second round trip and broke the Tier 1 page's
+12-query budget, and the AST scoping guard refuses any `.objects` that is not
+narrowing a scoped base in the same statement.
+
+The fourth condition — "3 consecutive training absences" — stays uninstrumented
+and stays named on the card. §4.5 records an attendance *rate*, not a register,
+and a rate cannot answer it.
+
+### Three new thresholds, all unagreed
+
+`FOLLOW_UP_DUE_DAYS` (14), `GRIEVANCE_RESPONSE_DAYS` (21) and
+`FAILED_CONTACT_ATTEMPTS_AT_RISK` (4). Only the last comes from the spec — §5
+says "4+". The other two are working defaults marked `TODO(open-question)` and
+want the same conversation the confirmation threshold had on 2026-08-18.
+
+The **Follow-Up Due condition itself** is also undefined by the spec, which names
+the alert type and stops. The working definition lives in
+`followups.services.awaiting_follow_up`: an Active referral past the threshold
+with no contact attempt recorded against it since. It is written there, not in
+the job, so the screen and the inbox read the same one.
+
+### Commands
+
+```bash
+$C exec web python manage.py seed_demo_sprint6            # 8 enterprises, 21 contacts, 4 grievances
+$C exec web python manage.py seed_demo_sprint6 --refresh
+$C exec web pytest apps/enterprises apps/followups apps/grievances -q
+```
+
+Screens: `/enterprises` (the officer's — **awaiting disbursement leads**, because
+that delay is the programme's), `/verification` (M&E's two queues) and
+`/grievances` (**overdue leads**, for the same reason).
 
 ## Definition of Done (spec §10.1)
 

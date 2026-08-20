@@ -13,12 +13,21 @@ import { buildNav } from "./navModel";
  * What the phone bar carries, and what it moves out of the way.
  *
  * The bar used to carry every nav item — seven at the widest — across 390px,
- * which gave each 55px and made "Youth registry" wrap to two lines at 9px.
+ * which gave each 55px and made "Beneficiary registry" wrap to two lines at 9px.
  */
 
 function renderBar(role: Role, access = {}, pathname = "/cases") {
   const user = testUser(role, {
-    access: { case_scope: "OWN_CASELOAD", case_write: true, referral_scope: "OWN_CASELOAD", referral_write: true, ...access },
+    access: {
+      case_scope: "OWN_CASELOAD",
+      case_write: true,
+      referral_scope: "OWN_CASELOAD",
+      referral_write: true,
+      group_scope: "NONE",
+      group_write: false,
+      delivery_write: false,
+      ...access,
+    },
   });
   render(
     <MemoryRouter>
@@ -46,10 +55,10 @@ describe("MobileTabBar", () => {
   it("shortens the registry label so nothing wraps at 360px", async () => {
     renderBar("CASE_MANAGER");
     // Not on the bar — in the sheet, and shortened there too.
-    expect(barLabels()).not.toContain("Youth registry");
+    expect(barLabels()).not.toContain("Beneficiary registry");
     await userEvent.click(screen.getByRole("button", { name: /More/ }));
-    expect(await screen.findByRole("button", { name: "Youth" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Youth registry" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "People" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Beneficiary registry" })).toBeNull();
   });
 
   it("puts only the role's first dashboard tier on the bar", () => {
@@ -64,7 +73,15 @@ describe("MobileTabBar", () => {
   it("holds the rest, the language switch and sign out in the More sheet", async () => {
     const signOut = vi.fn();
     const user = testUser("SYSTEM_ADMIN", {
-      access: { case_scope: "ALL", case_write: true, referral_scope: "ALL", referral_write: true },
+      access: {
+        case_scope: "ALL",
+        case_write: true,
+        referral_scope: "ALL",
+        referral_write: true,
+        group_scope: "NONE",
+        group_write: false,
+        delivery_write: false,
+      },
     });
     render(
       <MemoryRouter>

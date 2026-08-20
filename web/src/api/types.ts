@@ -16,7 +16,14 @@ export type Role =
   | "SUPERVISOR"
   | "PROGRAMME_MANAGER"
   | "MNE_STAFF"
-  | "SYSTEM_ADMIN";
+  | "SYSTEM_ADMIN"
+  // WLT group module (PSNP 6 Women's Livelihoods Transformation). A separate
+  // programme with a separate subject, so it carries its own roles rather than
+  // overloading the supervisor's — see apps/wlt and docs/wlt_module_handoff/.
+  | "WLT_FACILITATOR"
+  | "WLT_WOREDA_OFFICER"
+  | "WLT_REGION_OFFICER"
+  | "WLT_FEDERAL_OFFICER";
 
 export type CaseStatus = "ACTIVE" | "STALLED" | "REFERRAL_PENDING" | "PLACED" | "EXITED";
 
@@ -26,6 +33,15 @@ export interface AccessMatrix {
   case_write: boolean;
   referral_scope: string;
   referral_write: boolean;
+  /** WLT group visibility. "NONE" for every youth-side role. */
+  group_scope: string;
+  group_write: boolean;
+  /**
+   * May this account record what a service delivered — a training enrolment, a
+   * placement, a retention check. Deliberately not `case_write`: §7 gives an
+   * employer liaison no case write and she is the person who makes the calls.
+   */
+  delivery_write: boolean;
 }
 
 export interface CurrentUser {
@@ -240,7 +256,6 @@ export const ROLE_OPTIONS: { value: Role; label: string }[] = [
 export const WOREDA_SCOPED_ROLES: Role[] = ["OUTREACH_WORKER", "CASE_MANAGER", "SUPERVISOR"];
 
 // --- Sprint 3: referral engine (spec §4.6, §5, §6) -------------------------
-
 export type ReferralStatusCode =
   | "PENDING_CONFIRMATION"
   | "ACTIVE"
@@ -305,6 +320,11 @@ export interface Referral {
   outcome_type_label: string | null;
   outcome_date: string | null;
   outcome_verification_method: string;
+  /**
+   * OQ-2. Anything but self-reported counts as externally verified, which is
+   * what §8.3 reports. Moved only by a follow-up that reached the youth.
+   */
+  verification_source: string;
   failure_reason_code: string | null;
   failure_reason_label: string | null;
   failure_date: string | null;
@@ -372,7 +392,6 @@ export interface AlertSummary {
   assigned_to_me: number;
   by_type: { alert_type: AlertTypeCode; label: string; count: number }[];
 }
-
 
 /**
  * Alert types whose detection job arrives with its source entity: Follow-Up
@@ -797,4 +816,424 @@ export interface DonorDashboard {
   retention: { available: false; reason: string };
   caveats: string[];
   as_of: string;
+}
+
+// ---------------------------------------------------------------------------
+// WLT group module
+// ---------------------------------------------------------------------------
+
+export type WltGroupStatus =
+  "DRAFT" | "CONSTITUTED" | "ACTIVE" | "AT_RISK" | "DORMANT" | "SPLIT" | "MERGED" | "DISSOLVED" | "ABANDONED";
+
+export type WltPhase = "P1" | "P2" | "P3" | "P4" | "";
+
+export type LinkageStatus =
+  | "PROPOSED"
+  | "SCREENED"
+  | "BLOCKED"
+  | "PENDING_APPROVAL"
+  | "RETURNED"
+  | "APPROVED"
+  | "REJECTED"
+  | "LAPSED"
+  | "ACTIVE"
+  | "DISTRESSED"
+  | "DEFAULTED"
+  | "CLOSED";
+
+export interface WltGroup {
+  id: string;
+  name: string;
+  kebele: string;
+  kebele_name: string;
+  facilitator: string;
+  facilitator_name: string;
+  status: WltGroupStatus;
+  status_display: string;
+  current_phase: WltPhase;
+  phase_display: string;
+  drafted_on: string;
+  constituted_on: string | null;
+  activated_on: string | null;
+  phase_entered_on: string | null;
+  members_current: number;
+}
+
+/** Why a woman left a group — `wlt.ExitReason`. */
+export type WltExitReason =
+  "MOVED" | "MARRIED_OUT" | "DIED" | "WITHDREW" | "EXPELLED" | "PSNP_EXIT" | "GROUP_SPLIT" | "";
+
+/**
+ * One membership: a dated range, never a flag.
+ *
+ * `exited_on === null` is the only definition of "current" — there is no
+ * `is_active` here for the same reason there is none on the model. Every
+ * indicator computes against the roster as it stood on a given date, and a
+ * boolean drifts from the dates within a month.
+ */
+export interface WltGroupMembership {
+  id: string;
+  group: string;
+  person: string;
+  full_name: string;
+  joined_on: string;
+  exited_on: string | null;
+  exit_reason: WltExitReason;
+  exit_reason_display: string;
+  exit_note: string;
+}
+
+/**
+ * A woman the facilitator may add — eligible, verified and not currently in a
+ * group. The pool carries literacy and device access because the "at least one
+ * member with a device" rule is unenforceable if the screen cannot show who
+ * has one.
+ */
+export interface WltCandidate {
+  id: string;
+  person: string;
+  full_name: string;
+  psnp_client_id: string;
+  primary_iga: string;
+  literacy_level: string;
+  has_device: boolean;
+  is_programme_eligible: boolean;
+  is_assignable: boolean;
+}
+
+/** How far a woman has come, and what the next step needs. */
+export type JourneyStageCode = "REGISTERED" | "VERIFIED" | "GROUPED" | "LINKED";
+
+/**
+ * Four states, not two.
+ *
+ * `blocked` and `waiting` call for different things from the facilitator most
+ * likely to be reading the screen: one is her move, the other is a woreda
+ * officer's. Only `ready` carries a button.
+ */
+export type JourneyStageState = "done" | "ready" | "waiting" | "blocked";
+
+export interface JourneyCondition {
+  code: string;
+  label: string;
+  threshold: string | null;
+  actual: string | null;
+  met: boolean;
+  unit: string;
+  unmeasurable: boolean;
+}
+
+export interface JourneyStage {
+  code: JourneyStageCode;
+  label: string;
+  state: JourneyStageState;
+  conditions: JourneyCondition[];
+  detail: Record<string, unknown>;
+}
+
+export interface Journey {
+  person: string;
+  profile: string;
+  full_name: string;
+  stages: JourneyStage[];
+  stages_done: number;
+  stages_total: number;
+  /** The first stage that is not done — what the screen leads with. Null when all four are. */
+  next_action: JourneyStage | null;
+}
+
+export type WltVerificationStatus = "PENDING" | "VERIFIED" | "REJECTED";
+
+export type WltEnrolmentRoute = "IMPORT" | "FACILITATOR";
+
+/** A row on the WLT register. `person` is the `youth.Youth` id (handoff D1: one identity). */
+export interface WltBeneficiary {
+  id: string;
+  person: string;
+  full_name: string;
+  psnp_client_id: string;
+  // Integer primary keys, not codes: this serializer emits the FK directly,
+  // unlike the locations API which is keyed on `code` throughout.
+  psnp_woreda: number | null;
+  psnp_kebele: number | null;
+  els_completed_on: string | null;
+  els_grant_received_on: string | null;
+  primary_iga: string;
+  literacy_level: string;
+  digital_literacy: string;
+  has_device: boolean;
+  household_head: boolean;
+  enrolment_route: WltEnrolmentRoute;
+  verification_status: WltVerificationStatus;
+  verification_note: string;
+  verified_on: string | null;
+  is_programme_eligible: boolean;
+  is_assignable: boolean;
+}
+
+/** What `POST /wlt/profiles/import/` reports back. Not all-or-nothing, by design. */
+export interface WltImportReport {
+  batch: string;
+  outcomes: { linked: number; queued: number; created: number; skipped: number };
+  errors: { row: number; error: string }[];
+  /** Rows whose cells could not be read at all — never imported, named by sheet row. */
+  unreadable: { row: number; errors: Record<string, string[]> }[];
+}
+
+/**
+ * One gate condition.
+ *
+ * `threshold` and `actual` always travel together — that is the rule the
+ * readiness card exists for. "Attendance 74% (need 80%)" changes what a
+ * facilitator does next week; a red dot does not. `unmeasurable` separates
+ * "below the line" from "no denominator yet", which are different instructions.
+ */
+export interface GateCondition {
+  code: string;
+  label: string;
+  threshold: string | number | boolean | null;
+  actual: string | number | boolean | null;
+  met: boolean;
+  unmeasurable: boolean;
+  /** "%" or empty. The handoff's own example carries the sign. */
+  unit: string;
+}
+
+export interface GateResult {
+  gate_set: string;
+  passed: boolean;
+  conditions: GateCondition[];
+  policy_version_id: string;
+  computed_at: string;
+}
+
+export interface WltRiskFlag {
+  id: string;
+  subject_type: string;
+  subject_id: string;
+  reason_code: string;
+  raised_on: string;
+  cleared_on: string | null;
+}
+
+export interface WltReadiness {
+  group: WltGroup;
+  gate: GateResult | null;
+  indicators: Record<string, string | number | boolean | null | string[]>;
+  risk_flags: WltRiskFlag[];
+  computed_at: string;
+}
+
+export interface ServiceLinkage {
+  id: string;
+  linkage_type: string;
+  type_label: string;
+  provider: string | null;
+  provider_name: string | null;
+  subject_type: string;
+  subject_name: string | null;
+  status: LinkageStatus;
+  status_display: string;
+  opened_on: string;
+  activated_on: string | null;
+  /** What the subject still needs, in sentences. Empty unless BLOCKED. */
+  block_reasons: string[];
+}
+
+export interface ClaReadinessRow {
+  kebele_id: number;
+  kebele: string;
+  eligible_groups: number;
+  threshold: number;
+  groups_short: number;
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 5 — Training Enrolment (§4.5) and Placement (§4.7)
+// ---------------------------------------------------------------------------
+
+export type TrainingType = "LIFE_SKILLS" | "TVET";
+
+export type TrainingCompletionStatus = "ENROLLED" | "COMPLETED" | "DROPPED_OUT" | "FAILED_ASSESSMENT";
+
+export interface TrainingEnrolment {
+  id: string;
+  case: string;
+  youth_name: string;
+  woreda: string;
+  training_type: TrainingType;
+  training_type_display: string;
+  trade_or_skill_area: string;
+  training_provider: string;
+  provider_name: string;
+  enrolment_date: string;
+  start_date: string;
+  end_date: string;
+  attendance_rate: string | null;
+  completion_status: TrainingCompletionStatus;
+  completion_status_display: string;
+  completion_date: string | null;
+  assessment_result: string;
+  certificate_status: string;
+  dropout_flag: boolean;
+  dropout_date: string | null;
+  dropout_reason: string;
+  source_referral: string | null;
+  /** §4.5, System-set on completion. What raises the onward-referral prompt. */
+  triggers_onward_referral: boolean;
+  onward_referral: string | null;
+  recorded_by_name: string;
+  /** Still open past its scheduled end date — what the trainer's queue sorts on. */
+  is_overdue: boolean;
+  days_in_training: number;
+  notes: string;
+}
+
+export type PlacementTypeCode = "JOB" | "APPRENTICESHIP";
+
+export type RetentionStatusCode = "PENDING" | "RETAINED" | "EXITED" | "UNREACHABLE";
+
+export interface RetentionCheck {
+  id: string;
+  placement: string;
+  /** 30, 60 or 90 — §4.7's three checkpoints. */
+  checkpoint: number;
+  due_date: string;
+  status: RetentionStatusCode;
+  status_display: string;
+  checked_on: string | null;
+  checked_by_name: string | null;
+  note: string;
+  is_overdue: boolean;
+}
+
+export interface Placement {
+  id: string;
+  case: string;
+  youth_name: string;
+  woreda: string;
+  source_referral: string | null;
+  employer_name: string;
+  sector: string;
+  placement_type: PlacementTypeCode;
+  placement_type_display: string;
+  placement_date: string;
+  wage_amount: string | null;
+  contract_type: string;
+  contract_duration: string;
+  /** OQ-3. A subsidised placement is excluded from the reported retention anchor. */
+  is_subsidised: boolean;
+  exit_date: string | null;
+  exit_reason: string;
+  exit_reason_display: string;
+  exit_note: string;
+  recorded_by_name: string;
+  retention_checks: RetentionCheck[];
+  days_held: number;
+  is_open: boolean;
+  notes: string;
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 6 — Enterprise (§4.8), Follow-Up (§4.9), Grievance (§4.10)
+// ---------------------------------------------------------------------------
+
+export type BusinessPlanStatus =
+  "NOT_STARTED" | "DRAFTED" | "UNDER_REVIEW" | "REVISION_REQUESTED" | "APPROVED" | "REJECTED";
+
+export type MilestoneStatusCode = "PENDING" | "ACHIEVED" | "MISSED" | "CANCELLED";
+
+export interface EnterpriseMilestone {
+  id: string;
+  enterprise: string;
+  milestone_name: string;
+  target_date: string;
+  completion_date: string | null;
+  status: MilestoneStatusCode;
+  status_display: string;
+  note: string;
+  is_overdue: boolean;
+}
+
+export interface Enterprise {
+  id: string;
+  case: string;
+  youth_name: string;
+  woreda: string;
+  source_referral: string | null;
+  business_name: string;
+  sector: string;
+  business_plan_status: BusinessPlanStatus;
+  plan_status_display: string;
+  support_type: string;
+  support_type_display: string;
+  grant_or_loan_amount: string | null;
+  disbursement_date: string | null;
+  mentorship_sessions_count: number;
+  business_registration_status: string;
+  market_linkage_status: string;
+  market_linkage_display: string;
+  started_trading_on: string | null;
+  closed_on: string | null;
+  closure_reason: string;
+  recorded_by_name: string;
+  milestones: EnterpriseMilestone[];
+  milestones_achieved: number;
+  milestones_overdue: number;
+  /** Money or goods actually reached her. Not the same as an approved plan. */
+  has_support: boolean;
+  is_open: boolean;
+  notes: string;
+}
+
+export type ContactOutcomeCode = "REACHED_ENGAGED" | "REACHED_NOT_ENGAGED" | "NO_RESPONSE" | "UNREACHABLE";
+
+export interface FollowUp {
+  id: string;
+  case: string;
+  youth_name: string;
+  woreda: string;
+  related_referral: string | null;
+  attempt_date: string;
+  contact_method: string;
+  contact_method_display: string;
+  contact_outcome: ContactOutcomeCode;
+  contact_outcome_display: string;
+  re_engagement_status: string;
+  pathway_revision_flag: boolean;
+  conducted_by_name: string;
+  reached_the_youth: boolean;
+  notes: string;
+}
+
+export type GrievanceStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+
+export interface Grievance {
+  id: string;
+  case: string | null;
+  youth_name: string | null;
+  related_referral: string | null;
+  about_partner: string | null;
+  partner_name: string | null;
+  woreda: string;
+  complaint_type: string;
+  complaint_type_display: string;
+  raised_by: string;
+  raised_by_display: string;
+  complainant_name: string;
+  complainant_contact: string;
+  summary: string;
+  date_raised: string;
+  assigned_staff: string;
+  assigned_staff_name: string;
+  resolution_status: GrievanceStatus;
+  status_display: string;
+  resolution_date: string | null;
+  resolution_notes: string;
+  /** Feeds the partner performance panel — §4.11's qualitative counterpart. */
+  referral_quality_feedback_flag: boolean;
+  days_open: number;
+  is_open: boolean;
+  /** Safeguarding or staff conduct: visible to the assignee and the admin only. */
+  is_sensitive: boolean;
 }

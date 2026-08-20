@@ -65,6 +65,22 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
     ...(hasCases ? [{ ...item("/alerts", "nav.alerts", ICON_PATHS.alerts), badgeCount: options.openAlerts }] : []),
   ];
 
+  // Sprint 5. Offered to anyone with case content, because the two screens are
+  // scoped server-side: a trainer sees the enrolments she recorded, a case
+  // manager her caseload's, a supervisor her woreda's. Hiding an item does not
+  // secure it; this only avoids offering a screen that would come back empty.
+  const delivery: NavItem[] = hasCases
+    ? [
+        item("/training", "nav.training", ICON_PATHS.cases),
+        item("/placements", "nav.placements", ICON_PATHS.partners),
+        // Sprint 6. Same reasoning as the two above: scoped server-side, so an
+        // enterprise officer sees her own records and a supervisor her woreda's.
+        item("/enterprises", "nav.enterprises", ICON_PATHS.partners),
+        item("/verification", "nav.verification", ICON_PATHS.queue),
+        item("/grievances", "nav.grievances", ICON_PATHS.alerts),
+      ]
+    : [];
+
   const directory: NavItem[] = [
     ...(hasCases ? [item("/youth", "nav.registry", ICON_PATHS.registry)] : []),
     item("/partners", "nav.partners", ICON_PATHS.partners),
@@ -73,11 +89,31 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
     ...(user.role === "SYSTEM_ADMIN" ? [item("/users", "nav.users", ICON_PATHS.users)] : []),
   ];
 
+  // The WLT group module. Its own section rather than entries under Work,
+  // because it is a second programme with a second subject: these screens are
+  // about savings groups, and the roles that see them see no case content at
+  // all. `group_scope` is the same server-resolved matrix row the case items
+  // read, so the boundary is stated once.
+  const hasGroups = user.access.group_scope !== "NONE";
+  const wlt: NavItem[] = hasGroups
+    ? [
+        // In workflow order, which is also the order a facilitator meets them:
+        // a woman is registered, then seated in a group, then her group reaches
+        // a service or a structure. The register leads because before it the
+        // module had no first step at all.
+        item("/wlt/beneficiaries", "nav.wltBeneficiaries", ICON_PATHS.registry),
+        item("/wlt/groups", "nav.wltGroups", ICON_PATHS.cases),
+        item("/wlt/linkages", "nav.wltLinkages", ICON_PATHS.partners),
+        item("/wlt/cla-readiness", "nav.wltCla", ICON_PATHS.dashboard),
+      ]
+    : [];
+
   // An empty section would otherwise draw a heading and a divider over nothing:
   // a partner staff account is offered no Work items at all.
   return [
     { titleKey: "nav.sectionDashboard" as StringKey, items: dashboard },
-    { titleKey: "nav.sectionWork" as StringKey, items: work },
+    { titleKey: "nav.sectionWork" as StringKey, items: [...work, ...delivery] },
+    { titleKey: "nav.sectionWlt" as StringKey, items: wlt },
     { titleKey: "nav.sectionDirectory" as StringKey, items: directory },
   ].filter((section) => section.items.length > 0);
 }

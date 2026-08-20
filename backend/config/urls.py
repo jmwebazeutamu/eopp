@@ -25,10 +25,15 @@ api_v1_patterns = [
     path("cases/", include("apps.cases.urls")),
     path("referrals/", include("apps.referrals.urls")),
     path("alerts/", include("apps.alerts.urls")),
+    path("training/", include("apps.training.urls")),
+    path("placements/", include("apps.placements.urls")),
+    path("enterprises/", include("apps.enterprises.urls")),
+    path("followups/", include("apps.followups.urls")),
+    path("grievances/", include("apps.grievances.urls")),
     path("dashboard/", include("apps.dashboard.urls")),
-    # Added as each sprint lands (spec §10):
-    #   training/    Sprint 5      enterprises/ Sprint 6
-    #   placements/  Sprint 5      followups/   Sprint 6
+    # PSNP 6 Women's Livelihoods Transformation — the group module. A second
+    # programme on the same platform; see docs/wlt_module_handoff/.
+    path("wlt/", include("apps.wlt.api.urls")),
 ]
 
 urlpatterns = [

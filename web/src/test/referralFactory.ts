@@ -63,6 +63,7 @@ export function makeReferral(overrides: ReferralOverrides = {}): Referral {
     outcome_type_label: null,
     outcome_date: overrides.outcome_date ?? null,
     outcome_verification_method: "",
+  verification_source: "",
     failure_reason_code: null,
     failure_reason_label: null,
     failure_date: overrides.failure_date ?? null,

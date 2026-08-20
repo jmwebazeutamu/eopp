@@ -68,7 +68,17 @@ LOCAL_APPS = [
     "apps.cases",  # Spec §4.2 Case, §4.3 Profiling, §4.4 Pathway — Sprints 1-2
     "apps.referrals",  # Spec §4.6 Referral, §5 taxonomy, §6 state machine — Sprint 3
     "apps.alerts",  # Spec §4.13 Alert / Task, §6 system actions — Sprint 4
+    "apps.training",  # Spec §4.5 Training Enrolment — Sprint 5
+    "apps.placements",  # Spec §4.7 Placement + retention checkpoints — Sprint 5
+    "apps.enterprises",  # Spec §4.8 Enterprise + milestones — Sprint 6
+    "apps.followups",  # Spec §4.9 Follow-Up / Contact Log — Sprint 6
+    "apps.grievances",  # Spec §4.10 Grievance — Sprint 6
     "apps.dashboard",  # Programme dashboard aggregation — no models of its own
+    # PSNP 6 Women's Livelihoods Transformation. A second programme on the same
+    # platform, not a later sprint of the first: its subject is a savings group
+    # rather than a young person. See docs/wlt_module_handoff/ and the WLT
+    # section of CLAUDE.md.
+    "apps.wlt",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -245,11 +255,57 @@ CELERY_BEAT_SCHEDULE = {
         "task": "alerts.fail_abandoned_referrals",
         "schedule": crontab(hour=5, minute=40),
     },
+    # Sprint 5. Both read a condition and materialise it; neither creates case
+    # data, per §5.2 — a retention check is answered by the person who makes the
+    # call, and an onward referral is a case manager's decision.
+    # Sprint 6. §4.13's last undetected type: an Active referral nobody has
+    # followed up. Reads a condition and materialises it; it does not contact
+    # anybody, which is the case manager's job and the point of the alert.
+    "detect-follow-ups-due": {
+        "task": "alerts.detect_follow_ups_due",
+        "schedule": crontab(hour=5, minute=50),
+    },
+    "detect-retention-checks-due": {
+        "task": "alerts.detect_retention_checks_due",
+        "schedule": crontab(hour=5, minute=45),
+    },
+    "generate-training-onward-prompts": {
+        "task": "alerts.generate_training_onward_prompts",
+        "schedule": crontab(hour=5, minute=25),
+    },
     # Runs more often than detection: clearing a resolved alert out of somebody's
     # inbox promptly is what stops the inbox being ignored.
     "resolve-cleared-alerts": {
         "task": "alerts.resolve_cleared_alerts",
         "schedule": crontab(minute=0, hour="*/4"),
+    },
+    # WLT group module. Every one of these observes; none of them decides.
+    # Dormancy and at-risk are descriptions of the data and reverse themselves
+    # when the data changes; nothing here graduates a group or fails a linkage
+    # a person has not looked at.
+    #
+    # Later in the morning than the alert jobs so the two do not contend for the
+    # same worker, and because nobody reads a group's readiness before dawn.
+    "wlt-refresh-group-indicators": {
+        "task": "apps.wlt.tasks.refresh_group_indicators",
+        "schedule": crontab(hour=6, minute=0),
+    },
+    "wlt-expire-formations": {
+        "task": "apps.wlt.tasks.expire_formations",
+        "schedule": crontab(hour=6, minute=15),
+    },
+    "wlt-lapse-linkages": {
+        "task": "apps.wlt.tasks.lapse_linkages",
+        "schedule": crontab(hour=6, minute=20),
+    },
+    "wlt-review-blacklisted-providers": {
+        "task": "apps.wlt.tasks.review_blacklisted_providers",
+        "schedule": crontab(hour=6, minute=25),
+    },
+    # After the sweeps, so the views describe the state the sweeps left.
+    "wlt-refresh-reporting": {
+        "task": "apps.wlt.tasks.refresh_reporting_views",
+        "schedule": crontab(hour=6, minute=40),
     },
 }
 
@@ -339,10 +395,27 @@ REFERRAL_ABANDONMENT_DAYS = config("REFERRAL_ABANDONMENT_DAYS", default=60, cast
 # programme against a number we invented.
 PLACEMENT_TARGET_PER_QUARTER = config("PLACEMENT_TARGET_PER_QUARTER", default=0, cast=int)
 
-# §4.13 alert thresholds whose source entities arrive in later sprints. Declared
-# now so `threshold_for()` has one configuration point for all six alert types.
-FOLLOW_UP_DUE_DAYS = config("FOLLOW_UP_DUE_DAYS", default=14, cast=int)  # Follow-Up (§4.9), Sprint 6
-RETENTION_CHECK_DUE_DAYS = config("RETENTION_CHECK_DUE_DAYS", default=30, cast=int)  # Placement (§4.7), Sprint 5
+# §4.13 alert thresholds. Both entities now exist; the values do not.
+#
+# TODO(open-question): §11 — neither of these is an agreed programme standard.
+# 14 days is the referral confirmation standard reused for follow-up, and 30 is
+# the first retention checkpoint. Both want the same conversation the
+# confirmation threshold had on 2026-08-18, and both are one-line changes.
+FOLLOW_UP_DUE_DAYS = config("FOLLOW_UP_DUE_DAYS", default=14, cast=int)  # Follow-Up (§4.9)
+RETENTION_CHECK_DUE_DAYS = config("RETENTION_CHECK_DUE_DAYS", default=30, cast=int)  # Placement (§4.7)
+
+# How long a grievance may sit before it is overdue (§4.10).
+#
+# TODO(open-question): §11 — there is no stated grievance service standard. 21
+# days is the working default, chosen because it is inside a month and outside a
+# fortnight: a complaints channel that answers in three weeks is slow but real,
+# and one that has not answered in six is not a channel.
+GRIEVANCE_RESPONSE_DAYS = config("GRIEVANCE_RESPONSE_DAYS", default=21, cast=int)
+
+# CM-4's fourth at-risk condition (§5): how many failed contact attempts before
+# a youth counts as unreachable. The spec says "4+", which is where this comes
+# from — it is the one CM-4 threshold the spec actually states.
+FAILED_CONTACT_ATTEMPTS_AT_RISK = config("FAILED_CONTACT_ATTEMPTS_AT_RISK", default=4, cast=int)
 
 # Spec §6.3: at most two Active referrals may share a parallel_group_id.
 MAX_PARALLEL_ACTIVE_REFERRALS = 2

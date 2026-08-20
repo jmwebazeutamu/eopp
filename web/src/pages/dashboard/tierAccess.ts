@@ -59,6 +59,14 @@ export const TIER_ACCESS: Record<Role, string[]> = {
   EMPLOYER_LIAISON: [],
   ENTERPRISE_OFFICER: [],
   PARTNER_STAFF: [],
+  // The WLT roles get none of the four youth tiers. Not an omission: these
+  // dashboards count cases, referrals and placements, and a savings-group
+  // facilitator has no case population at all. The module's own screens are
+  // under /wlt.
+  WLT_FACILITATOR: [],
+  WLT_WOREDA_OFFICER: [],
+  WLT_REGION_OFFICER: [],
+  WLT_FEDERAL_OFFICER: [],
 };
 
 export function visibleTiers(user: Pick<CurrentUser, "role"> | null | undefined): Tier[] {

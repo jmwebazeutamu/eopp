@@ -33,6 +33,9 @@ function userWith(role: Role, access: Partial<AccessMatrix>): CurrentUser {
       case_write: true,
       referral_scope: "OWN_CASELOAD",
       referral_write: true,
+      group_scope: "NONE",
+      group_write: false,
+      delivery_write: false,
       ...access,
     },
   };
@@ -46,7 +49,20 @@ describe("buildNav", () => {
     const sections = buildNav(userWith("CASE_MANAGER", {}), { openAlerts: 3 });
     expect(sections.map((s) => s.titleKey)).toEqual(["nav.sectionDashboard", "nav.sectionWork", "nav.sectionDirectory"]);
     expect(sections[0].items.map((i) => i.path)).toEqual(["/dashboard/my-work"]);
-    expect(sections[1].items.map((i) => i.path)).toEqual(["/cases", "/referrals", "/alerts"]);
+    // Sprints 5 and 6 added five delivery screens to the Work section. All are
+    // offered to anyone with case content, because all are scoped server-side:
+    // a trainer sees the enrolments she recorded, an enterprise officer her own
+    // records, a case manager her caseload's.
+    expect(sections[1].items.map((i) => i.path)).toEqual([
+      "/cases",
+      "/referrals",
+      "/alerts",
+      "/training",
+      "/placements",
+      "/enterprises",
+      "/verification",
+      "/grievances",
+    ]);
     expect(sections[2].items.map((i) => i.path)).toEqual(["/youth", "/partners"]);
   });
 

@@ -17,7 +17,18 @@ import ProgrammePage from "./pages/dashboard/ProgrammePage";
 import ResultsPage from "./pages/dashboard/ResultsPage";
 import WoredaPage from "./pages/dashboard/WoredaPage";
 import LoginPage from "./pages/LoginPage";
+import EnterprisesPage from "./pages/EnterprisesPage";
+import GrievancesPage from "./pages/GrievancesPage";
 import PartnersPage from "./pages/PartnersPage";
+import VerificationPage from "./pages/VerificationPage";
+import PlacementsPage from "./pages/PlacementsPage";
+import TrainingPage from "./pages/TrainingPage";
+import BeneficiariesPage from "./pages/wlt/BeneficiariesPage";
+import ClaReadinessPage from "./pages/wlt/ClaReadinessPage";
+import GroupReadinessPage from "./pages/wlt/GroupReadinessPage";
+import GroupsPage from "./pages/wlt/GroupsPage";
+import JourneyPage from "./pages/wlt/JourneyPage";
+import LinkagesPage from "./pages/wlt/LinkagesPage";
 import ReferralsPage from "./pages/ReferralsPage";
 import UsersPage from "./pages/UsersPage";
 import YouthListPage from "./pages/YouthListPage";
@@ -134,7 +145,20 @@ export default function App() {
                 <Route path="/referrals" element={<ReferralsPage />} />
                 <Route path="/alerts" element={<AlertsPage />} />
                 <Route path="/youth" element={<YouthListPage />} />
+                <Route path="/training" element={<TrainingPage />} />
+                <Route path="/placements" element={<PlacementsPage />} />
+                <Route path="/enterprises" element={<EnterprisesPage />} />
+                <Route path="/verification" element={<VerificationPage />} />
+                <Route path="/grievances" element={<GrievancesPage />} />
                 <Route path="/partners" element={<PartnersPage />} />
+                {/* WLT group module. Its own prefix: a separate programme with
+                    a separate subject, and roles that see no case content. */}
+                <Route path="/wlt/beneficiaries" element={<BeneficiariesPage />} />
+                <Route path="/wlt/beneficiaries/:profileId" element={<JourneyPage />} />
+                <Route path="/wlt/groups" element={<GroupsPage />} />
+                <Route path="/wlt/groups/:groupId" element={<GroupReadinessPage />} />
+                <Route path="/wlt/linkages" element={<LinkagesPage />} />
+                <Route path="/wlt/cla-readiness" element={<ClaReadinessPage />} />
                 <Route path="/users" element={<UsersPage />} />
               </Route>
               {/* Unknown paths go through Home so the landing screen stays role-aware. */}

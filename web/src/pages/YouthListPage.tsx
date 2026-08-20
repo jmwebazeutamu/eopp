@@ -15,7 +15,13 @@ import { Button, Card, MutedChip, maskPhone } from "../components/ui";
 import { useLang } from "../i18n/LanguageContext";
 
 /**
- * The youth registry — a table on laptop, cards on a phone.
+ * The beneficiary registry — a table on laptop, cards on a phone.
+ *
+ * It holds two populations on one identity (WLT handoff decision D1): the young
+ * people the youth programme registered, and the adult PSNP women the WLT
+ * module enrolled. Both are `youth.Youth` rows. The model keeps the name it was
+ * built with; the screen does not, because a facilitator looking for a
+ * fifty-year-old woman should not have to read "youth" and trust it.
  *
  * Phone numbers are masked here with **no reveal**. The case screen has a
  * deliberate per-view reveal because a case manager working one youth has a
