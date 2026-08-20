@@ -93,6 +93,10 @@ class ReferralSerializer(serializers.ModelSerializer):
             "outcome_date",
             "outcome_verified_by",
             "outcome_verification_method",
+            # OQ-2. The free-text method above says *how*; this says how strong
+            # it is, and §8.3's reportable headline filters on it. Exposed in
+            # Sprint 6, when the M&E screen gained a way to change it.
+            "verification_source",
             "failure_reason_code",
             "failure_reason_label",
             "failure_date",
@@ -118,6 +122,11 @@ class ReferralSerializer(serializers.ModelSerializer):
             "outcome_date",
             "outcome_verified_by",
             "outcome_verification_method",
+            # Read-only for the same reason the three above are: it moves
+            # through `followups.services.verify_referral_outcome`, which stamps
+            # the source, the verifier and the method together. Setting it alone
+            # is how the three drifted apart before Sprint 6.
+            "verification_source",
             "failure_reason_code",
             "failure_date",
             "created_at",

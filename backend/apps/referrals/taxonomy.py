@@ -82,11 +82,75 @@ class ReferralCategory(TaxonomyTerm):
         help_text=_("Catch-all categories such as Other require a free-text note (spec §5.1)."),
     )
 
+    # §4.5's training enrolments are created *from* a referral, and which
+    # referrals qualify is a property of the category row — same reasoning as
+    # `exempt_from_parallel_cap` above and `OutcomeType.counts_as_placement`.
+    #
+    # It replaced a hardcoded `("TRAINING",)` tuple in `apps.training.models`.
+    # §9 makes the taxonomy the administrator's to extend, and the tuple meant
+    # that a category she added — "Vocational Training", "Apprenticeship
+    # Training" — silently could not create an enrolment, with no way to fix it
+    # short of a deploy and nothing on screen to say why.
+    creates_training_enrolment = models.BooleanField(
+        _("creates a training enrolment"),
+        default=False,
+        help_text=_(
+            "A referral in this category may open a §4.5 training enrolment. Seeded true for Training; "
+            "set it on any other category that delivers a course."
+        ),
+    )
+
+    creates_placement = models.BooleanField(
+        _("creates a placement"),
+        default=False,
+        help_text=_(
+            "A referral in this category may open a §4.7 placement. Seeded true for Employment and " "Apprenticeship."
+        ),
+    )
+
+    creates_enterprise = models.BooleanField(
+        _("creates an enterprise record"),
+        default=False,
+        help_text=_(
+            "A referral in this category may open a §4.8 enterprise record. Seeded true for Enterprise and "
+            "Finance Access."
+        ),
+    )
+
+    # Which kinds of subject this category may be raised against — the WLT
+    # module's stage 0 (handoff decision D4, backlog S0.2).
+    #
+    # This is a safeguarding control before it is a data-modelling one. A
+    # protection or GBV category lists CASE and YOUTH only, so a disclosure can
+    # never be created against a savings group and can never appear on a group
+    # timeline. The handbook puts GBV on the meeting agenda; this is what turns
+    # its confidentiality norm into a database-backed rule rather than a
+    # convention somebody has to remember.
+    #
+    # Every existing category is backfilled to ["CASE"], which preserves current
+    # behaviour exactly: today every referral hangs off a case.
+    allowed_subject_types = models.JSONField(
+        _("allowed subject types"),
+        default=list,
+        blank=True,
+        help_text=_("Subjects a referral in this category may name: CASE, YOUTH, GROUP, CLA or FEDERATION."),
+    )
+
     history = HistoricalRecords()
 
     class Meta(TaxonomyTerm.Meta):
         verbose_name = _("referral category")
         verbose_name_plural = _("referral categories")
+
+    def permits(self, subject_type):
+        """Whether this category may name a subject of the given type.
+
+        An empty list is **not** "anything": it is a category configured before
+        subject types existed, and it means CASE, which is what every referral
+        was. Reading it as unrestricted would open the safeguarding rule the
+        moment somebody cleared the field.
+        """
+        return subject_type in (self.allowed_subject_types or ["CASE"])
 
 
 class OutcomeType(TaxonomyTerm):

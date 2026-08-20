@@ -25,7 +25,33 @@ class PartnerType(models.TextChoices):
     PSYCHOSOCIAL_SERVICE = "PSYCHOSOCIAL_SERVICE", _("Psychosocial Service")
     LEGAL_AID = "LEGAL_AID", _("Legal Aid")
     FINANCE_INSTITUTION = "FINANCE_INSTITUTION", _("Finance Institution")
+    # Added for the WLT group module (handoff README §6.6). RUSACCOs are the
+    # incumbent rural financial structure in Ethiopia, and lumping them under
+    # "Other" hides the unresolved question of whether WLT federations compete
+    # with them or join them — which is a question the pilot is meant to answer,
+    # and cannot if the data does not distinguish them.
+    RUSACCO = "RUSACCO", _("RUSACCO (rural savings and credit cooperative)")
+    COOPERATIVE = "COOPERATIVE", _("Cooperative")
+    BUYER = "BUYER", _("Buyer / offtaker")
     OTHER = "OTHER", _("Other")
+
+
+class Standing(models.TextChoices):
+    """Whether this organisation may be proposed for new work, and why not.
+
+    `active_status` (spec §4.11) answers "may they receive new referrals". This
+    answers "on what grounds", and the WLT module needs the distinction:
+    blacklisting a provider **flags open linkages for review and does not close
+    them**, because the obligation still exists and a group's money is still
+    with them. Suspension and blacklisting are not the same instruction to a
+    field worker, and a single boolean cannot carry both.
+
+    Kept consistent with `active_status` in `save`, so the two cannot drift.
+    """
+
+    ACTIVE = "ACTIVE", _("Active")
+    SUSPENDED = "SUSPENDED", _("Suspended")
+    BLACKLISTED = "BLACKLISTED", _("Blacklisted")
 
 
 class MouStatus(models.TextChoices):
@@ -78,6 +104,15 @@ class Partner(BaseModel):
         help_text=_("Inactive partners cannot receive new referrals but keep their history."),
     )
 
+    standing = models.CharField(
+        _("standing"),
+        max_length=16,
+        choices=Standing.choices,
+        default=Standing.ACTIVE,
+        db_index=True,
+        help_text=_("Suspended or blacklisted organisations cannot be proposed for new referrals or linkages."),
+    )
+
     mou_status = models.CharField(
         _("MOU status"), max_length=16, choices=MouStatus.choices, default=MouStatus.NONE, blank=True
     )
@@ -113,10 +148,30 @@ class Partner(BaseModel):
         referral history — §8's failed-rate-by-partner dashboard needs it — but
         must not appear in the destination picker.
         """
-        return self.active_status
+        return self.active_status and self.standing == Standing.ACTIVE
+
+    @property
+    def is_blacklisted(self):
+        return self.standing == Standing.BLACKLISTED
 
     def covers(self, woreda):
         return woreda in self.woreda_coverage
+
+    def save(self, *args, **kwargs):
+        """Keep `standing` and `active_status` from drifting apart.
+
+        Two fields describing overlapping facts is how a partner comes to be
+        blacklisted on one screen and available in a picker on another. The
+        direction is one-way on purpose: losing standing withdraws the partner
+        from new work, and restoring it is a separate decision somebody makes
+        explicitly rather than a side effect.
+        """
+        if self.standing != Standing.ACTIVE:
+            self.active_status = False
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"active_status"}
+        return super().save(*args, **kwargs)
 
     def clean(self):
         errors = {}

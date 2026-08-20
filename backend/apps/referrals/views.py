@@ -58,7 +58,11 @@ class ReferralViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     institution's, and system administrators none.
     """
 
-    queryset = Referral.objects.select_related(
+    # `youth_side()` is the module boundary, not an optimisation. Group and
+    # federation referrals belong to the WLT linkage surface and resolve through
+    # a different scoping path; a `Scope.ALL` user would otherwise read them
+    # here, in a screen built around a case and a young person.
+    queryset = Referral.objects.youth_side().select_related(
         "case",
         "case__youth",
         "referral_category",
@@ -74,6 +78,9 @@ class ReferralViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     woreda_field = "case__woreda"
     case_manager_field = "case__case_manager_id"
     partner_field = "receiving_partner_id"
+    # A trainer or employer liaison is linked through the case, not through this
+    # row: she sees the referrals of the youth she trained or placed.
+    linked_case_prefix = "case__"
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     # `case__woreda` backs the shell's woreda scope selector. It is the same

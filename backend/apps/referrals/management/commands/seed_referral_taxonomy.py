@@ -14,33 +14,79 @@ from django.db import transaction
 
 from apps.referrals.taxonomy import FailureReasonCode, OutcomeType, ReferralCategory
 
-# (code, label, description, exempt_from_parallel_cap, requires_note) — spec §5.1
+# Spec §5.1. Keyed rather than positional: the row carries five flags now, and a
+# tuple that long is read by counting commas — which is exactly how a flag ends
+# up on the wrong category. Anything omitted is False.
+#
+# The three `creates_*` flags decide which downstream record a referral in this
+# category may open (§4.5 training, §4.7 placement, §4.8 enterprise). They
+# replaced hardcoded code tuples in those three apps; §9 makes the taxonomy the
+# administrator's, so this seeds a default rather than fixing a rule.
 CATEGORIES = [
-    ("TRAINING", "Training", "Referral into Life Skills/Employability or TVET training.", False, False),
-    ("EMPLOYMENT", "Employment / Placement", "Referral toward a wage job.", False, False),
-    ("APPRENTICESHIP", "Apprenticeship", "Referral toward an apprenticeship placement.", False, False),
-    ("ENTERPRISE", "Enterprise", "Referral toward enterprise start-up support.", False, False),
-    (
-        "FINANCE_ACCESS",
-        "Finance Access",
-        "Referral to a savings group, microfinance, or credit provider.",
-        False,
-        False,
-    ),
-    ("MARKET_LINKAGE", "Market Linkage", "Connects a youth-run enterprise to buyers or supply chains.", False, False),
-    (
-        "COMPLEMENTARY_SERVICE",
-        "Complementary Service",
-        "Health, psychosocial support, legal aid, nutrition, or social assistance top-up.",
+    {
+        "code": "TRAINING",
+        "label": "Training",
+        "description": "Referral into Life Skills/Employability or TVET training.",
+        "creates_training_enrolment": True,
+    },
+    {
+        "code": "EMPLOYMENT",
+        "label": "Employment / Placement",
+        "description": "Referral toward a wage job.",
+        "creates_placement": True,
+    },
+    {
+        "code": "APPRENTICESHIP",
+        "label": "Apprenticeship",
+        "description": "Referral toward an apprenticeship placement.",
+        "creates_placement": True,
+    },
+    {
+        "code": "ENTERPRISE",
+        "label": "Enterprise",
+        "description": "Referral toward enterprise start-up support.",
+        "creates_enterprise": True,
+    },
+    {
+        "code": "FINANCE_ACCESS",
+        "label": "Finance Access",
+        "description": "Referral to a savings group, microfinance, or credit provider.",
+        "creates_enterprise": True,
+    },
+    {
+        "code": "MARKET_LINKAGE",
+        "label": "Market Linkage",
+        "description": "Connects a youth-run enterprise to buyers or supply chains.",
+    },
+    {
+        "code": "COMPLEMENTARY_SERVICE",
+        "label": "Complementary Service",
+        "description": "Health, psychosocial support, legal aid, nutrition, or social assistance top-up.",
         # §6.3 working default: runs as a third stream, outside the two-referral
         # cap. Pending Phase 1 sign-off (§11) — flip this flag in the admin if
         # the workshops decide it should count.
-        True,
-        False,
-    ),
-    ("COACHING", "Coaching", "Referral to a coaching or mentoring service.", False, False),
-    ("OTHER", "Other", "Catch-all; requires a free-text note.", False, True),
+        "exempt_from_parallel_cap": True,
+    },
+    {
+        "code": "COACHING",
+        "label": "Coaching",
+        "description": "Referral to a coaching or mentoring service.",
+    },
+    {
+        "code": "OTHER",
+        "label": "Other",
+        "description": "Catch-all; requires a free-text note.",
+        "requires_note": True,
+    },
 ]
+
+CATEGORY_FLAGS = (
+    "exempt_from_parallel_cap",
+    "requires_note",
+    "creates_training_enrolment",
+    "creates_placement",
+    "creates_enterprise",
+)
 
 # (code, label, applies_to_category_codes, requires_note, counts_as_placement) — spec §5.3
 #
@@ -117,14 +163,16 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        for order, (code, label, description, exempt, requires_note) in enumerate(CATEGORIES):
+        for order, row in enumerate(CATEGORIES):
             ReferralCategory.objects.update_or_create(
-                code=code,
+                code=row["code"],
                 defaults={
-                    "label": label,
-                    "description": description,
-                    "exempt_from_parallel_cap": exempt,
-                    "requires_note": requires_note,
+                    "label": row["label"],
+                    "description": row["description"],
+                    # Every flag stated on every row, so a term that had one set
+                    # by hand is reset to the seeded default rather than keeping
+                    # a value this file no longer claims.
+                    **{flag: row.get(flag, False) for flag in CATEGORY_FLAGS},
                     "sort_order": order * 10,
                     "is_active": True,
                 },
