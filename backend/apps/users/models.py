@@ -32,6 +32,28 @@ class Role(models.TextChoices):
     MNE_STAFF = "MNE_STAFF", _("M&E staff")
     SYSTEM_ADMIN = "SYSTEM_ADMIN", _("System administrator")
 
+    # WLT group module (PSNP 6 Women's Livelihoods Transformation). A separate
+    # programme with a separate subject — a savings group rather than a young
+    # person — and its own approval chain, so it gets its own roles rather than
+    # being mapped onto the ten in §7.
+    #
+    # Mapping the four onto SUPERVISOR / PROGRAMME_MANAGER would have been
+    # cheaper and wrong in the one way that matters: the WLT handoff's §9 puts
+    # approval at woreda, region and federal level with **no self-approval**,
+    # and a role that is simultaneously a youth supervisor and a WLT approver
+    # carries a youth case scope into the group domain. These four have
+    # `case_scope: NONE`, which is what makes "a facilitator who can see a group
+    # roster must not thereby see those women's youth-side case files" a
+    # property of the matrix rather than of every viewset that remembers.
+    WLT_FACILITATOR = "WLT_FACILITATOR", _("WLT group facilitator")
+    WLT_WOREDA_OFFICER = "WLT_WOREDA_OFFICER", _("WLT woreda officer (FSCO)")
+    WLT_REGION_OFFICER = "WLT_REGION_OFFICER", _("WLT region officer (FSCO)")
+    WLT_FEDERAL_OFFICER = "WLT_FEDERAL_OFFICER", _("WLT federal officer (FSCO)")
+
+    @classmethod
+    def wlt_roles(cls):
+        return {cls.WLT_FACILITATOR, cls.WLT_WOREDA_OFFICER, cls.WLT_REGION_OFFICER, cls.WLT_FEDERAL_OFFICER}
+
 
 class AccountStatus(models.TextChoices):
     ACTIVE = "ACTIVE", _("Active")
@@ -54,6 +76,36 @@ class Scope(models.TextChoices):
     ALL = "ALL", _("All records")
 
 
+class GroupScope(models.TextChoices):
+    """How widely a role may see WLT group records.
+
+    Separate from `Scope` because the group domain scopes on different keys. A
+    youth case is scoped by caseload or by woreda name; a savings group is
+    scoped by the facilitator who runs it and by a point in the administrative
+    tree (`User.wlt_scope_location`), which is what lets one enum serve a
+    woreda officer, a region officer and a federal officer without three
+    near-identical values.
+
+    `OWN_GROUPS` is object-level: the groups this user facilitates. It is
+    narrower than a geography, because two facilitators work the same kebele.
+    """
+
+    NONE = "NONE", _("No group content")
+    OWN_GROUPS = "OWN_GROUPS", _("Own groups")
+    OWN_GEOGRAPHY = "OWN_GEOGRAPHY", _("Own assigned geography")
+    ALL = "ALL", _("All groups")
+
+
+# WLT approval levels, in escalation order — the handoff's §9 chain. A decision
+# needing level 2 cannot be taken by a level 1 officer, and an override
+# escalates by one level. `None` means the role approves nothing.
+WLT_APPROVAL_LEVELS = {
+    Role.WLT_WOREDA_OFFICER: 1,
+    Role.WLT_REGION_OFFICER: 2,
+    Role.WLT_FEDERAL_OFFICER: 3,
+}
+
+
 # The access row for a role the matrix does not cover.
 #
 # Kept as its own constant, and deliberately not an alias for any real role's
@@ -67,6 +119,9 @@ NO_ACCESS = {
     "case_write": False,
     "referral_scope": Scope.NONE,
     "referral_write": False,
+    "group_scope": GroupScope.NONE,
+    "group_write": False,
+    "delivery_write": False,
 }
 
 
@@ -79,54 +134,81 @@ ACCESS_MATRIX = {
         "case_write": True,  # create at intake
         "referral_scope": Scope.OWN_WOREDA,
         "referral_write": False,
+        "group_scope": GroupScope.NONE,
+        "group_write": False,
+        "delivery_write": False,
     },
     Role.CASE_MANAGER: {
         "case_scope": Scope.OWN_CASELOAD,
         "case_write": True,
         "referral_scope": Scope.OWN_CASELOAD,
         "referral_write": True,
+        "group_scope": GroupScope.NONE,
+        "group_write": False,
+        "delivery_write": True,
     },
     Role.TRAINER: {
         "case_scope": Scope.LINKED,
         "case_write": False,
         "referral_scope": Scope.LINKED,
         "referral_write": False,
+        "group_scope": GroupScope.NONE,
+        "group_write": False,
+        "delivery_write": True,
     },
     Role.EMPLOYER_LIAISON: {
         "case_scope": Scope.LINKED,
         "case_write": False,
         "referral_scope": Scope.LINKED,
         "referral_write": True,
+        "group_scope": GroupScope.NONE,
+        "group_write": False,
+        "delivery_write": True,
     },
     Role.ENTERPRISE_OFFICER: {
         "case_scope": Scope.LINKED,
         "case_write": False,
         "referral_scope": Scope.LINKED,
         "referral_write": True,
+        "group_scope": GroupScope.NONE,
+        "group_write": False,
+        "delivery_write": True,
     },
     Role.PARTNER_STAFF: {
         "case_scope": Scope.LINKED,
         "case_write": False,
         "referral_scope": Scope.LINKED,  # further narrowed to own institution
         "referral_write": True,
+        "group_scope": GroupScope.NONE,
+        "group_write": False,
+        "delivery_write": False,
     },
     Role.SUPERVISOR: {
         "case_scope": Scope.OWN_WOREDA,
         "case_write": False,
         "referral_scope": Scope.OWN_WOREDA,
         "referral_write": False,
+        "group_scope": GroupScope.NONE,
+        "group_write": False,
+        "delivery_write": False,
     },
     Role.PROGRAMME_MANAGER: {
         "case_scope": Scope.ALL,
         "case_write": False,
         "referral_scope": Scope.ALL,
         "referral_write": False,
+        "group_scope": GroupScope.NONE,
+        "group_write": False,
+        "delivery_write": False,
     },
     Role.MNE_STAFF: {
         "case_scope": Scope.ALL,
         "case_write": False,
         "referral_scope": Scope.ALL,
         "referral_write": False,
+        "group_scope": GroupScope.NONE,
+        "group_write": False,
+        "delivery_write": False,
     },
     Role.SYSTEM_ADMIN: {
         # TODO(spec-deviation): §7 says "Configuration only, no case content by
@@ -144,6 +226,60 @@ ACCESS_MATRIX = {
         "case_write": True,
         "referral_scope": Scope.ALL,
         "referral_write": True,
+        # The 2026-08-16 widening reads across to the group domain for the same
+        # reason it was granted: an administrator who cannot see a record cannot
+        # support the person using it. Same trade-off, same Phase 1 review.
+        "group_scope": GroupScope.ALL,
+        "group_write": True,
+        "delivery_write": True,
+    },
+    # ---- WLT group module -------------------------------------------------
+    #
+    # Every row below has `case_scope: NONE`. That is the module boundary, not
+    # an oversight: WLT staff work with savings groups, and the women in those
+    # groups may also hold youth-employment cases. Reading a roster must not
+    # open those case files (WLT handoff §9, S0.3), and the cheapest place to
+    # guarantee it is here, once, rather than in every viewset.
+    Role.WLT_FACILITATOR: {
+        "case_scope": Scope.NONE,
+        "case_write": False,
+        "referral_scope": Scope.NONE,
+        "referral_write": False,
+        "group_scope": GroupScope.OWN_GROUPS,
+        "group_write": True,
+        "delivery_write": False,
+    },
+    Role.WLT_WOREDA_OFFICER: {
+        "case_scope": Scope.NONE,
+        "case_write": False,
+        "referral_scope": Scope.NONE,
+        "referral_write": False,
+        "group_scope": GroupScope.OWN_GEOGRAPHY,
+        # Read and approve, not record. Meetings and the ledger belong to the
+        # facilitator who was in the room; an officer who could post a ledger
+        # entry could also settle a discrepancy nobody witnessed.
+        "group_write": False,
+        "delivery_write": False,
+    },
+    Role.WLT_REGION_OFFICER: {
+        "case_scope": Scope.NONE,
+        "case_write": False,
+        "referral_scope": Scope.NONE,
+        "referral_write": False,
+        "group_scope": GroupScope.OWN_GEOGRAPHY,
+        "group_write": False,
+        "delivery_write": False,
+    },
+    Role.WLT_FEDERAL_OFFICER: {
+        "case_scope": Scope.NONE,
+        "case_write": False,
+        "referral_scope": Scope.NONE,
+        "referral_write": False,
+        # Federal sits above every regional allocation, and the handoff's §9
+        # gives it aggregate visibility plus the final approval level.
+        "group_scope": GroupScope.ALL,
+        "group_write": False,
+        "delivery_write": False,
     },
 }
 
@@ -240,6 +376,25 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
         help_text=_("Required for referral partner staff; scopes them to their own institution's referrals."),
     )
 
+    # WLT handoff §9. The group domain scopes on a point in the administrative
+    # tree rather than on `woreda_assignment`, which is a list of woreda *names*
+    # carried over from §4.1's text location fields. A region officer cannot be
+    # expressed as a list of woreda names without re-listing every woreda in the
+    # region and re-listing it again when one is added.
+    #
+    # Null means unscoped, which is only meaningful for a role whose group scope
+    # is ALL; `clean` refuses it on the two roles that would otherwise see
+    # nothing at all.
+    wlt_scope_location = models.ForeignKey(
+        "locations.Location",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="scoped_users",
+        verbose_name=_("WLT scope"),
+        help_text=_("Region, woreda or kebele this WLT account works in. Groups below it are visible."),
+    )
+
     account_status = models.CharField(
         max_length=16, choices=AccountStatus.choices, default=AccountStatus.ACTIVE, db_index=True
     )
@@ -323,6 +478,37 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
     def can_write_referrals(self):
         return self.access["referral_write"]
 
+    def group_scope(self):
+        """WLT group visibility (WLT handoff §9)."""
+        return self.access["group_scope"]
+
+    def can_write_groups(self):
+        return self.access["group_write"]
+
+    def can_record_delivery(self):
+        """May this role record what a service actually delivered.
+
+        Separate from `case_write` because §7 separates them: an employer
+        liaison may not edit a case record and **is** the person who records the
+        placement and makes the 30/60/90-day calls. Gating her on `case_write`
+        left her unable to action her own queue, which is the one thing that
+        screen exists for.
+
+        Covers Training Enrolment (§4.5), Placement (§4.7) and, when Sprint 6
+        lands, Enterprise (§4.8) — the entities that hang off a case and are
+        written by the person who did the work rather than by the case owner.
+        """
+        return self.access["delivery_write"]
+
+    @property
+    def wlt_approval_level(self):
+        """Approval level in the WLT chain, or None if this role approves nothing.
+
+        Read by `wlt.services` rather than compared against a role name, so the
+        chain in `ServiceLinkageType.approval_chain` stays configuration.
+        """
+        return WLT_APPROVAL_LEVELS.get(self.role)
+
     @property
     def is_operational(self):
         """Authenticated is not sufficient — a suspended account must not act."""
@@ -340,6 +526,17 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
 
         if self.role != Role.PARTNER_STAFF and self.partner_id:
             errors["partner"] = _("Only referral partner staff are linked to a partner organisation.")
+
+        # A WLT account scoped to a geography and given none sees an empty
+        # system that looks like a working one — the same failure `partner`
+        # above guards against, so it is refused the same way. The federal
+        # officer is unscoped by design and the facilitator is scoped by the
+        # groups she runs, so neither is required to carry one.
+        if self.role in {Role.WLT_WOREDA_OFFICER, Role.WLT_REGION_OFFICER} and not self.wlt_scope_location_id:
+            errors["wlt_scope_location"] = _("A WLT woreda or region officer needs an assigned geography.")
+
+        if self.role not in Role.wlt_roles() and self.wlt_scope_location_id:
+            errors["wlt_scope_location"] = _("Only WLT accounts carry a WLT scope.")
 
         if errors:
             raise ValidationError(errors)

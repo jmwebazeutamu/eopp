@@ -61,7 +61,15 @@ def test_a_user_can_change_their_own_name_and_contacts(person, as_user):
 
 def test_the_response_carries_the_access_row_so_the_shell_can_rebuild(person, as_user):
     body = as_user(person).patch("/api/v1/users/me/", {"full_name": "X Y"}, format="json").data
-    assert set(body["access"]) == {"case_scope", "case_write", "referral_scope", "referral_write"}
+    assert set(body["access"]) == {
+        "case_scope",
+        "case_write",
+        "referral_scope",
+        "referral_write",
+        "group_scope",
+        "group_write",
+        "delivery_write",
+    }
 
 
 def test_a_blank_name_is_refused(person, as_user):

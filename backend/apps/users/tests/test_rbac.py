@@ -34,6 +34,15 @@ class RecordingQuerySet:
         clone.is_none = True
         return clone
 
+    def distinct(self):
+        """Part of the contract since the LINKED scope joins through a case.
+
+        The join fans out — one case, three training enrolments — so the real
+        scope calls `.distinct()`. A double that did not answer it would pass a
+        test the production path fails.
+        """
+        return self
+
 
 class ScopedView(ScopedQuerySetMixin):
     def __init__(self, **attrs):
@@ -54,9 +63,63 @@ def make_user(role, woredas=None, pk="00000000-0000-0000-0000-000000000001", **k
 
 
 def test_access_matrix_covers_every_role():
-    """Spec §7 defines ten roles. A role missing here would silently fall back."""
+    """A role missing here would silently fall back to NO_ACCESS.
+
+    Ten roles from spec §7, plus the four the WLT group module adds — a separate
+    programme with a separate subject and its own approval chain, so it carries
+    its own roles rather than overloading the supervisor's.
+    """
     assert set(ACCESS_MATRIX) == set(Role)
-    assert len(Role) == 10
+    assert len(Role) == 14
+    assert len(Role.wlt_roles()) == 4
+
+
+def test_every_matrix_row_answers_every_question():
+    """A row missing a key raises `KeyError` at the call site, not a denial.
+
+    `User.access` returns the row whole; a partial row would fail loudly on the
+    scope it forgot, which is the right failure but a late one. This catches it
+    at the table.
+    """
+    keys = {
+        "case_scope",
+        "case_write",
+        "referral_scope",
+        "referral_write",
+        "group_scope",
+        "group_write",
+        "delivery_write",
+    }
+    for role, row in ACCESS_MATRIX.items():
+        assert set(row) == keys, role
+
+
+def test_wlt_roles_have_no_case_access():
+    """The module boundary, stated once.
+
+    A facilitator who can see a group roster must not thereby see those women's
+    youth-side case files (WLT handoff §9, backlog S0.3). Making it a property
+    of the matrix means it holds for every viewset, including ones not yet
+    written, rather than for the ones that remembered to check.
+    """
+    for role in Role.wlt_roles():
+        assert ACCESS_MATRIX[role]["case_scope"] == Scope.NONE
+        assert ACCESS_MATRIX[role]["referral_scope"] == Scope.NONE
+        assert not ACCESS_MATRIX[role]["case_write"]
+
+
+def test_youth_roles_have_no_group_access():
+    """And the same boundary from the other side.
+
+    A youth case worker cannot read WLT ledger data. Tested in both directions
+    because a leak between the modules would appear in whichever direction was
+    not covered.
+    """
+    from apps.users.models import GroupScope
+
+    for role in set(Role) - Role.wlt_roles() - {Role.SYSTEM_ADMIN}:
+        assert ACCESS_MATRIX[role]["group_scope"] == GroupScope.NONE
+        assert not ACCESS_MATRIX[role]["group_write"]
 
 
 def test_system_admin_has_full_access():
@@ -235,8 +298,88 @@ def test_partner_staff_scope_is_empty_until_partner_fk_exists():
     assert result.is_none is True
 
 
-def test_linked_roles_scope_is_empty_until_their_entities_exist():
-    """Trainer / employer liaison / enterprise officer link through Sprint 5-6 entities."""
+def test_a_trainer_is_linked_through_the_enrolments_she_recorded():
+    """§7 LINKED, resolved through the entity the role owns (Sprint 5).
+
+    Not through the training *provider*: `User.partner` is reserved for partner
+    staff (§4.12), so a trainer has no institution to scope to. Her own records
+    are what §9 attributes to her, and what she is accountable for.
+    """
     view = ScopedView(scope_kind="case")
-    for role in (Role.TRAINER, Role.EMPLOYER_LIAISON, Role.ENTERPRISE_OFFICER):
-        assert view.apply_scope(RecordingQuerySet(), make_user(role)).is_none is True
+    user = make_user(Role.TRAINER)
+    result = view.apply_scope(RecordingQuerySet(), user)
+    assert result.filters == {"training_enrolments__recorded_by": user.pk}
+
+
+def test_an_employer_liaison_is_linked_through_the_placements_she_recorded():
+    view = ScopedView(scope_kind="case")
+    user = make_user(Role.EMPLOYER_LIAISON)
+    result = view.apply_scope(RecordingQuerySet(), user)
+    assert result.filters == {"placements__recorded_by": user.pk}
+
+
+def test_a_viewset_off_the_case_walks_back_to_it():
+    """A referral is scoped through its case, not through itself."""
+    view = ScopedView(scope_kind="referral", linked_case_prefix="case__")
+    user = make_user(Role.EMPLOYER_LIAISON)
+    result = view.apply_scope(RecordingQuerySet(), user)
+    assert result.filters == {"case__placements__recorded_by": user.pk}
+
+
+def test_an_enterprise_officer_is_linked_through_her_own_enterprises():
+    """Sprint 6 gave the last LINKED role something to be linked through."""
+    view = ScopedView(scope_kind="case")
+    user = make_user(Role.ENTERPRISE_OFFICER)
+    result = view.apply_scope(RecordingQuerySet(), user)
+    assert result.filters == {"enterprises__recorded_by": user.pk}
+
+
+def test_a_role_with_no_entry_still_fails_closed():
+    """The table is the whole rule.
+
+    A role added to `Role` and forgotten in `LINKED_THROUGH` sees an empty list,
+    never an unfiltered one. Now that every listed role resolves, this is the
+    only test left holding that default in place.
+    """
+    from apps.users.permissions import LINKED_THROUGH, linked_scope
+
+    unlisted = make_user(Role.PROGRAMME_MANAGER)
+    unlisted.role = "A_ROLE_NOBODY_ADDED"
+    assert unlisted.role not in LINKED_THROUGH
+
+    # Called directly, because reaching the LINKED branch through the matrix
+    # would need a role the matrix also does not know — and that one fails
+    # closed a step earlier, for a different reason. This is the branch itself.
+    assert linked_scope(RecordingQuerySet(), unlisted, partner_field=None).is_none is True
+
+
+def test_the_roles_that_deliver_may_record_what_they_delivered():
+    """Sprint 5. `delivery_write` is not `case_write`, and §7 separates them.
+
+    An employer liaison may not edit a case record and **is** the person who
+    records the placement and makes the 30/60/90-day calls. Gating her on
+    `case_write` left her unable to action her own queue, which is the one thing
+    that screen exists for.
+    """
+    for role in (Role.CASE_MANAGER, Role.TRAINER, Role.EMPLOYER_LIAISON, Role.ENTERPRISE_OFFICER):
+        assert make_user(role).can_record_delivery(), role
+
+    # And it is not a general widening: an employer liaison still cannot write
+    # the case record itself.
+    assert not make_user(Role.EMPLOYER_LIAISON).can_write_cases()
+
+
+def test_reading_a_programme_does_not_let_you_record_in_it():
+    """A supervisor and an M&E account read delivery records; neither writes one.
+
+    Recording a placement is a claim about something that happened, made by
+    whoever was there. A read-only role adding one would put a figure into the
+    donor tier that nobody witnessed.
+    """
+    for role in (Role.SUPERVISOR, Role.PROGRAMME_MANAGER, Role.MNE_STAFF, Role.OUTREACH_WORKER):
+        assert not make_user(role).can_record_delivery(), role
+
+
+def test_wlt_roles_record_nothing_on_the_youth_side():
+    for role in Role.wlt_roles():
+        assert not make_user(role).can_record_delivery(), role
