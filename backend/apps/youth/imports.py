@@ -202,6 +202,27 @@ def _coerce_choice(value, column: ImportColumn):
     raise ValueError(f"'{text}' is not one of: {', '.join(column.allowed)}.")
 
 
+def coerce_row(raw: dict, columns: list[ImportColumn]) -> tuple[dict, dict]:
+    """`(payload, cell_errors)` — raw cells turned into Python values.
+
+    `read_rows` deliberately returns raw cells, because the youth-side importer
+    reports per-cell errors against the sheet row before anything is written.
+    Any other caller has to do this step, and doing it by hand is how the WLT
+    extract first arrived with `None` in every blank cell and ISO strings where
+    dates belonged.
+    """
+    payload: dict = {}
+    cell_errors: dict[str, list[str]] = {}
+    for column in columns:
+        if column.field not in raw:
+            continue
+        try:
+            payload[column.field] = _cell_to_payload(column, raw[column.field])
+        except ValueError as exc:
+            cell_errors[column.field] = [str(exc)]
+    return payload, cell_errors
+
+
 def _cell_to_payload(column: ImportColumn, value):
     if column.kind == "date":
         return _coerce_date(value)
@@ -212,12 +233,21 @@ def _cell_to_payload(column: ImportColumn, value):
     return _clean(value)
 
 
-def read_rows(stream) -> list[tuple[int, dict]]:
+def read_rows(stream, columns: list[ImportColumn] | None = None) -> list[tuple[int, dict]]:
     """Parse a workbook into `(sheet_row_number, {field: raw_cell})`.
 
     Reads the first worksheet only: the template ships one sheet of data plus a
     notes sheet, and picking "the first" is the rule a user can predict.
+
+    `columns` defaults to the woreda register's. It is a parameter because the
+    WLT module's PSNP ELS extract is a different sheet with the same problems —
+    Excel's type confusion, headers in either case, unrecognised local columns —
+    and a second copy of this would drift from it. What varies between the two
+    registers is the column list; nothing else here does.
     """
+    columns = columns or COLUMNS
+    by_header = {column.header.casefold(): column for column in columns}
+    required_headers = [column.header for column in columns if column.required]
     from openpyxl import load_workbook
     from openpyxl.utils.exceptions import InvalidFileException
 
@@ -243,11 +273,11 @@ def read_rows(stream) -> list[tuple[int, dict]]:
         # An unrecognised column is not an error: registers carry local notes.
         positions: dict[int, ImportColumn] = {}
         for index, header in enumerate(header_row):
-            column = BY_HEADER.get(_clean(header).casefold())
+            column = by_header.get(_clean(header).casefold())
             if column:
                 positions[index] = column
 
-        missing = [header for header in REQUIRED_HEADERS if BY_HEADER[header.casefold()] not in positions.values()]
+        missing = [header for header in required_headers if by_header[header.casefold()] not in positions.values()]
         if missing:
             raise WorkbookError(
                 _("The sheet is missing these required columns: %(columns)s. Download the template.")
@@ -442,26 +472,28 @@ def run_import(rows: list[tuple[int, dict]], user, *, request=None, commit: bool
 # ---------------------------------------------------------------------------
 
 
-def build_template() -> bytes:
+def build_template(columns: list[ImportColumn] | None = None, title: str = "Youth") -> bytes:
     """The blank register, with its own instructions on a second sheet.
 
-    Shipped from the same `COLUMNS` list the parser reads, so the template cannot
-    describe a column the importer does not accept.
+    Shipped from the same column list the parser reads, so the template cannot
+    describe a column the importer does not accept. Parameterised for the same
+    reason `read_rows` is — see its docstring.
     """
+    columns = columns or COLUMNS
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.worksheet.datavalidation import DataValidation
 
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = "Youth"
+    sheet.title = title
 
     header_font = Font(bold=True, color="FFFFFF")
     # openpyxl takes ARGB hex only — no CSS custom property reaches a .xlsx.
     # This is the handoff's --green-700, the same fill the app's headers use.
     header_fill = PatternFill("solid", fgColor="1E5B3A")
 
-    for index, column in enumerate(COLUMNS, start=1):
+    for index, column in enumerate(columns, start=1):
         cell = sheet.cell(row=1, column=index, value=column.header)
         cell.font = header_font
         cell.fill = header_fill
@@ -501,7 +533,7 @@ def build_template() -> bytes:
     for cell in notes[len(intro)]:
         cell.font = Font(bold=True)
 
-    for column in COLUMNS:
+    for column in columns:
         note = column.note
         if column.choices:
             allowed = ", ".join(column.allowed)
