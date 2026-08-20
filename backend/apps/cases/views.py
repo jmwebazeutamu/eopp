@@ -203,6 +203,7 @@ class _CaseChildViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     permission_classes = [IsOperational, CanAccessCases]
     scope_kind = "case"
     woreda_field = "case__woreda"
+    linked_case_prefix = "case__"
     case_manager_field = "case__case_manager_id"
 
     def perform_destroy(self, instance):

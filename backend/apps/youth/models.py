@@ -65,6 +65,29 @@ class DisabilityStatus(models.TextChoices):
     UNDISCLOSED = "UNDISCLOSED", _("Not disclosed")
 
 
+class PsnpClientCategory(models.TextChoices):
+    """OQ-4, added ahead of Sprint 5's first placements.
+
+    PSNP distinguishes households that work for their transfer from those that
+    receive it unconditionally, and the distinction changes what an employment
+    outcome means: a Permanent Direct Support household contains somebody
+    labour-unable, and a placement from it is a different result from a Public
+    Works placement. Reporting that cannot separate them cannot answer the
+    question the parent operation asks.
+
+    Optional, because it is being added after intake began and a guessed
+    category is worse than a blank.
+
+    TODO(open-question): §11 — the three values below follow PSNP 4/5 practice.
+    Confirm the enumeration with the Food Security Coordination Office before
+    the first cohort is reported on; a fourth category would be a migration.
+    """
+
+    PUBLIC_WORKS = "PUBLIC_WORKS", _("Public works")
+    PERMANENT_DIRECT_SUPPORT = "PERMANENT_DIRECT_SUPPORT", _("Permanent direct support")
+    TEMPORARY_DIRECT_SUPPORT = "TEMPORARY_DIRECT_SUPPORT", _("Temporary direct support")
+
+
 class SettlementType(models.TextChoices):
     """Rural / peri-urban / urban — OQ-11, settled 2026-08-18.
 
@@ -138,6 +161,14 @@ class Youth(BaseModel):
     )
     psnp_status = models.CharField(
         _("PSNP status"), max_length=16, choices=PsnpStatus.choices, blank=True, db_index=True
+    )
+    psnp_client_category = models.CharField(
+        _("PSNP client category"),
+        max_length=32,
+        choices=PsnpClientCategory.choices,
+        blank=True,
+        db_index=True,
+        help_text=_("Public works or direct support. Needed to report a placement against the right caseload."),
     )
 
     education_level = models.CharField(_("education level"), max_length=24, choices=EducationLevel.choices, blank=True)

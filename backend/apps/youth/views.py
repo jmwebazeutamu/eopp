@@ -34,6 +34,8 @@ class YouthViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
 
     scope_kind = "case"
     woreda_field = "woreda"
+    # Youth is one step above the case, so the path down to it leads the lookup.
+    linked_case_prefix = "case__"
     # A case manager's caseload is defined by the Case, not the Youth record.
     case_manager_field = "case__case_manager_id"
 
