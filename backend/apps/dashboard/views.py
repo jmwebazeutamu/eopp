@@ -168,13 +168,22 @@ class DonorView(APIView):
         from django.conf import settings
         from django.utils import timezone
 
+        from .outcomes import scoped_outcomes
         from .services import scope_label, scoped_bases
         from .tiers import donor
 
         youth, _cases, referrals = scoped_bases(request.user)
+        placements, trainings = scoped_outcomes(request.user)
         return Response(
             {
                 "scope_label": scope_label(request.user),
-                **donor(youth, referrals, timezone.localdate(), settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS),
+                **donor(
+                    youth,
+                    referrals,
+                    timezone.localdate(),
+                    settings.REFERRAL_CONFIRMATION_OVERDUE_DAYS,
+                    placements=placements,
+                    trainings=trainings,
+                ),
             }
         )

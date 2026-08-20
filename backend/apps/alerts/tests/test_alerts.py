@@ -477,6 +477,12 @@ def test_run_all_detections_reports_each_job(case, make_referral, case_manager, 
     assert set(result) == {
         "stalled",
         "overdue_confirmations",
+        # Named one by one rather than asserted loosely: this test exists so a
+        # job added and never scheduled shows up as a failure instead of as
+        # silence. Sprint 5 added the first two, Sprint 6 the third.
+        "training_onward_prompts",
+        "retention_checks",
+        "follow_ups",
         "onward_prompts",
         "replacement_prompts",
         "auto_resolved",

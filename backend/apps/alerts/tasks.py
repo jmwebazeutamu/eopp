@@ -95,9 +95,15 @@ def detect_overdue_confirmations():
     cutoff = date.today() - timedelta(days=threshold)
     created = 0
 
-    overdue = Referral.objects.filter(
-        status=ReferralStatus.PENDING_CONFIRMATION, initiated_date__lt=cutoff
-    ).select_related("case", "case__youth", "case__case_manager", "receiving_partner")
+    # `youth_side()` on every job in this module: an Alert names a case, and a
+    # referral whose subject is an SHG has none. The WLT module raises its own
+    # risk flags against the group (`wlt.RiskFlag`), which is a different inbox
+    # for a different person.
+    overdue = (
+        Referral.objects.youth_side()
+        .filter(status=ReferralStatus.PENDING_CONFIRMATION, initiated_date__lt=cutoff)
+        .select_related("case", "case__youth", "case__case_manager", "receiving_partner")
+    )
 
     for referral in overdue:
         waiting = (date.today() - referral.initiated_date).days
@@ -126,8 +132,10 @@ def generate_onward_prompts():
     """
     created = 0
 
-    for referral in Referral.objects.awaiting_onward_prompt().select_related(
-        "case", "case__youth", "case__case_manager", "referral_category"
+    for referral in (
+        Referral.objects.youth_side()
+        .awaiting_onward_prompt()
+        .select_related("case", "case__youth", "case__case_manager", "referral_category")
     ):
         alert = _raise(
             referral.case,
@@ -155,8 +163,10 @@ def generate_replacement_prompts():
     """
     created = 0
 
-    for referral in Referral.objects.awaiting_replacement_prompt().select_related(
-        "case", "case__youth", "case__case_manager", "referral_category", "failure_reason_code"
+    for referral in (
+        Referral.objects.youth_side()
+        .awaiting_replacement_prompt()
+        .select_related("case", "case__youth", "case__case_manager", "referral_category", "failure_reason_code")
     ):
         reason = referral.failure_reason_code.label if referral.failure_reason_code_id else "unspecified"
         alert = _raise(
@@ -168,6 +178,131 @@ def generate_replacement_prompts():
         created += bool(alert)
 
     logger.info("generate_replacement_prompts: %s prompt(s) raised", created)
+    return created
+
+
+@shared_task(name="alerts.detect_follow_ups_due")
+def detect_follow_ups_due():
+    """§4.13's last undetected alert type — Follow-Up Due. Sprint 6.
+
+    The condition lives in `followups.services.awaiting_follow_up`: a referral
+    that has been Active longer than the threshold with no contact attempt
+    recorded against it since. §6.2 asks the follow-up to close that loop — the
+    youth is supposed to be attending something and nobody has checked — so the
+    referral is what the alert names.
+
+    The spec names this alert type and never defines its trigger. The definition
+    is the module's and it is written down there rather than here, so the screen
+    and the inbox read the same one.
+    """
+    from apps.followups.services import awaiting_follow_up
+
+    threshold = settings.FOLLOW_UP_DUE_DAYS
+    created = 0
+
+    for referral in awaiting_follow_up(Referral.objects.youth_side(), threshold).select_related(
+        "case", "case__youth", "case__case_manager", "receiving_partner"
+    ):
+        since = referral.confirmed_date or referral.initiated_date
+        waiting = (date.today() - since).days
+        alert = _raise(
+            referral.case,
+            AlertType.FOLLOW_UP_DUE,
+            referral=referral,
+            summary=(
+                f"No contact with {referral.case.youth.full_name} since her referral to "
+                f"{referral.receiving_partner.partner_name} was confirmed {waiting} day(s) ago."
+            ),
+        )
+        if alert:
+            created += 1
+
+    logger.info("Follow-up alerts raised: %s", created)
+    return created
+
+
+@shared_task(name="alerts.detect_retention_checks_due")
+def detect_retention_checks_due():
+    """§4.7's 30/60/90-day checkpoints, once each falls due. Sprint 5.
+
+    The condition is `RetentionCheck.objects.due()` — a checkpoint whose date
+    has passed, which nobody has answered, on a placement the youth has not
+    already left. This job only materialises it into somebody's inbox, exactly
+    as the referral prompts do.
+
+    One alert per *placement*, not per checkpoint. A youth whose 30 and 60-day
+    checks are both outstanding needs one phone call, and two alerts for one
+    call is how an inbox stops being read. The summary names the earliest
+    checkpoint outstanding, which is the one that is most overdue.
+    """
+    from apps.placements.models import RetentionCheck
+
+    created = 0
+    seen_placements = set()
+
+    due = (
+        RetentionCheck.objects.due()
+        .select_related("placement", "placement__case", "placement__case__youth", "placement__case__case_manager")
+        .order_by("placement_id", "checkpoint")
+    )
+    for check in due:
+        if check.placement_id in seen_placements:
+            continue
+        seen_placements.add(check.placement_id)
+
+        overdue_by = (date.today() - check.due_date).days
+        alert = _raise(
+            check.placement.case,
+            AlertType.RETENTION_CHECK_DUE,
+            summary=(
+                f"{check.checkpoint}-day retention check due for "
+                f"{check.placement.case.youth.full_name} at {check.placement.employer_name} "
+                f"({overdue_by} day(s) overdue)."
+            ),
+        )
+        if alert:
+            created += 1
+
+    logger.info("Retention check alerts raised: %s", created)
+    return created
+
+
+@shared_task(name="alerts.generate_training_onward_prompts")
+def generate_training_onward_prompts():
+    """A completed training with no next step — §4.5's `triggers_onward_referral`.
+
+    The referral-side prompt already covers an enrolment that came *from* a
+    referral: that referral completes, and `Referral.objects.awaiting_onward_prompt`
+    picks it up. This covers the other case — a youth put into a course directly
+    — which otherwise finishes her training and is never offered a next step.
+
+    `awaiting_onward_prompt()` on the enrolment excludes referral-sourced rows
+    for that reason, so the two jobs cannot raise the same prompt twice.
+
+    Since §4.5 enrolments must come from a referral, this is now a sweep over
+    the rows recorded before that rule and raises nothing on a database seeded
+    after 2026-08-20. Kept rather than deleted: those enrolments are still valid
+    and their youth still need a next step.
+    """
+    from apps.training.models import TrainingEnrolment
+
+    created = 0
+    for enrolment in TrainingEnrolment.objects.awaiting_onward_prompt().select_related(
+        "case", "case__youth", "case__case_manager", "training_provider"
+    ):
+        alert = _raise(
+            enrolment.case,
+            AlertType.ONWARD_REFERRAL_PROMPT,
+            summary=(
+                f"{enrolment.case.youth.full_name} completed "
+                f"{enrolment.get_training_type_display().lower()} at "
+                f"{enrolment.training_provider.partner_name}. Consider the next referral."
+            ),
+        )
+        if alert:
+            created += 1
+
+    logger.info("Training onward prompts raised: %s", created)
     return created
 
 
@@ -209,10 +344,24 @@ def _condition_still_holds(alert):
     if alert.alert_type == AlertType.REPLACEMENT_REFERRAL_PROMPT:
         return Referral.objects.filter(pk=alert.referral_id).awaiting_replacement_prompt().exists()
 
-    # FOLLOW_UP_DUE and RETENTION_CHECK_DUE have no detection job yet — their
-    # source entities are Follow-Up (§4.9, Sprint 6) and Placement (§4.7,
-    # Sprint 5). Leave them open rather than auto-closing something this
-    # function cannot actually evaluate.
+    if alert.alert_type == AlertType.RETENTION_CHECK_DUE:
+        # Clears when somebody answers the outstanding checks, and also when the
+        # youth leaves the placement — recording an exit answers the remaining
+        # checkpoints, so continuing to ask about them would be chasing a job
+        # that has ended.
+        from apps.placements.models import RetentionCheck
+
+        return RetentionCheck.objects.due().filter(placement__case=alert.case).exists()
+
+    if alert.alert_type == AlertType.FOLLOW_UP_DUE:
+        # Clears the moment somebody records a contact attempt against the
+        # referral — successful or not. Trying is the action the alert asks for;
+        # whether the youth answered is a different question, and one the log
+        # itself records.
+        from apps.followups.services import awaiting_follow_up
+
+        return awaiting_follow_up(Referral.objects.filter(pk=alert.referral_id), alert.threshold_days).exists()
+
     return True
 
 
@@ -227,7 +376,10 @@ def run_all_detections():
         "stalled": detect_stalled_cases(),
         "overdue_confirmations": detect_overdue_confirmations(),
         "onward_prompts": generate_onward_prompts(),
+        "training_onward_prompts": generate_training_onward_prompts(),
+        "follow_ups": detect_follow_ups_due(),
         "replacement_prompts": generate_replacement_prompts(),
+        "retention_checks": detect_retention_checks_due(),
         "auto_resolved": resolve_cleared_alerts(),
     }
 
@@ -260,9 +412,11 @@ def fail_abandoned_referrals():
     cutoff = date.today() - timedelta(days=threshold)
     failed = 0
 
-    for referral in Referral.objects.filter(
-        status=ReferralStatus.PENDING_CONFIRMATION, initiated_date__lt=cutoff
-    ).select_related("case"):
+    for referral in (
+        Referral.objects.youth_side()
+        .filter(status=ReferralStatus.PENDING_CONFIRMATION, initiated_date__lt=cutoff)
+        .select_related("case")
+    ):
         # Through the state machine, never by assignment: §6.2 is the only
         # supported way to move a referral, and the transition is what stamps
         # the failure date and frees the parallel slot.

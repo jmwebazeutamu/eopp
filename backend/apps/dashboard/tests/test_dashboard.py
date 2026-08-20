@@ -107,13 +107,19 @@ def test_the_fourth_quarter_ends_in_the_next_year():
 # ---------------------------------------------------------------------------
 
 
-def test_retention_reports_itself_as_unbuilt_rather_than_zero(locations, programme_manager):
-    """§4.7 Placement is Sprint 5; a donor-facing 0% would be a lie."""
+def test_retention_reports_itself_as_unmeasured_rather_than_zero(locations, programme_manager):
+    """A donor-facing 0% would be a lie.
+
+    Sprint 5 built the entity, which changes the *reason* and not the rule: with
+    no placement recorded the card is still absent, because "nobody has been
+    placed yet" and "nobody stayed" are different claims and only one of them is
+    true here.
+    """
     payload = programme_dashboard(programme_manager)
     card = payload["metrics"]["retained_six_months"]
     assert card["available"] is False
     assert "Not measurable yet" in card["reason"]
-    assert "value" not in card
+    assert "rate" not in card
 
     retained = [row for row in payload["funnel"] if row["key"] == "retained"][0]
     assert retained["available"] is False
@@ -398,6 +404,11 @@ def test_the_endpoint_serves_the_whole_screen_in_one_request(locations, supervis
         "confirmation_lag",
         "woredas",
         "alerts",
+        # Sprint 5: retention, training completion, exits, and the coverage gap
+        # between referral outcomes and written-up placement records.
+        "outcomes",
+        # Sprint 6: verification, follow-up pressure, enterprise, grievances.
+        "casework",
     }
 
 

@@ -36,6 +36,7 @@ from apps.referrals.models import ConfirmationStatus, ReferralStatus
 from apps.referrals.taxonomy import OutcomeType, ReferralCategory
 from apps.youth.models import DisabilityStatus, PsnpStatus, SettlementType, Sex
 
+from . import outcomes
 from .rules import VERDICT_LABEL, age_band, funnel_verdict, median, rate, wilson_bounds
 from .services import partner_response_times
 
@@ -475,9 +476,16 @@ def disaggregation(youth, referrals, today):
     ]
 
 
-def results_framework(youth, referrals, today, confirmation_threshold, maturation_days=30):
+def results_framework(youth, referrals, today, confirmation_threshold, maturation_days=30, trainings=None):
     """ME-1 — the indicator table, each with its numerator and denominator."""
     placed_youth = len(referrals.placed_youth_ids())
+
+    # Sprint 5. `None` rather than an empty queryset here, because the
+    # indicator's two states are genuinely different: a caller with no training
+    # data to pass is the pre-Sprint-5 shape and gets the unavailable row, while
+    # an empty queryset means "enrolments exist as a concept and none have
+    # concluded" — which `training_completion` reports in its own words.
+    completion = outcomes.training_completion(trainings) if trainings is not None else None
 
     # Only referrals old enough to have been decided count in a timeliness rate.
     mature = referrals.filter(initiated_date__lte=today - timedelta(days=maturation_days))
@@ -519,9 +527,16 @@ def results_framework(youth, referrals, today, confirmation_threshold, maturatio
             "framework": INDICATORS[1]["framework"],
             "kind": "rate",
             "value": None,
-            "rate": None,
-            "available": False,
-            "reason": str(TRAINING_PENDING),
+            # Completed over *concluded*, not over enrolled: a course still
+            # running is neither a completion nor a failure, and counting it as
+            # either would move the rate every time a cohort starts.
+            "rate": completion.get("rate") if completion and completion["available"] else None,
+            "available": bool(completion and completion["available"]),
+            "reason": (
+                ""
+                if (completion and completion["available"])
+                else str(completion["reason"] if completion else TRAINING_PENDING)
+            ),
         },
         {
             "code": "employed",
@@ -625,12 +640,18 @@ def cumulative_placements(referrals, today, months=12):
     return {"series": series, "opening_balance": opening, "unit": str(_("youth"))}
 
 
-def donor(youth, referrals, today, confirmation_threshold):
+def donor(youth, referrals, today, confirmation_threshold, placements=None, trainings=None):
     return {
-        "indicators": results_framework(youth, referrals, today, confirmation_threshold),
+        "indicators": results_framework(youth, referrals, today, confirmation_threshold, trainings=trainings),
         "cumulative": cumulative_placements(referrals, today),
         "disaggregation": disaggregation(youth, referrals, today),
-        "retention": absent(PLACEMENT_PENDING),
+        # Sprint 5 made this measurable. Still absent when nothing has been
+        # recorded — "nobody has been placed yet" and "nobody stayed" are
+        # different claims, and the donor tier must not print the second when
+        # the first is true.
+        "retention": (
+            outcomes.retention_card(placements, today=today) if placements is not None else absent(PLACEMENT_PENDING)
+        ),
         # ME-5. A sentence beats another chart, and these two caveats are the
         # ones the handoff requires by name.
         "caveats": [

@@ -168,15 +168,17 @@ class RiskItem:
     badge: str
 
 
-# §5 CM-4 lists four conditions. Three of them read entities that do not exist
-# yet — TrainingEnrolment and Placement land in Sprint 5, FollowUp in Sprint 6 —
-# so they are named here rather than quietly dropped. A card that silently checks
-# one of four conditions while claiming to be the at-risk list is worse than one
-# that says which three it cannot see.
+# §5 CM-4 lists four conditions. Three are now checkable and one is not, and the
+# one that is not is named rather than quietly dropped — a card that silently
+# checks three of four while calling itself the at-risk list is worse than one
+# that says what it cannot see.
+#
+# "Left a placement with no exit reason" is now **unreachable rather than
+# uninstrumented**: `placement_exit_needs_reason` is a check constraint, so a
+# placement cannot be exited without one. The condition survives as a rule the
+# database keeps, which is the better place for it.
 UNINSTRUMENTED_RISK_CONDITIONS = [
-    _("3 consecutive training absences — training attendance is not recorded yet"),
-    _("Left a placement with no exit reason — placements are not recorded yet"),
-    _("4+ failed contact attempts — follow-up calls are not recorded yet"),
+    _("3 consecutive training absences — attendance is recorded as a rate, not per session"),
 ]
 
 
@@ -201,17 +203,44 @@ def caseload_basis(user):
 def at_risk(user):
     """Youth who have gone quiet, worst first.
 
-    One query rather than the contract's four-way UNION, because three of the
-    four conditions have no table to read. When Sprint 5 and 6 land, this becomes
-    the UNION §5 describes; the single round-trip budget is the reason it must
-    stay one query rather than four separate ones.
+    Two of §5 CM-4's four conditions, in one query: a case with no activity past
+    the stall threshold, **or** a youth nobody has managed to reach in four
+    attempts. Sprint 6 added the second — the contact log is what makes a failed
+    attempt a fact rather than a memory.
+
+    Still one query rather than the contract's four-way UNION. The single
+    round-trip budget is the reason, and an `OR` over two conditions on the same
+    table costs one scan where a UNION costs two.
     """
     today = timezone.localdate()
     threshold = settings.STALL_ALERT_THRESHOLD_DAYS
     cutoff = today - timedelta(days=threshold)
+
+    # CM-4's fourth condition, inlined into the scoped statement rather than
+    # evaluated first. Two reasons, both enforced by tests in this app:
+    #
+    #  * As a subquery it compiles into the same statement, where a
+    #    materialised `set()` cost a second round trip and broke the page's
+    #    12-query budget.
+    #  * The scoping guard walks this module's AST and refuses any `.objects`
+    #    that is not narrowing a scoped base in the same statement. Here it
+    #    plainly is: `scoped_cases(user)` is the base and this only narrows it.
+    #
+    # Bounded to the current episode: four failures last year and a
+    # conversation last week is not a youth who has disappeared.
+    from apps.followups.models import FollowUp
+
     return (
         scoped_cases(user)
-        .filter(case_status__in=CaseStatus.open_statuses(), last_activity_date__lte=cutoff)
+        .filter(case_status__in=CaseStatus.open_statuses())
+        .filter(
+            Q(last_activity_date__lte=cutoff)
+            | Q(
+                pk__in=FollowUp.objects.cases_with_failed_attempts(
+                    minimum=settings.FAILED_CONTACT_ATTEMPTS_AT_RISK, since=cutoff
+                )
+            )
+        )
         .annotate(quiet=ExpressionWrapper(Value(today) - F("last_activity_date"), output_field=DurationField()))
         .annotate(quiet_days=ExpressionWrapper(ExtractDay("quiet"), output_field=IntegerField()))
         .order_by("-quiet_days")

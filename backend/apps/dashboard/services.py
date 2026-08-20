@@ -27,11 +27,14 @@ from django.db.models import Count, F, Min, Q
 from django.utils.translation import gettext_lazy as _
 
 from apps.cases.models import Case
+from apps.placements.models import Placement
 from apps.referrals.models import Referral, ReferralStatus
 from apps.users.models import Scope
 from apps.users.permissions import scope_queryset
 from apps.youth.models import Sex, Youth
 
+from . import casework, outcomes
+from .outcomes import NO_PLACEMENTS_YET, RETENTION_LABEL
 from .rules import band_for, median, quarter_elapsed_fraction, rate
 
 # §4.7 Placement, with the 30/60/90-day retention checkpoints, is Sprint 5.
@@ -49,11 +52,11 @@ SERVICE_START_PENDING = _("Not measurable yet: nothing has recorded the date a y
 # design mockup with no framework behind it. Dropped: three anchors produce
 # three different retention rates that nobody can reconcile, and the donor
 # number has to match the parent operation's definition or it cannot be quoted.
-RETENTION_LABEL = _("Retained 3 months after exit")
-
-RETENTION_PENDING = _(
-    "Not measurable yet: nothing records whether a youth is still employed three months after leaving the programme."
-)
+# Sprint 5 moved both of these into `outcomes.py`, which is where the figures
+# they label are now computed. Re-exported here because the tier modules and the
+# tests import them from this module, and one label in two places is how two
+# screens come to call the same anchor by different names.
+RETENTION_PENDING = NO_PLACEMENTS_YET
 
 
 # The confirmation standard, read from the one place it is configured. It used
@@ -95,13 +98,15 @@ def scoped_bases(user):
         scope_kind="case",
         woreda_field="woreda",
         case_manager_field="case__case_manager_id",
+        linked_case_prefix="case__",
     )
     referrals = scope_queryset(
-        Referral.objects.all(),
+        Referral.objects.youth_side(),
         user,
         scope_kind="case",
         woreda_field="case__woreda",
         case_manager_field="case__case_manager_id",
+        linked_case_prefix="case__",
     )
     return youth, cases, referrals
 
@@ -141,8 +146,14 @@ def _placements(referrals):
     return referrals.placements()
 
 
-def metric_cards(youth, referrals, today):
+def metric_cards(youth, referrals, today, placements=None):
     start, end, _label = quarter_bounds(today)
+
+    # An empty queryset rather than None, so every branch below counts rather
+    # than testing for absence. A caller that has no placements to pass gets the
+    # same "not measurable yet" the card gave before Sprint 5.
+    if placements is None:
+        placements = Placement.objects.none()
 
     placed = _placements(referrals)
     this_quarter = (
@@ -181,7 +192,10 @@ def metric_cards(youth, referrals, today):
             # is failing. Day 3 of 90 at 3% of target is on track.
             "quarter_elapsed_percent": round(quarter_elapsed_fraction(today, start, end) * 100),
         },
-        "retained_six_months": {"available": False, "reason": str(RETENTION_PENDING)},
+        # Sprint 5 filled this. It kept its key so a client built against the
+        # old payload does not break; the label inside it is the OQ-9 anchor,
+        # which is three months after exit and never was six.
+        "retained_six_months": outcomes.retention_card(placements, today=today),
         "gender_split": {
             "available": placed_total > 0,
             "placed_total": placed_total,
@@ -243,7 +257,7 @@ UNIT_REFERRALS = _("referrals")
 PIPELINE_UNIT = UNIT_YOUTH
 
 
-def funnel(youth, cases, referrals):
+def funnel(youth, cases, referrals, placements=None):
     """Registration → placement, with the loss at every transition.
 
     Each stage counts *youth*, not events, so the rows nest: a youth referred
@@ -256,6 +270,11 @@ def funnel(youth, cases, referrals):
     manager is asking is where youth are *lost* — a funnel highlights the
     survivors and cannot show median days in stage at all.
     """
+    # Same reason as `metric_cards`: an empty queryset rather than None, so the
+    # last row reports "nothing recorded yet" instead of raising.
+    if placements is None:
+        placements = Placement.objects.none()
+
     confirmed_statuses = [ReferralStatus.ACTIVE, ReferralStatus.COMPLETED, ReferralStatus.REPLACED]
 
     # One pass. Each stage's date is the first time the youth reached it.
@@ -364,8 +383,21 @@ def funnel(youth, cases, referrals):
             last_gating = entry
         previous_field = field
 
-    out.append(
-        {
+    out.append(_retained_row(placements, registered))
+    return out
+
+
+def _retained_row(placements, registered):
+    """The funnel's last row — Sprint 5 made it measurable.
+
+    Counted in **youth**, like every other row: a youth retained in two
+    placements is one young person still in work. The share is against
+    registration, so the row can be read down the funnel with the rest; the
+    retention *rate* — retained over answered checks — is the card's job, and
+    the two answer different questions.
+    """
+    if not placements.exists():
+        return {
             "key": "retained",
             "label": str(RETENTION_LABEL),
             "sublabel": str(_("Still in the same placement")),
@@ -373,13 +405,37 @@ def funnel(youth, cases, referrals):
             "share": None,
             "median_days_in_prev_stage": None,
             "available": False,
-            "reason": str(RETENTION_PENDING),
+            "reason": str(NO_PLACEMENTS_YET),
             "lost": None,
             "gating": True,
             "unit": str(PIPELINE_UNIT),
         }
+
+    from apps.placements.models import RetentionStatus
+
+    retained_youth = (
+        placements.filter(
+            is_subsidised=False,
+            retention_checks__checkpoint=90,
+            retention_checks__status=RetentionStatus.RETAINED,
+        )
+        .values("case__youth_id")
+        .distinct()
+        .count()
     )
-    return out
+    return {
+        "key": "retained",
+        "label": str(RETENTION_LABEL),
+        "sublabel": str(_("Unsubsidised, still in the placement at 90 days")),
+        "count": retained_youth,
+        "share": _percent(retained_youth, registered) if registered else None,
+        "median_days_in_prev_stage": None,
+        "available": True,
+        "reason": "",
+        "lost": None,
+        "gating": True,
+        "unit": str(PIPELINE_UNIT),
+    }
 
 
 def partner_response_times(referrals):
@@ -514,13 +570,20 @@ def programme_dashboard(user, today=None):
     """
     today = today or date.today()
     youth, cases, referrals = scoped_bases(user)
+    placements, _trainings = outcomes.scoped_outcomes(user)
     start, end, label = quarter_bounds(today)
 
     return {
         "period": {"label": label, "start": start.isoformat(), "end": end.isoformat()},
         "scope_label": scope_label(user),
-        "metrics": metric_cards(youth, referrals, today),
-        "funnel": funnel(youth, cases, referrals),
+        "metrics": metric_cards(youth, referrals, today, placements=placements),
+        "funnel": funnel(youth, cases, referrals, placements=placements),
+        # Sprint 5. Retention, training completion, exits, and the coverage gap
+        # between referral outcomes and written-up placement records.
+        "outcomes": outcomes.outcomes_panel(user, today=today),
+        # Sprint 6. Verification, follow-up pressure, enterprise survival and
+        # the grievance channel.
+        "casework": casework.casework_panel(user, referrals, today=today),
         "confirmation_lag": confirmation_lag(referrals),
         "woredas": woreda_comparison(youth, referrals),
         "alerts": alert_pressure(cases),

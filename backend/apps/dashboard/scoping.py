@@ -54,7 +54,7 @@ def scoped_referrals(user):
     shared-youth case that case-level scoping alone would fail.
     """
     return scope_queryset(
-        Referral.objects.select_related("case", "case__youth", "receiving_partner"),
+        Referral.objects.youth_side().select_related("case", "case__youth", "receiving_partner"),
         user,
         scope_kind="referral",
         woreda_field="case__woreda",

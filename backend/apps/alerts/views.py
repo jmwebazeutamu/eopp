@@ -31,6 +31,10 @@ class AlertViewSet(ScopedQuerySetMixin, viewsets.ReadOnlyModelViewSet):
 
     scope_kind = "case"
     woreda_field = "case__woreda"
+    # An alert hangs off a case, so a LINKED role's lookup walks back through
+    # it. Sprint 5 made this reachable: before it, LINKED returned nothing for
+    # every role that could get here, and the missing declaration was invisible.
+    linked_case_prefix = "case__"
     case_manager_field = "case__case_manager_id"
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
