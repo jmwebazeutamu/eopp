@@ -8,6 +8,12 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = False
 
+# The development role switcher mints a token for any account without a
+# password. A literal, deliberately not `config(...)`: an impersonation
+# endpoint against real case records must not be one stray .env line away from
+# being live. See apps/users/dev_views.py.
+DEV_ROLE_SWITCHER = False
+
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True

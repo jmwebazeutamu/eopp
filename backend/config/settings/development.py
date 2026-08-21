@@ -1,5 +1,7 @@
 """Development settings — Multipass VM + Docker Compose (spec §2.1)."""
 
+from decouple import config
+
 from .base import *  # noqa: F401,F403
 from .base import INSTALLED_APPS, MIDDLEWARE, STORAGES
 
@@ -40,3 +42,8 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # Lockouts during development make debugging auth painful.
 AXES_ENABLED = False
+
+# The role switcher: sign in as any account without a password, to check what a
+# role sees. See apps/users/dev_views.py for why it is gated as heavily as it
+# is. Env-overridable so it can be turned off in a shared dev environment.
+DEV_ROLE_SWITCHER = config("DEV_ROLE_SWITCHER", default=True, cast=bool)

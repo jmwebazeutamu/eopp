@@ -36,6 +36,19 @@ api_v1_patterns = [
     path("wlt/", include("apps.wlt.api.urls")),
 ]
 
+# The development role switcher. Registered only when both gates are open, so
+# in production the path does not exist rather than existing and refusing —
+# an endpoint that 404s cannot be probed for whether it is merely misconfigured.
+# The views re-check anyway, at call time: this list is built at import, and
+# pytest-django flips DEBUG to False afterwards.
+if settings.DEBUG and getattr(settings, "DEV_ROLE_SWITCHER", False):
+    from apps.users.dev_views import DevAccountsView, DevImpersonateView
+
+    api_v1_patterns += [
+        path("dev/accounts/", DevAccountsView.as_view(), name="dev-accounts"),
+        path("dev/impersonate/", DevImpersonateView.as_view(), name="dev-impersonate"),
+    ]
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     # Tier 1 of the dashboard handoff: a server-rendered page, not an API

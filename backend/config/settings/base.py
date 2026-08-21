@@ -432,6 +432,13 @@ YOUTH_AGE_MAX = config("YOUTH_AGE_MAX", default=29, cast=int)
 # stream. Flagged as a policy decision pending Phase 1 sign-off.
 COMPLEMENTARY_SERVICE_EXEMPT_FROM_PARALLEL_CAP = True
 
+# The development role switcher (apps/users/dev_views.py) mints a token for
+# another account without a password. False here, and set as a *literal* in
+# production.py rather than read from the environment, so no .env line can turn
+# an impersonation endpoint on against real case records. development.py turns
+# it on. Both this and DEBUG are checked, and both at call time.
+DEV_ROLE_SWITCHER = False
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

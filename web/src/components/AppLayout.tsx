@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { api } from "../api/client";
@@ -13,6 +13,8 @@ import ProfileModal from "./ProfileModal";
 import UserMenu from "./shell/UserMenu";
 import { buildNav } from "./shell/navModel";
 import { usePreference } from "./shell/preferences";
+
+const DevRoleSwitcher = import.meta.env.DEV ? lazy(() => import("../dev/RoleSwitcher")) : null;
 
 /**
  * The application shell — the handoff's navigation model.
@@ -126,6 +128,11 @@ export default function AppLayout() {
       </div>
     </div>
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+      {DevRoleSwitcher && (
+        <Suspense fallback={null}>
+          <DevRoleSwitcher />
+        </Suspense>
+      )}
     </ScopeProvider>
   );
 }
