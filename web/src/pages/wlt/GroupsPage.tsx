@@ -3,11 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { api, errorMessage } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
 import type { Paginated, Summary, WltGroup } from "../../api/types";
 import ListPage from "../../components/ListPage";
-import { Card } from "../../components/ui";
+import { Button, Card } from "../../components/ui";
 import { PHASE_LABEL, WLT_GROUP_TONE } from "../../design/wltStatus";
 import { useLang } from "../../i18n/LanguageContext";
+import DraftGroupModal from "./DraftGroupModal";
 
 /**
  * The SHG register — the way into everything else in the module.
@@ -19,6 +21,7 @@ import { useLang } from "../../i18n/LanguageContext";
 export default function GroupsPage() {
   const { message } = App.useApp();
   const { t } = useLang();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
@@ -26,6 +29,12 @@ export default function GroupsPage() {
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [drafting, setDrafting] = useState(false);
+
+  // Only a facilitator (and the administrator) may write a group record —
+  // an officer reads and approves. The server refuses either way; this only
+  // avoids offering a button that would 403.
+  const canDraft = Boolean(user?.access.group_write);
 
   const status = params.get("status") ?? "";
 
@@ -75,6 +84,13 @@ export default function GroupsPage() {
       title={t("wlt.groupsTitle")}
       subtitle={t("wlt.groupsSubtitle", { count: total })}
       searchPlaceholder={t("wlt.groupsSearch")}
+      action={
+        canDraft ? (
+          <Button variant="primary" onClick={() => setDrafting(true)}>
+            {t("wlt.draftGroup")}
+          </Button>
+        ) : undefined
+      }
       empty={{
         when: !loading && rows.length === 0,
         title: t("wlt.noGroups"),
@@ -160,6 +176,8 @@ export default function GroupsPage() {
               ))}
             </div>
           </div>
+
+          <DraftGroupModal open={drafting} onClose={() => setDrafting(false)} onDone={load} />
         </>
       )}
     </ListPage>

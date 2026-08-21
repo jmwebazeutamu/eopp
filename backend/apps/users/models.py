@@ -100,6 +100,10 @@ class GroupScope(models.TextChoices):
 # needing level 2 cannot be taken by a level 1 officer, and an override
 # escalates by one level. `None` means the role approves nothing.
 WLT_APPROVAL_LEVELS = {
+    # Administrators support every WLT workflow and may stand in at any
+    # configured approval level. Domain-level separation of duties still
+    # prevents them approving their own submission or deciding twice.
+    Role.SYSTEM_ADMIN: 4,
     Role.WLT_WOREDA_OFFICER: 1,
     Role.WLT_REGION_OFFICER: 2,
     Role.WLT_FEDERAL_OFFICER: 3,

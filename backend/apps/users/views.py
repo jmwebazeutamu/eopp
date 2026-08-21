@@ -13,6 +13,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from apps.cases.models import CaseStatus
 from apps.common.summaries import counters_for, summary_response
+from apps.locations.models import Location
 
 from .models import AccountStatus, Role, Scope, User
 from .permissions import CanAccessCases, HasRole, IsOperational
@@ -115,6 +116,35 @@ class UserViewSet(viewsets.ModelViewSet):
         if request.user.case_scope() in {Scope.OWN_WOREDA, Scope.OWN_CASELOAD} and request.user.woreda_assignment:
             queryset = queryset.filter(woreda_assignment__overlap=request.user.woreda_assignment)
 
+        return Response(AssignableUserSerializer(queryset.order_by("full_name"), many=True).data)
+
+    @extend_schema(responses=AssignableUserSerializer(many=True))
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="wlt-facilitators",
+        permission_classes=[IsOperational],
+        serializer_class=AssignableUserSerializer,
+        pagination_class=None,
+    )
+    def wlt_facilitators(self, request):
+        """Active facilitators whose WLT scope contains the selected kebele."""
+        queryset = User.objects.filter(
+            role=Role.WLT_FACILITATOR,
+            account_status=AccountStatus.ACTIVE,
+            is_active=True,
+        )
+        kebele_id = request.query_params.get("kebele")
+        if kebele_id:
+            kebele = Location.objects.filter(pk=kebele_id).first()
+            if kebele is None:
+                return Response([])
+            ancestor_ids = []
+            node = kebele
+            while node is not None:
+                ancestor_ids.append(node.pk)
+                node = node.parent
+            queryset = queryset.filter(wlt_scope_location_id__in=ancestor_ids)
         return Response(AssignableUserSerializer(queryset.order_by("full_name"), many=True).data)
 
     @extend_schema(responses=CurrentUserSerializer)

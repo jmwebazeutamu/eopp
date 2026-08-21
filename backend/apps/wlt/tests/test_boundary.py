@@ -12,7 +12,7 @@ import pytest
 
 from apps.users.models import ACCESS_MATRIX, GroupScope, Role, Scope
 from apps.users.permissions import scope_group_queryset
-from apps.wlt.models import Group
+from apps.wlt.models import Group, MobilisationEvent
 from apps.wlt.services import formation as formation_service
 
 pytestmark = pytest.mark.django_db
@@ -142,9 +142,17 @@ def test_scoping_fails_closed_when_the_key_is_missing(db, wlt_group, wlt_locatio
 def test_a_facilitator_may_write_and_an_officer_may_not(as_user, facilitator, woreda_officer, wlt_locations):
     """Read and approve, not record. An officer who could post a ledger entry
     could also settle a discrepancy nobody witnessed."""
+    # A group is drafted from an endorsed community meeting, so the payload
+    # carries one. The kebele is not sent: it is derived from the meeting.
+    event = MobilisationEvent.objects.create(
+        kebele=wlt_locations["kebele"],
+        held_on="2026-01-20",
+        facilitator=facilitator,
+        endorsement_obtained=True,
+    )
     payload = {
         "name": "New SHG",
-        "kebele": str(wlt_locations["kebele"].pk),
+        "mobilisation_event": str(event.pk),
         "facilitator": str(facilitator.pk),
         "drafted_on": "2026-02-01",
     }
