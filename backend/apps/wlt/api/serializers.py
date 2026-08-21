@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.locations.models import Location, LocationLevel
+from apps.users.models import Role, User
 from apps.wlt.models import (
     BeneficiaryProfile,
     BylawVersion,
@@ -18,8 +19,10 @@ from apps.wlt.models import (
     GroupMembership,
     LedgerEntry,
     LinkageEvent,
+    LinkageStatus,
     Loan,
     Meeting,
+    MobilisationEvent,
     OfficeHolder,
     PhaseEvent,
     RiskFlag,
@@ -58,6 +61,11 @@ class BeneficiaryProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="person.full_name", read_only=True)
     is_programme_eligible = serializers.BooleanField(read_only=True)
     is_assignable = serializers.BooleanField(read_only=True)
+    # The group she is in *now*, or null. Distinct from `is_assignable`, which
+    # answers "could she join one" — a woman can be unassignable for four other
+    # reasons, so reading a blank group off that flag would name the wrong
+    # problem on screen.
+    current_group = serializers.SerializerMethodField()
 
     class Meta:
         model = BeneficiaryProfile
@@ -81,8 +89,41 @@ class BeneficiaryProfileSerializer(serializers.ModelSerializer):
             "verified_on",
             "is_programme_eligible",
             "is_assignable",
+            "current_group",
         ]
         read_only_fields = ["verification_status", "verified_on", "enrolment_route"]
+
+    def get_current_group(self, profile):
+        """Her open membership, as `{id, name, joined_on}`, or null.
+
+        Membership is a dated range, never a flag, so "in a group" means an
+        open range and nothing else — a woman who left in April is not in a
+        group in May, and her closed row still has to stay on the roster
+        because February's attendance denominator is computed against it.
+
+        Reads the prefetch the viewset sets up, and falls back to a query when
+        there is none: the serializer is also used for a single profile just
+        created by `register`, which has no prefetched attribute on it. Without
+        the fallback that path would raise, and with a bare query in the list
+        path this would be one SELECT per row.
+        """
+        prefetched = getattr(profile.person, "open_memberships", None)
+        if prefetched is None:
+            membership = (
+                GroupMembership.objects.filter(person_id=profile.person_id, exited_on__isnull=True)
+                .select_related("group")
+                .first()
+            )
+        else:
+            membership = prefetched[0] if prefetched else None
+
+        if membership is None:
+            return None
+        return {
+            "id": str(membership.group_id),
+            "name": membership.group.name,
+            "joined_on": membership.joined_on,
+        }
 
 
 class GroupMembershipSerializer(serializers.ModelSerializer):
@@ -150,6 +191,75 @@ class BylawVersionSerializer(serializers.ModelSerializer):
         return value
 
 
+class MobilisationEventSerializer(serializers.ModelSerializer):
+    """Handbook 3.4 step 1 — the community meeting a group is drafted from.
+
+    Recorded whether or not the community endorsed. A refusal is not a failed
+    submission: it closes the mobilisation, and the row is what explains a
+    kebele with no groups in it (assertion A30). So `endorsement_obtained:
+    false` is a perfectly good POST and the screen says so.
+
+    `facilitator` is stamped from the request rather than accepted, on the
+    §4.1 `registering_worker` precedent — this is an accountability record of
+    who convened the meeting, and a client that could name somebody else could
+    desynchronise it from who was actually in the room.
+    """
+
+    # By `code`, like `/wlt/profiles/register/`: that is what the locations API
+    # emits and looks up on, and a Location's integer pk appears nowhere a
+    # client can see. A PrimaryKeyRelatedField here would be unusable from the
+    # web app for exactly that reason.
+    kebele = serializers.SlugRelatedField(slug_field="code", queryset=Location.objects.all())
+    kebele_name = serializers.CharField(source="kebele.name", read_only=True)
+    facilitator_name = serializers.CharField(source="facilitator.full_name", read_only=True)
+    # Whether a group has already been drafted from this meeting. One meeting
+    # can endorse more than one group — twenty-five women may split into two —
+    # so this is shown, not enforced.
+    groups_drafted = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MobilisationEvent
+        fields = [
+            "id",
+            "kebele",
+            "kebele_name",
+            "held_on",
+            "facilitator",
+            "facilitator_name",
+            "attendees_potential",
+            "attendees_husbands",
+            "attendees_elders",
+            "attendees_leaders",
+            "endorsement_obtained",
+            "endorsement_note",
+            "groups_drafted",
+            "created_at",
+        ]
+        read_only_fields = ["facilitator", "created_at"]
+
+    def get_groups_drafted(self, event):
+        return event.groups.count()
+
+    def validate_kebele(self, kebele):
+        if kebele.level != LocationLevel.KEBELE:
+            raise serializers.ValidationError(_("A community meeting is held in a kebele."))
+        return kebele
+
+    def validate(self, attrs):
+        # A refusal that says nothing is not programme learning, it is a blank.
+        # The handbook wants the reason a community declined; A30 is the
+        # assertion that reads these rows.
+        if attrs.get("endorsement_obtained") is False and not (attrs.get("endorsement_note") or "").strip():
+            raise serializers.ValidationError(
+                {
+                    "endorsement_note": _(
+                        "Say why the community did not endorse. A refusal with no reason teaches us nothing."
+                    )
+                }
+            )
+        return attrs
+
+
 class GroupSerializer(serializers.ModelSerializer):
     kebele_name = serializers.CharField(source="kebele.name", read_only=True)
     members_current = serializers.SerializerMethodField()
@@ -159,6 +269,14 @@ class GroupSerializer(serializers.ModelSerializer):
     # filters to it.
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     phase_display = serializers.CharField(source="get_current_phase_display", read_only=True)
+    # Optional on the wire so a facilitator drafting her own group need not name
+    # herself; `validate` refuses to let anybody else leave it blank.
+    facilitator = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    # Optional because `open_draft` defaults it to today. Still accepted, and
+    # deliberately: these groups are formed in a meeting and entered afterwards,
+    # sometimes days later from a paper register, and a drafting date forced to
+    # the day of data entry would misdate every cohort computed from it.
+    drafted_on = serializers.DateField(required=False)
 
     class Meta:
         model = Group
@@ -167,6 +285,7 @@ class GroupSerializer(serializers.ModelSerializer):
             "name",
             "kebele",
             "kebele_name",
+            "mobilisation_event",
             "facilitator",
             "facilitator_name",
             "status",
@@ -186,10 +305,69 @@ class GroupSerializer(serializers.ModelSerializer):
         # Status and phase move through `services.formation` and
         # `services.phase`. A PATCH that set either would skip the gate, the
         # snapshot and the approval.
-        read_only_fields = ["status", "current_phase", "constituted_on", "activated_on", "phase_entered_on"]
+        #
+        # `kebele` is read-only because it is derived from the mobilisation
+        # event: a group drafted from a meeting held in one kebele belongs to
+        # that kebele, and a hand-typed one that disagreed would scope to one
+        # place and report in another. Same rule as `Case.woreda`, and as the
+        # region/zone/woreda derived at `POST /wlt/profiles/register/`.
+        read_only_fields = [
+            "kebele",
+            "status",
+            "current_phase",
+            "constituted_on",
+            "activated_on",
+            "phase_entered_on",
+        ]
 
     def get_members_current(self, group):
         return group.current_members.count()
+
+    def validate_mobilisation_event(self, event):
+        """The endorsement gate, stated where a client can be told about it.
+
+        `formation.open_draft` refuses an unendorsed event too, and that is the
+        real enforcement — this exists so the refusal arrives as a field error
+        on the form rather than as a 400 with a sentence in it.
+        """
+        if event is not None and not event.endorsement_obtained:
+            raise serializers.ValidationError(
+                _("This community meeting did not endorse a group, so no group can be drafted from it.")
+            )
+        return event
+
+    def validate(self, attrs):
+        # A facilitator drafting her own group need not name herself; anybody
+        # else must name one. An administrator has `group_write` and is not a
+        # facilitator, so defaulting to the request user would leave the group
+        # with an administrator in the field slot — and `OWN_GROUPS` scoping
+        # keys on exactly that column, so the real facilitator would then be
+        # unable to see the group she runs.
+        if self.instance is None and attrs.get("facilitator") is None:
+            actor = self.context["request"].user
+            if actor.role != Role.WLT_FACILITATOR:
+                raise serializers.ValidationError(
+                    {"facilitator": _("Name the facilitator who will run this group.")}
+                )
+
+        # Required on create, immutable afterwards. Required because the
+        # endorsement check is only a control if it cannot be skipped, and
+        # omitting the event skips it exactly as effectively as an unendorsed
+        # one would. Immutable because the kebele is derived from it.
+        if self.instance is None and attrs.get("mobilisation_event") is None:
+            raise serializers.ValidationError(
+                {
+                    "mobilisation_event": _(
+                        "Record the community meeting first. A group starts with the community endorsing it."
+                    )
+                }
+            )
+        if self.instance is not None and "mobilisation_event" in attrs:
+            if attrs["mobilisation_event"] != self.instance.mobilisation_event:
+                raise serializers.ValidationError(
+                    {"mobilisation_event": _("A group cannot be moved to a different community meeting.")}
+                )
+        return attrs
 
 
 class MeetingSerializer(serializers.ModelSerializer):
@@ -292,6 +470,8 @@ class ServiceLinkageSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     provider_name = serializers.CharField(source="provider.partner_name", read_only=True, default=None)
     subject_name = serializers.SerializerMethodField()
+    next_approval_role = serializers.SerializerMethodField()
+    can_current_user_approve = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceLinkage
@@ -318,12 +498,35 @@ class ServiceLinkageSerializer(serializers.ModelSerializer):
             # The list a blocked facilitator reads. Carried on the row so the
             # blocked screen renders in one request.
             "block_reasons",
+            "next_approval_role",
+            "can_current_user_approve",
         ]
         read_only_fields = ["status", "subject_type", "block_reasons", "approved_on", "activated_on", "closed_on"]
 
     def get_subject_name(self, linkage):
         subject = linkage.subject
         return str(subject) if subject is not None else None
+
+    def _next_approval(self, linkage):
+        if linkage.status != LinkageStatus.PENDING_APPROVAL:
+            return None
+        return linkage.approvals.filter(decision="").order_by("level").first()
+
+    def get_next_approval_role(self, linkage):
+        approval = self._next_approval(linkage)
+        return approval.required_role if approval else None
+
+    def get_can_current_user_approve(self, linkage):
+        approval = self._next_approval(linkage)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if approval is None or not user or not user.is_authenticated:
+            return False
+        if approval.required_role and user.role not in (approval.required_role, Role.SYSTEM_ADMIN):
+            return False
+        if linkage.initiated_by_id == user.pk or linkage.approvals.filter(decided_by=user).exists():
+            return False
+        return True
 
 
 class PhaseEventSerializer(serializers.ModelSerializer):

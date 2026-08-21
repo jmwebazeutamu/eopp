@@ -29,11 +29,13 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.partners.models import Standing
+from apps.users.models import Role
 
 from .. import policy
 from ..models import (
     Group,
     LinkageApproval,
+    LinkageEvent,
     LinkageStatus,
     LinkageSubjectType,
     RiskReason,
@@ -54,6 +56,16 @@ SUBJECT_FIELD = {
     LinkageSubjectType.CLA: "subject_cla",
     LinkageSubjectType.FEDERATION: "subject_federation",
 }
+
+ESCALATION_ROLE = {
+    Role.WLT_WOREDA_OFFICER: Role.WLT_REGION_OFFICER,
+    Role.WLT_REGION_OFFICER: Role.WLT_FEDERAL_OFFICER,
+}
+
+
+def _can_take_approval_role(actor, required_role):
+    """System administrators may act at any configured WLT approval level."""
+    return actor is not None and (actor.role == Role.SYSTEM_ADMIN or not required_role or actor.role == required_role)
 
 
 def subject_type_of(subject):
@@ -129,12 +141,20 @@ def propose(*, linkage_type, subject, provider=None, actor=None, value_etb=None,
             % {"type": linkage_type.label, "subject": LinkageSubjectType(subject_type).label}
         )
 
-    if provider is not None:
-        if provider.standing != Standing.ACTIVE or not provider.active_status:
-            raise LinkageError(
-                _("%(provider)s is %(standing)s and cannot take new linkages.")
-                % {"provider": provider.partner_name, "standing": provider.get_standing_display().lower()}
-            )
+    if provider is None:
+        raise LinkageError({"provider": _("Select a provider that operates in the subject's woreda.")})
+    if provider.standing != Standing.ACTIVE or not provider.active_status:
+        raise LinkageError(
+            _("%(provider)s is %(standing)s and cannot take new linkages.")
+            % {"provider": provider.partner_name, "standing": provider.get_standing_display().lower()}
+        )
+    if not proposable_providers(linkage_type, subject).filter(pk=provider.pk).exists():
+        raise LinkageError(
+            {
+                "provider": _("%(provider)s does not operate in the subject's woreda.")
+                % {"provider": provider.partner_name}
+            }
+        )
 
     linkage = ServiceLinkage.objects.create(
         linkage_type=linkage_type,
@@ -150,6 +170,29 @@ def propose(*, linkage_type, subject, provider=None, actor=None, value_etb=None,
     return screen(linkage, actor=actor, as_of=on_date)
 
 
+@transaction.atomic
+def record_resolution(linkage, *, reference, actor=None, meeting_id=None):
+    """Record the collective decision required by SVC-8.
+
+    The minute book remains the primary evidence. The linkage stores its stable
+    reference (and, when available, the digital meeting UUID) so submission can
+    prove the facilitator is acting on the group's decision.
+    """
+    if linkage.status not in (LinkageStatus.SCREENED, LinkageStatus.BLOCKED, LinkageStatus.RETURNED):
+        raise LinkageError(_("A resolution can be recorded only after the linkage has screened."))
+    if not str(reference or "").strip():
+        raise LinkageError({"reference": _("Record the minute-book resolution reference.")})
+    terms = dict(linkage.terms or {})
+    terms["resolution_reference"] = str(reference).strip()
+    if meeting_id:
+        terms["resolution_meeting_id"] = str(meeting_id)
+    terms["resolution_recorded_by"] = str(getattr(actor, "pk", ""))
+    terms["resolution_recorded_at"] = timezone.now().isoformat()
+    linkage.terms = terms
+    linkage.save(update_fields=["terms", "updated_at"])
+    return linkage
+
+
 def _build_chain(linkage, extra_level=False):
     """Materialise the approval chain from the type row.
 
@@ -158,7 +201,10 @@ def _build_chain(linkage, extra_level=False):
     """
     chain = list(linkage.linkage_type.approval_chain or [])
     if extra_level and chain:
-        chain = chain + [chain[-1]]
+        escalated_role = ESCALATION_ROLE.get(chain[-1])
+        if escalated_role is None:
+            raise LinkageError(_("This approval chain cannot be escalated beyond the federal level."))
+        chain = chain + [escalated_role]
     for level, role in enumerate(chain, start=1):
         LinkageApproval.objects.get_or_create(
             linkage=linkage,
@@ -218,6 +264,14 @@ def submit_for_approval(linkage, *, actor=None, override_reason=""):
     if linkage.status == LinkageStatus.BLOCKED:
         if not override_reason:
             raise LinkageError([_("This linkage is blocked.")] + list(linkage.block_reasons))
+        if linkage.linkage_type.code == "credit_facility":
+            phase_failure = any(
+                condition.get("code") == "phase" and not condition.get("met")
+                for event in linkage.events.order_by("-created_at")
+                for condition in (event.gate_snapshot or {}).get("conditions", [])
+            )
+            if phase_failure:
+                raise LinkageError(_("A credit facility cannot override the minimum-phase gate."))
         # The override escalates the chain by one level, for every type. On a
         # credit facility that is the difference between three approvals and
         # four, and it is what makes the override visible to a level that did
@@ -230,6 +284,11 @@ def submit_for_approval(linkage, *, actor=None, override_reason=""):
 
     if linkage.status != LinkageStatus.SCREENED:
         raise LinkageError(_("Only a screened linkage can be submitted for approval."))
+
+    if not (linkage.terms or {}).get("resolution_reference"):
+        raise LinkageError(
+            {"resolution_reference": _("Record the group's minute-book resolution before submission.")}
+        )
 
     if not linkage.approvals.exists():
         # An empty chain means the facilitator alone decides — a plain service
@@ -255,7 +314,7 @@ def approve(linkage, *, actor, note="", as_of=None):
     level = linkage.approvals.filter(decision="").order_by("level").first()
     if level is None:
         raise LinkageError(_("Every level has already decided."))
-    if actor is not None and level.required_role and actor.role != level.required_role:
+    if not _can_take_approval_role(actor, level.required_role):
         raise LinkageError(_("This level is approved by a %(role)s.") % {"role": level.required_role})
     if actor is not None and linkage.initiated_by_id == getattr(actor, "pk", None):
         raise LinkageError(_("The person who proposed a linkage cannot approve it."))
@@ -267,7 +326,11 @@ def approve(linkage, *, actor, note="", as_of=None):
     result = None
     if gate_set in gates._GATE_SETS:
         result = gates.evaluate(subject, gate_set, as_of=as_of)
-        if not result.passed:
+        # A recorded override deliberately sends the failed conditions through
+        # an extra approval level. Re-blocking here made that documented path
+        # impossible to complete; the approvers still see the fresh snapshot.
+        override_in_chain = linkage.approvals.filter(is_escalation=True).exists()
+        if not result.passed and not override_in_chain:
             linkage.block_reasons = result.block_reasons
             return linkage.transition_to(
                 LinkageStatus.BLOCKED,
@@ -283,6 +346,14 @@ def approve(linkage, *, actor, note="", as_of=None):
     level.save(update_fields=["decided_by", "decided_at", "decision", "note", "updated_at"])
 
     if linkage.approvals.filter(decision="").exists():
+        LinkageEvent.objects.create(
+            linkage=linkage,
+            from_status=LinkageStatus.PENDING_APPROVAL,
+            to_status=LinkageStatus.PENDING_APPROVAL,
+            actor=actor,
+            reason=note or _("Approval level %(level)s completed.") % {"level": level.level},
+            gate_snapshot=result.as_snapshot() if result else None,
+        )
         return linkage
 
     return linkage.transition_to(
@@ -295,6 +366,10 @@ def return_for_revision(linkage, *, actor, reason):
     if not reason.strip():
         raise LinkageError({"reason": _("Say what has to change.")})
     level = linkage.approvals.filter(decision="").order_by("level").first()
+    if level is None or not _can_take_approval_role(actor, level.required_role):
+        raise LinkageError(_("Your role is not the current approval level."))
+    if linkage.initiated_by_id == actor.pk or linkage.approvals.filter(decided_by=actor).exists():
+        raise LinkageError(_("The proposer or a previous approver cannot return this linkage."))
     if level is not None:
         level.decided_by = actor
         level.decided_at = timezone.now()
@@ -308,6 +383,11 @@ def return_for_revision(linkage, *, actor, reason):
 def reject(linkage, *, actor, reason):
     if not reason.strip():
         raise LinkageError({"reason": _("Say why the linkage is refused.")})
+    level = linkage.approvals.filter(decision="").order_by("level").first()
+    if level is None or not _can_take_approval_role(actor, level.required_role):
+        raise LinkageError(_("Your role is not the current approval level."))
+    if linkage.initiated_by_id == actor.pk or linkage.approvals.filter(decided_by=actor).exists():
+        raise LinkageError(_("The proposer or a previous approver cannot reject this linkage."))
     return linkage.transition_to(LinkageStatus.REJECTED, actor=actor, reason=reason)
 
 
@@ -322,7 +402,11 @@ def activate(linkage, *, actor=None, on_date=None, terms=None):
     """
     if linkage.status != LinkageStatus.APPROVED:
         raise LinkageError(_("Only an approved linkage can be activated."))
-    fields = {"terms": terms} if terms else {}
+    fields = {}
+    if terms:
+        merged_terms = dict(linkage.terms or {})
+        merged_terms.update(terms)
+        fields["terms"] = merged_terms
     return linkage.transition_to(LinkageStatus.ACTIVE, actor=actor, reason=_("Counterparty confirmed."), **fields)
 
 
@@ -348,6 +432,8 @@ def mark_defaulted(linkage, *, reason, actor=None):
 
 @transaction.atomic
 def cure(linkage, *, actor=None, note=""):
+    if (linkage.terms or {}).get("outstanding_obligation"):
+        raise LinkageError(_("Settle the outstanding obligation before recording a cure."))
     linkage.transition_to(LinkageStatus.ACTIVE, actor=actor, reason=note or _("Obligation cured."))
     for group_id in linkage.subject_group_ids:
         clear_risk_flag(None, RiskReason.EXTERNAL_DISTRESS, subject_id=group_id)
@@ -378,7 +464,73 @@ def _cascade_distress(linkage, reason):
 
 @transaction.atomic
 def close(linkage, *, actor=None, reason=""):
+    if (linkage.terms or {}).get("outstanding_obligation"):
+        raise LinkageError(
+            _(
+                "This linkage still has an outstanding obligation. "
+                "Settle, write off with approval, or transfer it first."
+            )
+        )
+    if not str(reason or "").strip():
+        raise LinkageError({"reason": _("Say why the linkage is closing.")})
     return linkage.transition_to(LinkageStatus.CLOSED, actor=actor, reason=reason)
+
+
+@transaction.atomic
+def record_obligation(linkage, *, kind, reference, actor=None, missed=False, outstanding=True, note=""):
+    """Append an SVC-15 obligation event and update the linkage's exposure."""
+    if linkage.status not in (LinkageStatus.ACTIVE, LinkageStatus.DISTRESSED):
+        raise LinkageError(_("Obligations can be recorded only on an active or distressed linkage."))
+    if not str(kind or "").strip() or not str(reference or "").strip():
+        raise LinkageError(_("Obligation type and reference are required."))
+    snapshot = {
+        "obligation": {
+            "kind": str(kind).strip(),
+            "reference": str(reference).strip(),
+            "outstanding": bool(outstanding),
+            "missed": bool(missed),
+        }
+    }
+    terms = dict(linkage.terms or {})
+    terms["outstanding_obligation"] = bool(outstanding)
+    linkage.terms = terms
+    linkage.save(update_fields=["terms", "updated_at"])
+    if missed and linkage.status == LinkageStatus.ACTIVE:
+        linkage.transition_to(
+            LinkageStatus.DISTRESSED,
+            actor=actor,
+            reason=note or _("Obligation missed."),
+            gate_snapshot=snapshot,
+        )
+        _cascade_distress(linkage, note or _("Obligation missed."))
+    else:
+        # A same-state transition is intentionally not part of the lifecycle;
+        # obligation activity is nevertheless immutable evidence on its timeline.
+        LinkageEvent.objects.create(
+            linkage=linkage,
+            from_status=linkage.status,
+            to_status=linkage.status,
+            actor=actor,
+            reason=note,
+            gate_snapshot=snapshot,
+        )
+    return linkage
+
+
+def default_overdue_distress(as_of=None):
+    """Move distress beyond the policy cure window to default (SVC-16)."""
+    as_of = as_of or timezone.localdate()
+    defaulted = 0
+    for linkage in ServiceLinkage.objects.filter(status=LinkageStatus.DISTRESSED).select_related(
+        "subject_group", "subject_cla", "subject_federation"
+    ):
+        location = _subject_location(linkage.subject)
+        cure_days = policy.PolicySet(location=location, on_date=as_of).get("linkage.distress_cure_days")
+        distress_event = linkage.events.filter(to_status=LinkageStatus.DISTRESSED).order_by("-created_at").first()
+        if distress_event and as_of > distress_event.occurred_at.date() + timedelta(days=int(cure_days)):
+            mark_defaulted(linkage, reason=_("Distress was not cured within the policy window."))
+            defaulted += 1
+    return defaulted
 
 
 def lapse_stale_approvals(as_of=None):

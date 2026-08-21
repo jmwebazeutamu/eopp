@@ -859,6 +859,32 @@ export interface WltGroup {
   members_current: number;
 }
 
+/**
+ * The community meeting a group is drafted from — handbook 3.4 step 1.
+ *
+ * Recorded whether or not the community endorsed: a refusal closes the
+ * mobilisation and is the row that explains a kebele with no groups in it.
+ * `kebele` is the location **code**, not an id — the locations API emits codes
+ * and a Location's integer pk is never exposed.
+ */
+export interface WltMobilisationEvent {
+  id: string;
+  kebele: string;
+  kebele_name: string;
+  held_on: string;
+  facilitator: string;
+  facilitator_name: string;
+  attendees_potential: number | null;
+  attendees_husbands: number | null;
+  attendees_elders: number | null;
+  attendees_leaders: number | null;
+  endorsement_obtained: boolean;
+  endorsement_note: string;
+  /** How many groups have already been drafted from this meeting. */
+  groups_drafted: number;
+  created_at: string;
+}
+
 /** Why a woman left a group — `wlt.ExitReason`. */
 export type WltExitReason =
   "MOVED" | "MARRIED_OUT" | "DIED" | "WITHDREW" | "EXPELLED" | "PSNP_EXIT" | "GROUP_SPLIT" | "";
@@ -889,6 +915,25 @@ export interface WltGroupMembership {
  * member with a device" rule is unenforceable if the screen cannot show who
  * has one.
  */
+/**
+ * What `GET /wlt/profiles/candidates/` returns.
+ *
+ * An envelope rather than a bare list because an empty pool has to explain
+ * itself: a group recruits only in its own kebele, so the usual reason for no
+ * candidates is that every waiting woman lives somewhere else. `results` alone
+ * left the picker showing nothing, which reads as a fault.
+ *
+ * `waiting_elsewhere` is scoped like everything else — it counts only women the
+ * caller is entitled to see, because an aggregate is still a disclosure.
+ */
+export interface WltCandidatePool {
+  results: WltCandidate[];
+  kebele: { code: string; name: string } | null;
+  waiting_elsewhere: number;
+  registered_here: number;
+  already_grouped_here: number;
+}
+
 export interface WltCandidate {
   id: string;
   person: string;
@@ -969,6 +1014,16 @@ export interface WltBeneficiary {
   verified_on: string | null;
   is_programme_eligible: boolean;
   is_assignable: boolean;
+  /**
+   * The group she is in **now**, or null.
+   *
+   * Membership is a dated range, so this is her open range and nothing else —
+   * a woman who left in April is not in a group in May, even though her closed
+   * row stays on that group's roster. Distinct from `is_assignable`, which
+   * answers "could she join one": she can be unassignable for four other
+   * reasons, so a blank read off that flag would name the wrong problem.
+   */
+  current_group: { id: string; name: string; joined_on: string } | null;
 }
 
 /** What `POST /wlt/profiles/import/` reports back. Not all-or-nothing, by design. */
@@ -1030,14 +1085,54 @@ export interface ServiceLinkage {
   type_label: string;
   provider: string | null;
   provider_name: string | null;
+  subject_group: string | null;
+  subject_cla: string | null;
+  subject_federation: string | null;
   subject_type: string;
   subject_name: string | null;
   status: LinkageStatus;
   status_display: string;
   opened_on: string;
+  approved_on: string | null;
   activated_on: string | null;
+  closed_on: string | null;
+  value_etb: string | null;
+  terms: Record<string, unknown>;
+  guarantors: unknown[];
   /** What the subject still needs, in sentences. Empty unless BLOCKED. */
   block_reasons: string[];
+  next_approval_role: string | null;
+  can_current_user_approve: boolean;
+}
+
+export interface ServiceLinkageType {
+  code: string;
+  label: string;
+  description: string;
+  allowed_subject_types: string[];
+  min_phase: WltPhase;
+  approval_chain: string[];
+  restricted: boolean;
+  lapse_days: number | null;
+  is_active: boolean;
+}
+
+export interface LinkageObligationEvidence {
+  kind: string;
+  reference: string;
+  outstanding: boolean;
+  missed: boolean;
+}
+
+export interface LinkageEvent {
+  id: string;
+  from_status: LinkageStatus | "";
+  to_status: LinkageStatus;
+  occurred_at: string;
+  actor: string | null;
+  actor_name: string | null;
+  reason: string;
+  gate_snapshot: { obligation?: LinkageObligationEvidence; conditions?: GateCondition[] } | null;
 }
 
 export interface ClaReadinessRow {

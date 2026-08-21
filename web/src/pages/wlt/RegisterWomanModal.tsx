@@ -27,10 +27,14 @@ export default function RegisterWomanModal({
   open,
   onClose,
   onDone,
+  initialKebele,
+  onCreated,
 }: {
   open: boolean;
   onClose: () => void;
   onDone: () => void;
+  initialKebele?: string;
+  onCreated?: (record: { profileId: string; personId: string }) => void;
 }) {
   const { message } = App.useApp();
   const { t } = useLang();
@@ -44,7 +48,10 @@ export default function RegisterWomanModal({
     void (async () => {
       try {
         const response = await api.get<Location[]>("/locations/");
-        if (!cancelled) setKebeles(response.data.filter((row) => row.level === "KEBELE"));
+        if (!cancelled) {
+          setKebeles(response.data.filter((row) => row.level === "KEBELE"));
+          if (initialKebele) form.setFieldValue("kebele", initialKebele);
+        }
       } catch {
         if (!cancelled) setKebeles([]);
       }
@@ -52,20 +59,22 @@ export default function RegisterWomanModal({
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [form, initialKebele, open]);
 
   const submit = async (values: Record<string, unknown>) => {
     setSubmitting(true);
     try {
       const payload: Record<string, unknown> = { ...values };
+      payload.has_device = Boolean(String(values.phone_number || "").trim());
       // antd hands back dayjs objects; the API wants plain dates.
       for (const field of ["date_of_birth", "consent_date", "els_completed_on", "els_grant_received_on"]) {
         const value = values[field] as { format?: (pattern: string) => string } | undefined;
         payload[field] = value?.format ? value.format("YYYY-MM-DD") : undefined;
       }
-      const created = await api.post<{ full_name: string }>("/wlt/profiles/register/", payload);
+      const created = await api.post<{ id: string; full_name: string; person: string }>("/wlt/profiles/register/", payload);
       message.success(t("wlt.registerDone", { name: created.data.full_name }));
       form.resetFields();
+      onCreated?.({ profileId: created.data.id, personId: created.data.person });
       onDone();
       onClose();
     } catch (error) {
@@ -124,10 +133,6 @@ export default function RegisterWomanModal({
         <Form.Item name="els_grant_received_on" label={t("wlt.elsGrant")}>
           <DatePicker style={{ width: "100%" }} />
         </Form.Item>
-        <Form.Item name="has_device" valuePropName="checked" initialValue={false}>
-          <Checkbox>{t("wlt.hasDeviceField")}</Checkbox>
-        </Form.Item>
-
         <Form.Item
           name="consent_given"
           valuePropName="checked"

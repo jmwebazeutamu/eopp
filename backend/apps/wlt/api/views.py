@@ -13,6 +13,7 @@ read-only on every serializer here.
 """
 
 from django.core.exceptions import ValidationError
+from django.db.models import Exists, OuterRef, Prefetch
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -21,6 +22,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -40,9 +42,11 @@ from apps.wlt.models import (
     BeneficiaryProfile,
     ExitReason,
     Group,
+    GroupMembership,
     GroupStatus,
     LinkageStatus,
     Meeting,
+    MobilisationEvent,
     PhaseEvent,
     RiskFlag,
     ServiceLinkage,
@@ -69,6 +73,7 @@ from .serializers import (
     LinkageEventSerializer,
     LoanSerializer,
     MeetingSerializer,
+    MobilisationEventSerializer,
     OfficeHolderSerializer,
     PhaseEventSerializer,
     RiskFlagSerializer,
@@ -138,7 +143,34 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
     ordering_fields = ["name", "activated_on", "status"]
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, status=GroupStatus.DRAFT)
+        """Draft through `formation.open_draft`, never around it.
+
+        This used to call `serializer.save(status=DRAFT)` directly, which meant
+        the endorsement check in `open_draft` — a refused community meeting
+        opens no group (A30) — did not run over HTTP at all. The service was
+        reachable only from a shell, so the one rule the community itself sets
+        was enforced everywhere except the API.
+
+        The kebele is taken from the meeting rather than from the payload. A
+        group drafted from a meeting held in one kebele belongs to that kebele;
+        accepting a typed one lets the two disagree, and then the group scopes
+        to one place and reports in another.
+        """
+        event = serializer.validated_data["mobilisation_event"]
+        try:
+            group = formation_service.open_draft(
+                name=serializer.validated_data["name"],
+                kebele=event.kebele,
+                facilitator=serializer.validated_data.get("facilitator") or self.request.user,
+                mobilisation_event=event,
+                created_by=self.request.user,
+                on_date=serializer.validated_data.get("drafted_on"),
+            )
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        # The viewset's response is built from `serializer.instance`, so the row
+        # the service created has to be handed back rather than left behind.
+        serializer.instance = group
 
     @action(detail=False, methods=["get"])
     def summary(self, request):
@@ -216,14 +248,18 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
             return Response(GroupMembershipSerializer(roster, many=True).data)
         from apps.youth.models import Youth
 
-        person = Youth.objects.filter(pk=request.data.get("person")).first()
-        if person is None:
-            raise DRFValidationError({"person": [_("Unknown person.")]})
+        person_ids = request.data.get("people") or [request.data.get("person")]
+        people = list(Youth.objects.filter(pk__in=person_ids))
+        if len(people) != len(set(person_ids)):
+            raise DRFValidationError({"people": [_("One or more people are unknown.")]})
+        memberships = []
         try:
-            membership = formation_service.add_member(group, person, actor=request.user)
+            for person in people:
+                memberships.append(formation_service.add_member(group, person, actor=request.user))
         except ValidationError as exc:
             raise _as_drf_error(exc)
-        return Response(GroupMembershipSerializer(membership).data, status=status.HTTP_201_CREATED)
+        payload = GroupMembershipSerializer(memberships, many=True).data
+        return Response(payload if "people" in request.data else payload[0], status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path=r"members/(?P<membership_id>[^/.]+)/exit")
     def member_exit(self, request, pk=None, membership_id=None):
@@ -404,6 +440,15 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
     search_fields = ["subject_group__name", "provider__partner_name", "linkage_type__label"]
     ordering_fields = ["opened_on", "status"]
 
+    def get_permissions(self):
+        # Officers are intentionally read-only for group/ledger records, but
+        # approval decisions are their named administrative responsibility.
+        # Domain services still validate the configured approval role and
+        # prohibit self/repeat approval.
+        if self.action in {"approve", "return_for_revision", "reject"}:
+            return [IsOperational()]
+        return super().get_permissions()
+
     @action(detail=False, methods=["get"])
     def summary(self, request):
         queryset = self.filter_queryset(self.get_queryset())
@@ -482,6 +527,20 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
             raise _as_drf_error(exc)
         return Response(ServiceLinkageSerializer(linkage).data)
 
+    @action(detail=True, methods=["post"], url_path="resolution")
+    def resolution(self, request, pk=None):
+        linkage = self.get_object()
+        try:
+            linkage_service.record_resolution(
+                linkage,
+                reference=request.data.get("reference", ""),
+                meeting_id=request.data.get("meeting_id"),
+                actor=request.user,
+            )
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        return Response(ServiceLinkageSerializer(linkage).data)
+
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         linkage = self.get_object()
@@ -501,10 +560,54 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
         return Response(ServiceLinkageSerializer(linkage).data)
 
     @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        linkage = self.get_object()
+        try:
+            linkage_service.reject(linkage, actor=request.user, reason=request.data.get("reason", ""))
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        return Response(ServiceLinkageSerializer(linkage).data)
+
+    @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
         linkage = self.get_object()
         try:
             linkage_service.activate(linkage, actor=request.user, terms=request.data.get("terms"))
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        return Response(ServiceLinkageSerializer(linkage).data)
+
+    @action(detail=True, methods=["post"], url_path="obligations")
+    def obligation(self, request, pk=None):
+        linkage = self.get_object()
+        try:
+            linkage_service.record_obligation(
+                linkage,
+                kind=request.data.get("kind", ""),
+                reference=request.data.get("reference", ""),
+                missed=request.data.get("missed", False),
+                outstanding=request.data.get("outstanding", True),
+                note=request.data.get("note", ""),
+                actor=request.user,
+            )
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        return Response(ServiceLinkageSerializer(linkage).data)
+
+    @action(detail=True, methods=["post"])
+    def cure(self, request, pk=None):
+        linkage = self.get_object()
+        try:
+            linkage_service.cure(linkage, actor=request.user, note=request.data.get("note", ""))
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        return Response(ServiceLinkageSerializer(linkage).data)
+
+    @action(detail=True, methods=["post"])
+    def close(self, request, pk=None):
+        linkage = self.get_object()
+        try:
+            linkage_service.close(linkage, actor=request.user, reason=request.data.get("reason", ""))
         except ValidationError as exc:
             raise _as_drf_error(exc)
         return Response(ServiceLinkageSerializer(linkage).data)
@@ -526,6 +629,14 @@ class PhaseEventViewSet(
     kebele_field = "group__kebele"
     facilitator_field = "group__facilitator_id"
     filterset_fields = {"group": ["exact"], "to_phase": ["exact"], "direction": ["exact"]}
+
+    def get_permissions(self):
+        # Phase decisions belong to WLT officers (and System Admin), whose
+        # group records are intentionally read-only. The phase service still
+        # enforces approval level and no-self-decision.
+        if self.action in {"approve", "reject"}:
+            return [IsOperational()]
+        return super().get_permissions()
 
     @action(detail=False, methods=["get"])
     def pending(self, request):
@@ -573,8 +684,35 @@ class BeneficiaryProfileViewSet(viewsets.ModelViewSet):
     # Enrolment is not group_write — see `CanEnrolBeneficiaries` for why the
     # woreda officer has to be able to do these two and nothing else here.
     ENROLMENT_ACTIONS = {"register", "import_extract", "verify"}
-    filterset_fields = {"verification_status": ["exact"], "enrolment_route": ["exact"], "psnp_kebele": ["exact"]}
+    filterset_fields = {
+        "verification_status": ["exact"],
+        "enrolment_route": ["exact"],
+        "psnp_kebele": ["exact"],
+    }
     search_fields = ["person__full_name", "psnp_client_id"]
+
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+
+        eligible = self.request.query_params.get("is_programme_eligible")
+        if eligible == "true":
+            queryset = queryset.programme_eligible()
+        elif eligible == "false":
+            eligible_ids = queryset.programme_eligible().values("pk")
+            queryset = queryset.exclude(pk__in=eligible_ids)
+
+        # `?in_group=false` is the women waiting to be seated, which is the
+        # question the register is actually asked. Reuses `unassigned()` rather
+        # than restating it: that queryset had an inverted-join bug that
+        # excluded every woman in the database, and a second copy here would be
+        # a second place for it to come back.
+        in_group = self.request.query_params.get("in_group")
+        if in_group == "false":
+            queryset = queryset.unassigned()
+        elif in_group == "true":
+            queryset = queryset.exclude(pk__in=queryset.unassigned().values("pk"))
+
+        return queryset
 
     def get_permissions(self):
         if self.action in self.ENROLMENT_ACTIONS:
@@ -586,7 +724,18 @@ class BeneficiaryProfileViewSet(viewsets.ModelViewSet):
         from apps.users.models import GroupScope
         from apps.users.permissions import location_subtree_filter
 
-        queryset = super().get_queryset()
+        # Each woman's *open* membership, prefetched: the register's group
+        # column and `is_assignable` both ask the same question, and answering
+        # it per row cost one query per woman. `to_attr` because only the open
+        # range is wanted — pulling every closed row to answer a yes/no would
+        # trade one problem for another.
+        queryset = super().get_queryset().prefetch_related(
+            Prefetch(
+                "person__wlt_memberships",
+                queryset=GroupMembership.objects.filter(exited_on__isnull=True).select_related("group"),
+                to_attr="open_memberships",
+            )
+        )
         user = self.request.user
         scope = user.group_scope()
         if scope == GroupScope.ALL:
@@ -614,10 +763,52 @@ class BeneficiaryProfileViewSet(viewsets.ModelViewSet):
         eligibility filter, so the pool offered women `add_member` then refused.
         """
         kebele_id = request.query_params.get("kebele")
-        queryset = self.get_queryset().programme_eligible().verified().unassigned()
+        pool = self.get_queryset().programme_eligible().verified().unassigned()
+
+        here = pool.filter(psnp_kebele_id=kebele_id) if kebele_id else pool
+        rows = BeneficiaryProfileSerializer(here.order_by("person__full_name"), many=True).data
+
+        # An empty pool has to say *why*. A group's candidates are the women in
+        # its own kebele — an SHG meets weekly in person and saves into one box
+        # — so the usual reason for an empty list is that every waiting woman
+        # lives somewhere else. Returning the bare list left the screen showing
+        # nothing at all, which reads as a fault rather than as geography, and
+        # it was reported as one.
+        #
+        # Counted rather than listed: naming women in kebeles this group cannot
+        # recruit from would invite exactly the cross-kebele add the pool exists
+        # to prevent.
+        elsewhere = pool.exclude(psnp_kebele_id=kebele_id).count() if kebele_id else 0
+        kebele = Location.objects.filter(pk=kebele_id).first() if kebele_id else None
+
+        # Context for the empty state: how many women are on the register here
+        # at all, and how many of them are already seated. Together they say
+        # whether an empty pool means "nobody registered" or "everybody placed",
+        # which call for opposite next steps.
+        registered_here = 0
+        grouped_here = 0
         if kebele_id:
-            queryset = queryset.filter(psnp_kebele_id=kebele_id)
-        return Response(BeneficiaryProfileSerializer(queryset.order_by("person__full_name"), many=True).data)
+            in_kebele = self.get_queryset().filter(psnp_kebele_id=kebele_id)
+            registered_here = in_kebele.count()
+            grouped_here = in_kebele.filter(
+                Exists(GroupMembership.objects.filter(person=OuterRef("person_id"), exited_on__isnull=True))
+            ).count()
+
+        return Response(
+            {
+                "results": rows,
+                "kebele": {"code": kebele.code, "name": kebele.name} if kebele else None,
+                "waiting_elsewhere": elsewhere,
+                # Narrowed from the *scoped* queryset, never from `.objects`.
+                # These are aggregates about a population, and an aggregate is a
+                # disclosure: "40 women registered here" told to somebody
+                # entitled to see four is still a leak. `Exists` rather than a
+                # join for the second, for the reason `unassigned()` documents —
+                # a membership join multiplies the row and inflates the count.
+                "registered_here": registered_here,
+                "already_grouped_here": grouped_here,
+            }
+        )
 
     @action(detail=False, methods=["get"])
     def summary(self, request):
@@ -781,6 +972,60 @@ class BeneficiaryProfileViewSet(viewsets.ModelViewSet):
         except ValidationError as exc:
             raise _as_drf_error(exc)
         return Response(BeneficiaryProfileSerializer(profile).data)
+
+
+class MobilisationEventViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
+    """The community meeting — handbook 3.4 step 1, and step 0 of drafting a group.
+
+    It had no route at all, which is why creating a group had no route either:
+    `open_draft` wants an endorsed event, and nothing outside the admin could
+    produce one. A facilitator convening her first meeting could not record it.
+
+    Scoped like every other group record. Note the bootstrap this deliberately
+    permits: a facilitator's group scope is the kebeles of groups she already
+    runs, so she can *read* no events in a kebele where she has no group yet —
+    but she may still record one there, because mobilising a new kebele is
+    precisely the act that has no prior group behind it. The same shape as
+    `CanEnrolBeneficiaries`: the write is the bootstrap, so gating it on what
+    she can already see would leave it doable by nobody.
+    """
+
+    queryset = MobilisationEvent.objects.select_related("kebele", "facilitator").all()
+    serializer_class = MobilisationEventSerializer
+    permission_classes = [IsOperational, CanAccessGroups]
+    kebele_field = "kebele"
+    facilitator_field = "facilitator_id"
+    filterset_fields = {"endorsement_obtained": ["exact"], "kebele": ["exact"]}
+    search_fields = ["kebele__name", "endorsement_note"]
+    ordering_fields = ["held_on", "created_at"]
+    ordering = ["-held_on"]
+
+    def get_queryset(self):
+        """`?endorsed_only=true` — the meetings a group can be drafted from.
+
+        The group form asks for exactly this set. Expressed as its own
+        parameter rather than left to the caller to remember, because a form
+        that offered a refused meeting would collect a submission the service
+        is bound to reject.
+        """
+        queryset = super().get_queryset()
+        if self.request.query_params.get("endorsed_only") in ("true", "1"):
+            queryset = queryset.filter(endorsement_obtained=True)
+        return queryset
+
+    def perform_create(self, serializer):
+        # §4.1's `registering_worker` rule: the accountability record names the
+        # account that convened the meeting, taken from the request.
+        serializer.save(facilitator=self.request.user)
+
+    def perform_destroy(self, instance):
+        """Nothing deletes a mobilisation event.
+
+        A refused endorsement only explains a kebele with no groups in it for
+        as long as the row survives (A30), and a deleted meeting would take the
+        group drafted from it with it — the FK is PROTECT.
+        """
+        raise MethodNotAllowed("DELETE")
 
 
 class SyncConflictViewSet(

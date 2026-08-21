@@ -115,6 +115,8 @@ class Command(BaseCommand):
         kebele = self._kebele()
         facilitator = self._facilitator(kebele)
         self._officer(kebele)
+        self._region_officer(kebele)
+        self._federal_officer()
         provider = self._provider(kebele)
 
         MobilisationEvent.objects.get_or_create(
@@ -219,6 +221,38 @@ class Command(BaseCommand):
                 "role": Role.WLT_WOREDA_OFFICER,
                 "account_status": AccountStatus.ACTIVE,
                 "wlt_scope_location": kebele.parent,
+            },
+        )
+        if created:
+            user.set_password("demo-Test-12345")
+            user.save()
+        return user
+
+    def _region_officer(self, kebele):
+        region = kebele
+        while region.parent_id and region.level != LocationLevel.REGION:
+            region = region.parent
+        user, created = User.objects.get_or_create(
+            username="wltregion1",
+            defaults={
+                "full_name": "Mekdes Bekele",
+                "role": Role.WLT_REGION_OFFICER,
+                "account_status": AccountStatus.ACTIVE,
+                "wlt_scope_location": region,
+            },
+        )
+        if created:
+            user.set_password("demo-Test-12345")
+            user.save()
+        return user
+
+    def _federal_officer(self):
+        user, created = User.objects.get_or_create(
+            username="wltfederal1",
+            defaults={
+                "full_name": "Hana Girma",
+                "role": Role.WLT_FEDERAL_OFFICER,
+                "account_status": AccountStatus.ACTIVE,
             },
         )
         if created:

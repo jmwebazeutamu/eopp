@@ -85,10 +85,13 @@ PARAMETERS = [
     ("gate.credit.min_completed_cycles", 2, ""),
     ("gate.credit.max_leverage_ratio", 1.0, "Facility no larger than the subject's own funds"),
     ("gate.credit.par30_clean_months", 6, ""),
+    ("linkage.lapse_days", 90, "Approved but never activated"),
+    ("linkage.distress_cure_days", 60, "Distressed to defaulted"),
     # Savings and market linkage open at P2. A locked cash box in a pastoralist
     # kebele is a worse custodian than a bank account.
     ("gate.savings_account.min_phase", "P2", ""),
     ("gate.market_offtake.min_phase", "P2", ""),
+    ("gate.cooperative_membership.min_phase", "P3", ""),
     # Risk and dormancy
     ("risk.dormant_cadence_multiple", 3, ""),
     ("risk.dormant_floor_days", 60, ""),

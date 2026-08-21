@@ -1,10 +1,11 @@
-import { App } from "antd";
+import { App, Input, Modal, Tooltip } from "antd";
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { api, errorMessage } from "../../api/client";
-import type { ServiceLinkage, WltReadiness } from "../../api/types";
-import { Card, CapsLabel, Field, PageHeader } from "../../components/ui";
+import type { Paginated, ServiceLinkage, WltReadiness } from "../../api/types";
+import { useAuth } from "../../auth/AuthContext";
+import { Button, Card, CapsLabel, Field, PageHeader } from "../../components/ui";
 import { CONDITION_TONE, LINKAGE_TONE, WLT_GROUP_TONE } from "../../design/wltStatus";
 import { useLang } from "../../i18n/LanguageContext";
 import GroupRoster from "./GroupRoster";
@@ -27,20 +28,31 @@ export default function GroupReadinessPage() {
   const { groupId } = useParams();
   const { message } = App.useApp();
   const { t } = useLang();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [data, setData] = useState<WltReadiness | null>(null);
   const [linkages, setLinkages] = useState<ServiceLinkage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [phaseEvents, setPhaseEvents] = useState<PhaseEvent[]>([]);
+  const [action, setAction] = useState<"edit" | "submit" | "reject" | null>(null);
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [eligibleHere, setEligibleHere] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [readiness, linkageList] = await Promise.all([
+      const [readiness, linkageList, phases] = await Promise.all([
         api.get<WltReadiness>(`/wlt/groups/${groupId}/readiness/`),
         api.get<{ results: ServiceLinkage[] }>("/wlt/linkages/", { params: { subject_group: groupId } }),
+        api.get<Paginated<PhaseEvent>>("/wlt/phase-events/", { params: { group: groupId, page_size: 100 } }),
       ]);
       setData(readiness.data);
       setLinkages(linkageList.data.results ?? []);
+      setPhaseEvents(phases.data.results ?? []);
+      const pool = await api.get<{ results: unknown[] }>("/wlt/profiles/candidates/", { params: { kebele: readiness.data.group.kebele } });
+      setEligibleHere(pool.data.results.length);
     } catch (error) {
       message.error(errorMessage(error, t("wlt.readinessLoadFailed")));
     } finally {
@@ -59,6 +71,63 @@ export default function GroupReadinessPage() {
   const summary = summarise(data.gate);
   const tone = WLT_GROUP_TONE[group.status];
   const stale = freshness(data.computed_at, new Date().toISOString().slice(0, 10));
+  const pendingPhase = phaseEvents.find((event) => !event.decided_at);
+  const canManage = Boolean(user?.access.group_write);
+  const canDecide = ["WLT_WOREDA_OFFICER", "WLT_REGION_OFFICER", "WLT_FEDERAL_OFFICER", "SYSTEM_ADMIN"].includes(user?.role ?? "");
+  const constitutionBlocks = summary?.lines.filter((line) => line.state !== "met").map((line) => line.sentence) ?? [];
+
+  async function postGroupAction(name: "constitute" | "activate") {
+    setSaving(true);
+    try {
+      await api.post(`/wlt/groups/${groupId}/${name}/`, {});
+      message.success(name === "constitute" ? "Group constituted." : "Group activated.");
+      await load();
+    } catch (error) {
+      message.error(errorMessage(error, `Could not ${name} the group.`));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveModalAction() {
+    if (!action) return;
+    setSaving(true);
+    try {
+      if (action === "edit") {
+        if (!value.trim()) return;
+        await api.patch(`/wlt/groups/${groupId}/`, { name: value.trim() });
+        message.success("Group details updated.");
+      } else if (action === "submit") {
+        await api.post("/wlt/phase-events/submit/", { group: groupId, override_reason: value.trim() });
+        message.success("Readiness submitted for phase approval.");
+      } else if (pendingPhase) {
+        if (!value.trim()) return;
+        await api.post(`/wlt/phase-events/${pendingPhase.id}/reject/`, { reason: value.trim() });
+        message.success("Phase request refused.");
+      }
+      setAction(null);
+      setValue("");
+      await load();
+    } catch (error) {
+      message.error(errorMessage(error, "Could not complete the group action."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function approvePhase() {
+    if (!pendingPhase) return;
+    setSaving(true);
+    try {
+      await api.post(`/wlt/phase-events/${pendingPhase.id}/approve/`, {});
+      message.success("Phase transition approved.");
+      await load();
+    } catch (error) {
+      message.error(errorMessage(error, "Could not approve the phase transition."));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="page stack">
@@ -77,6 +146,24 @@ export default function GroupReadinessPage() {
         }
       />
 
+      <Card>
+        <CapsLabel>Group management</CapsLabel>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+          {canManage && <Button onClick={() => { setValue(group.name); setAction("edit"); }}>Edit group</Button>}
+          {canManage && group.status === "DRAFT" && <Tooltip title={constitutionBlocks.length ? constitutionBlocks.join("; ") : undefined}><span><Button variant="primary" disabled={saving || constitutionBlocks.length > 0} onClick={() => void postGroupAction("constitute")}>Constitute group</Button></span></Tooltip>}
+          {canManage && group.status === "CONSTITUTED" && <Button variant="primary" disabled={saving} onClick={() => void postGroupAction("activate")}>Activate group</Button>}
+          {canManage && group.status === "ACTIVE" && !pendingPhase && group.current_phase !== "P4" && <Button variant="primary" onClick={() => { setValue(""); setAction("submit"); }}>Submit readiness for next phase</Button>}
+          <Button onClick={() => void load()}>Recompute readiness</Button>
+          <Button onClick={() => navigate(`/wlt/linkages?group=${group.id}&propose=1`)}>Manage service linkages</Button>
+        </div>
+        {pendingPhase && (
+          <div style={{ marginTop: 12 }}>
+            <div className="t-meta">Phase request: {pendingPhase.from_phase || "Not phased"} → {pendingPhase.to_phase}</div>
+            {canDecide && pendingPhase.submitted_by !== user?.id && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><Button variant="primary" disabled={saving} onClick={() => void approvePhase()}>Approve phase</Button><Button variant="destructive-soft" onClick={() => { setValue(""); setAction("reject"); }}>Refuse phase</Button></div>}
+          </div>
+        )}
+      </Card>
+
       {/* A stale card that is honest about its age beats a fresh one that is
           wrong — the handoff's rule for offline reading. */}
       {stale && <div className="t-meta">{stale}</div>}
@@ -91,6 +178,7 @@ export default function GroupReadinessPage() {
         </div>
 
         {!summary && <p className="t-meta">{t("wlt.noGate")}</p>}
+        <p className="t-meta">Roster size {group.members_current} (need 15–25) · {eligibleHere} eligible {eligibleHere === 1 ? "woman" : "women"} in this kebele</p>
 
         {summary && (
           <>
@@ -200,9 +288,27 @@ export default function GroupReadinessPage() {
           })}
         </div>
       </Card>
+      <Modal
+        open={action !== null}
+        title={action === "edit" ? "Edit group" : action === "submit" ? "Submit readiness" : "Refuse phase request"}
+        okText={action === "edit" ? "Save changes" : action === "submit" ? "Submit" : "Refuse"}
+        confirmLoading={saving}
+        onOk={() => void saveModalAction()}
+        onCancel={() => { setAction(null); setValue(""); }}
+      >
+        {action === "edit" ? <label><span className="t-caps">Group name</span><Input value={value} onChange={(event) => setValue(event.target.value)} /></label> : <label><span className="t-caps">{action === "submit" ? "Override reason (only needed when a readiness condition is unmet)" : "Reason"}</span><Input.TextArea rows={3} value={value} onChange={(event) => setValue(event.target.value)} /></label>}
+      </Modal>
     </div>
   );
 }
+
+type PhaseEvent = {
+  id: string;
+  from_phase: string;
+  to_phase: string;
+  submitted_by: string | null;
+  decided_at: string | null;
+};
 
 function ConditionRow({ line }: { line: ConditionLine }) {
   const tone = CONDITION_TONE[line.state];

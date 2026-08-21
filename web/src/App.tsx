@@ -29,6 +29,7 @@ import GroupReadinessPage from "./pages/wlt/GroupReadinessPage";
 import GroupsPage from "./pages/wlt/GroupsPage";
 import JourneyPage from "./pages/wlt/JourneyPage";
 import LinkagesPage from "./pages/wlt/LinkagesPage";
+import LinkageDetailPage from "./pages/wlt/LinkageDetailPage";
 import ReferralsPage from "./pages/ReferralsPage";
 import UsersPage from "./pages/UsersPage";
 import YouthListPage from "./pages/YouthListPage";
@@ -158,6 +159,7 @@ export default function App() {
                 <Route path="/wlt/groups" element={<GroupsPage />} />
                 <Route path="/wlt/groups/:groupId" element={<GroupReadinessPage />} />
                 <Route path="/wlt/linkages" element={<LinkagesPage />} />
+                <Route path="/wlt/linkages/:linkageId" element={<LinkageDetailPage />} />
                 <Route path="/wlt/cla-readiness" element={<ClaReadinessPage />} />
                 <Route path="/users" element={<UsersPage />} />
               </Route>

@@ -17,6 +17,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 
 from apps.partners.models import Standing
 from apps.wlt.models import (
@@ -52,6 +53,10 @@ def p2_group(wlt_group):
     Group.objects.filter(pk=wlt_group.pk).update(current_phase=Phase.P2)
     wlt_group.refresh_from_db()
     return wlt_group
+
+
+def resolve(linkage, actor):
+    return linkage_service.record_resolution(linkage, reference="MIN-2027-001", actor=actor)
 
 
 def test_a_savings_account_screens_clean_for_a_p2_group(p2_group, bank, facilitator):
@@ -105,6 +110,7 @@ def test_gates_are_evaluated_again_at_approval(p2_group, bank, facilitator, wore
     linkage = linkage_service.propose(
         linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator
     )
+    resolve(linkage, facilitator)
     linkage_service.submit_for_approval(linkage, actor=facilitator)
     assert linkage.status == LinkageStatus.PENDING_APPROVAL
 
@@ -119,6 +125,7 @@ def test_the_proposer_cannot_approve_her_own_linkage(p2_group, bank, facilitator
     linkage = linkage_service.propose(
         linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator
     )
+    resolve(linkage, facilitator)
     linkage_service.submit_for_approval(linkage, actor=facilitator)
     with pytest.raises(LinkageError):
         linkage_service.approve(linkage, actor=facilitator)
@@ -139,13 +146,32 @@ def test_an_override_escalates_the_chain_by_one_level(wlt_group, bank, facilitat
     )
     before = linkage.approvals.count()
 
+    resolve(linkage, facilitator)
     linkage_service.submit_for_approval(
         linkage, actor=facilitator, override_reason="Bank branch closing; the account must open now."
     )
 
     assert linkage.approvals.count() == before + 1
     assert linkage.approvals.filter(is_escalation=True).exists()
+    assert linkage.approvals.get(is_escalation=True).required_role == "WLT_REGION_OFFICER"
     assert linkage.status == LinkageStatus.PENDING_APPROVAL
+
+
+def test_documented_override_can_complete_its_escalated_chain(
+    wlt_group, bank, facilitator, woreda_officer, region_officer
+):
+    linkage = linkage_service.propose(
+        linkage_type="savings_account", subject=wlt_group, provider=bank, actor=facilitator
+    )
+    resolve(linkage, facilitator)
+    linkage_service.submit_for_approval(
+        linkage, actor=facilitator, override_reason="Branch closure makes the timing exceptional."
+    )
+
+    linkage_service.approve(linkage, actor=woreda_officer)
+    assert linkage.status == LinkageStatus.PENDING_APPROVAL
+    linkage_service.approve(linkage, actor=region_officer)
+    assert linkage.status == LinkageStatus.APPROVED
 
 
 def test_a_two_level_chain_needs_both_levels(p2_group, bank, facilitator, woreda_officer, region_officer):
@@ -155,6 +181,7 @@ def test_a_two_level_chain_needs_both_levels(p2_group, bank, facilitator, woreda
     linkage = linkage_service.propose(
         linkage_type="cooperative_membership", subject=p2_group, provider=bank, actor=facilitator
     )
+    resolve(linkage, facilitator)
     linkage_service.submit_for_approval(linkage, actor=facilitator)
 
     linkage_service.approve(linkage, actor=woreda_officer)
@@ -162,6 +189,28 @@ def test_a_two_level_chain_needs_both_levels(p2_group, bank, facilitator, woreda
 
     linkage_service.approve(linkage, actor=region_officer)
     assert linkage.status == LinkageStatus.APPROVED
+
+
+def test_system_admin_can_take_any_linkage_approval_level(p2_group, bank, facilitator):
+    from apps.users.models import Role, User
+
+    admin = User.objects.create_user(
+        "wlt-admin", "pw-Test-12345", full_name="WLT Administrator", role=Role.SYSTEM_ADMIN
+    )
+    Group.objects.filter(pk=p2_group.pk).update(current_phase=Phase.P3)
+    p2_group.refresh_from_db()
+    linkage = linkage_service.propose(
+        linkage_type="cooperative_membership", subject=p2_group, provider=bank, actor=facilitator
+    )
+    resolve(linkage, facilitator)
+    linkage_service.submit_for_approval(linkage, actor=facilitator)
+
+    linkage_service.approve(linkage, actor=admin)
+    assert linkage.status == LinkageStatus.PENDING_APPROVAL
+    # Full rights do not erase the audit safeguard: one account cannot decide
+    # two levels on the same linkage.
+    with pytest.raises(LinkageError):
+        linkage_service.approve(linkage, actor=admin)
 
 
 def test_one_person_cannot_approve_two_levels_of_the_same_chain(
@@ -179,6 +228,7 @@ def test_one_person_cannot_approve_two_levels_of_the_same_chain(
     linkage = linkage_service.propose(
         linkage_type="cooperative_membership", subject=p2_group, provider=bank, actor=facilitator
     )
+    resolve(linkage, facilitator)
     linkage_service.submit_for_approval(linkage, actor=facilitator)
     linkage_service.approve(linkage, actor=woreda_officer)
 
@@ -200,9 +250,14 @@ def test_activation_opens_the_bank_side_of_the_ledger(p2_group, bank, facilitato
     linkage = linkage_service.propose(
         linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator
     )
+    resolve(linkage, facilitator)
     linkage_service.submit_for_approval(linkage, actor=facilitator)
     linkage_service.approve(linkage, actor=woreda_officer)
-    linkage_service.activate(linkage, actor=facilitator)
+    linkage_service.activate(linkage, actor=facilitator, terms={"reference": "ACC-001"})
+
+    linkage.refresh_from_db()
+    assert linkage.terms["resolution_reference"] == "MIN-2027-001"
+    assert linkage.terms["reference"] == "ACC-001"
 
     entry = ledger_service.deposit_to_bank(p2_group, amount_etb=500, actor=facilitator)
     assert entry.amount_etb == Decimal("500.00")
@@ -212,6 +267,7 @@ def test_an_approved_linkage_the_counterparty_never_opened_lapses(p2_group, bank
     linkage = linkage_service.propose(
         linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator
     )
+    resolve(linkage, facilitator)
     linkage_service.submit_for_approval(linkage, actor=facilitator)
     linkage_service.approve(linkage, actor=woreda_officer)
 
@@ -232,6 +288,7 @@ def test_blacklisting_a_provider_flags_open_linkages_and_does_not_close_them(
     linkage = linkage_service.propose(
         linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator
     )
+    resolve(linkage, facilitator)
     linkage_service.submit_for_approval(linkage, actor=facilitator)
     linkage_service.approve(linkage, actor=woreda_officer)
     linkage_service.activate(linkage, actor=facilitator)
@@ -265,6 +322,75 @@ def test_a_provider_is_only_proposable_where_it_operates(p2_group, make_partner,
     names = set(proposable.values_list("partner_name", flat=True))
     assert here.partner_name in names
     assert elsewhere.partner_name not in names
+
+    with pytest.raises(LinkageError):
+        linkage_service.propose(
+            linkage_type="savings_account", subject=p2_group, provider=elsewhere, actor=facilitator
+        )
+
+
+def test_submission_requires_the_groups_recorded_resolution(p2_group, bank, facilitator):
+    linkage = linkage_service.propose(
+        linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator
+    )
+    with pytest.raises(LinkageError):
+        linkage_service.submit_for_approval(linkage, actor=facilitator)
+
+    linkage_service.record_resolution(linkage, reference="MIN-15/2027", actor=facilitator)
+    linkage_service.submit_for_approval(linkage, actor=facilitator)
+    assert linkage.status == LinkageStatus.PENDING_APPROVAL
+    assert linkage.terms["resolution_reference"] == "MIN-15/2027"
+
+
+def test_missed_obligation_distresses_and_blocks_closure(p2_group, bank, facilitator):
+    linkage = ServiceLinkage.objects.create(
+        linkage_type_id="market_offtake",
+        provider=bank,
+        subject_group=p2_group,
+        status=LinkageStatus.ACTIVE,
+        opened_on=date(2027, 3, 1),
+        activated_on=date(2027, 3, 1),
+    )
+    linkage_service.record_obligation(
+        linkage,
+        kind="delivery",
+        reference="DEL-003",
+        missed=True,
+        outstanding=True,
+        actor=facilitator,
+    )
+    assert linkage.status == LinkageStatus.DISTRESSED
+    with pytest.raises(LinkageError):
+        linkage_service.close(linkage, actor=facilitator, reason="Contract ended")
+
+    linkage_service.record_obligation(
+        linkage,
+        kind="delivery",
+        reference="DEL-003-CURE",
+        outstanding=False,
+        actor=facilitator,
+    )
+    linkage_service.close(linkage, actor=facilitator, reason="Obligation settled")
+    assert linkage.status == LinkageStatus.CLOSED
+
+
+def test_uncured_distress_defaults_after_the_policy_window(p2_group, bank, facilitator):
+    linkage = ServiceLinkage.objects.create(
+        linkage_type_id="market_offtake",
+        provider=bank,
+        subject_group=p2_group,
+        status=LinkageStatus.ACTIVE,
+        opened_on=date.today(),
+        activated_on=date.today(),
+    )
+    linkage_service.mark_distressed(linkage, reason="Payment missed", actor=facilitator)
+    linkage.events.filter(to_status=LinkageStatus.DISTRESSED).update(
+        occurred_at=timezone.now() - timedelta(days=61)
+    )
+
+    assert linkage_service.default_overdue_distress() == 1
+    linkage.refresh_from_db()
+    assert linkage.status == LinkageStatus.DEFAULTED
 
 
 def test_distress_on_a_cla_cascades_to_its_member_groups(p2_group, bank, facilitator, woreda_officer, wlt_locations):
