@@ -1,6 +1,7 @@
 import { App } from "antd";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WltGroup, WltGroupMembership } from "../../api/types";
@@ -60,8 +61,18 @@ function membership(overrides: Partial<WltGroupMembership> = {}): WltGroupMember
   };
 }
 
-function mount(roster: WltGroupMembership[], { canWrite = true }: { canWrite?: boolean } = {}) {
-  get.mockResolvedValue({ data: roster });
+function mount(
+  roster: WltGroupMembership[],
+  { canWrite = true, pool }: { canWrite?: boolean; pool?: { results: unknown[]; waiting_elsewhere: number } } = {},
+) {
+  // Two endpoints behind one mock: the roster and the candidate pool. Routing
+  // by URL rather than by call order, because the modal fetches on open and the
+  // order depends on what the test clicks.
+  get.mockImplementation((url: string) =>
+    String(url).includes("candidates")
+      ? Promise.resolve({ data: { kebele: { code: "k1", name: "Dembela" }, ...(pool ?? { results: [], waiting_elsewhere: 0 }) } })
+      : Promise.resolve({ data: roster }),
+  );
   const user = testUser("WLT_FACILITATOR", {
     access: {
       case_scope: "NONE",
@@ -73,11 +84,16 @@ function mount(roster: WltGroupMembership[], { canWrite = true }: { canWrite?: b
       delivery_write: false,
     },
   });
+  // The panel navigates to a linkage now, and `useNavigate` throws outside a
+  // router — which failed every test in this file rather than the one that
+  // navigates, because it throws on render.
   return render(
     <TestAuth user={user}>
       <LanguageProvider>
         <App>
-          <GroupRoster group={GROUP} onChanged={() => {}} />
+          <MemoryRouter>
+            <GroupRoster group={GROUP} onChanged={() => {}} />
+          </MemoryRouter>
         </App>
       </LanguageProvider>
     </TestAuth>,
@@ -150,6 +166,29 @@ describe("GroupRoster", () => {
 
     await waitFor(() => expect(screen.getByText(/Choose why she is leaving/)).toBeInTheDocument());
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it("says how many women wait elsewhere when the pool is empty", async () => {
+    // The reported fault: the picker showed nothing and read as broken. A group
+    // recruits only in its own kebele, so an empty list usually means geography
+    // — and geography is something a facilitator can act on.
+    mount([membership()], { pool: { results: [], waiting_elsewhere: 3 } });
+
+    await userEvent.click(await screen.findByRole("button", { name: /add a member/i }));
+
+    expect(await screen.findByText(/No eligible women are free to join in Dembela/i)).toBeTruthy();
+    expect(screen.getByText(/3 eligible women are waiting for a group in other kebeles/i)).toBeTruthy();
+  });
+
+  it("does not claim women wait elsewhere when none do", async () => {
+    // A zero here would be a sentence saying nothing, on a dialog whose whole
+    // job at this moment is to explain an absence.
+    mount([membership()], { pool: { results: [], waiting_elsewhere: 0 } });
+
+    await userEvent.click(await screen.findByRole("button", { name: /add a member/i }));
+
+    expect(await screen.findByText(/No eligible women are free to join in Dembela/i)).toBeTruthy();
+    expect(screen.queryByText(/waiting for a group in other kebeles/i)).toBeNull();
   });
 
   it("says the exit keeps her history rather than deleting her", async () => {

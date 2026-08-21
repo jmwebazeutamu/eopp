@@ -74,7 +74,7 @@ def test_a_facilitator_adds_a_woman_from_the_candidate_pool(as_user, facilitator
     client = as_user(facilitator)
     pool = client.get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
     assert pool.status_code == 200
-    assert str(joiner.pk) in {str(row["person"]) for row in pool.data}
+    assert str(joiner.pk) in {str(row["person"]) for row in pool.data["results"]}
 
     created = client.post(f"/api/v1/wlt/groups/{wlt_group.pk}/members/", {"person": str(joiner.pk)})
     assert created.status_code == 201
@@ -90,7 +90,7 @@ def test_the_pool_drops_a_woman_once_she_is_added(as_user, facilitator, wlt_grou
     client.post(f"/api/v1/wlt/groups/{wlt_group.pk}/members/", {"person": str(joiner.pk)})
 
     pool = client.get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
-    assert str(joiner.pk) not in {str(row["person"]) for row in pool.data}
+    assert str(joiner.pk) not in {str(row["person"]) for row in pool.data["results"]}
 
 
 def test_a_woman_who_left_a_group_returns_to_the_candidate_pool(as_user, facilitator, wlt_group, wlt_members):
@@ -104,7 +104,7 @@ def test_a_woman_who_left_a_group_returns_to_the_candidate_pool(as_user, facilit
 
     pool = as_user(facilitator).get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
 
-    assert str(wlt_members[0].pk) in {str(row["person"]) for row in pool.data}
+    assert str(wlt_members[0].pk) in {str(row["person"]) for row in pool.data["results"]}
 
 
 def test_a_woman_never_in_any_group_is_unassigned(wlt_group, make_wlt_member):
@@ -131,7 +131,7 @@ def test_the_pool_never_offers_a_woman_the_service_would_refuse(as_user, facilit
     ineligible = make_wlt_member("No ELS Grant", els_grant_received_on=None)
 
     pool = as_user(facilitator).get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
-    assert str(ineligible.pk) not in {str(row["person"]) for row in pool.data}
+    assert str(ineligible.pk) not in {str(row["person"]) for row in pool.data["results"]}
 
     refused = as_user(facilitator).post(f"/api/v1/wlt/groups/{wlt_group.pk}/members/", {"person": str(ineligible.pk)})
     assert refused.status_code == 400
@@ -257,3 +257,223 @@ def test_a_role_that_cannot_write_groups_may_read_the_roster_but_not_change_it(
 
 def test_a_case_manager_cannot_reach_the_roster_at_all(as_user, case_manager, wlt_group):
     assert as_user(case_manager).get(f"/api/v1/wlt/groups/{wlt_group.pk}/members/").status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# "Is she in a group?" on the register
+# ---------------------------------------------------------------------------
+
+
+def _profiles(client, **params):
+    # A big page on purpose: these assertions are about a particular woman, and
+    # a default page would silently drop her onto page two.
+    response = client.get("/api/v1/wlt/profiles/", {"page_size": 200, **params})
+    assert response.status_code == 200
+    return response.data["results"]
+
+
+def test_the_register_says_which_group_each_woman_is_in(as_user, facilitator, wlt_group, wlt_members):
+    """The question the register is actually asked, answered on the row.
+
+    Not derivable from `is_assignable`: a woman can be unassignable for four
+    other reasons, so a blank there would name the wrong problem.
+    """
+    seated = _profiles(as_user(facilitator))
+    row = next(r for r in seated if str(r["person"]) == str(wlt_members[0].pk))
+
+    assert row["current_group"]["id"] == str(wlt_group.pk)
+    assert row["current_group"]["name"] == wlt_group.name
+    assert row["current_group"]["joined_on"] is not None
+
+
+def test_a_woman_in_no_group_reports_null_rather_than_a_blank_name(
+    as_user, facilitator, wlt_group, wlt_locations, make_wlt_member
+):
+    # `wlt_group` is not scenery: a facilitator's register is scoped to the
+    # kebeles of the groups she runs, so with no group she sees no women at all.
+    person = make_wlt_member("Unseated Woman")
+    rows = _profiles(as_user(facilitator))
+    row = next(r for r in rows if str(r["person"]) == str(person.pk))
+
+    assert row["current_group"] is None
+
+
+def test_an_exit_empties_the_column_immediately(as_user, facilitator, wlt_group, wlt_members):
+    """Membership is a dated range, never a flag. She left, so she is not in it.
+
+    Her closed row stays on the roster — February's attendance denominator is
+    the roster as it stood then — but the register answers about today.
+    """
+    member = wlt_members[0]
+    membership = GroupMembership.objects.get(person=member, group=wlt_group, exited_on__isnull=True)
+
+    exited = as_user(facilitator).post(
+        f"/api/v1/wlt/groups/{wlt_group.pk}/members/{membership.pk}/exit/",
+        {"reason": ExitReason.MOVED},
+    )
+    assert exited.status_code in (200, 201)
+
+    row = next(r for r in _profiles(as_user(facilitator)) if str(r["person"]) == str(member.pk))
+    assert row["current_group"] is None
+
+
+def test_in_group_false_is_the_women_waiting_to_be_seated(
+    as_user, facilitator, wlt_group, wlt_members, make_wlt_member
+):
+    waiting = make_wlt_member("Waiting Woman")
+
+    unseated = {str(r["person"]) for r in _profiles(as_user(facilitator), in_group="false")}
+    seated = {str(r["person"]) for r in _profiles(as_user(facilitator), in_group="true")}
+
+    assert str(waiting.pk) in unseated
+    assert str(wlt_members[0].pk) in seated
+    assert not (unseated & seated)
+
+
+def test_the_group_column_costs_the_same_whether_or_not_she_is_in_a_group(
+    as_user, facilitator, wlt_group, wlt_members, make_wlt_member
+):
+    """The property that matters, stated as a comparison rather than a budget.
+
+    Twenty women in a group and twenty women in none must cost the same number
+    of queries. If the prefetch stopped working, the seated list would cost
+    twenty more — one `exists()` per row from `is_assignable`, which is what it
+    used to do. A fixed ceiling would instead fail on any unrelated
+    `select_related` somebody adds later.
+    """
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    client = as_user(facilitator)
+
+    with CaptureQueriesContext(connection) as seated:
+        client.get("/api/v1/wlt/profiles/", {"page_size": 200, "in_group": "true"})
+
+    for index in range(20):
+        make_wlt_member(f"Unseated {index:02d}")
+
+    with CaptureQueriesContext(connection) as unseated:
+        client.get("/api/v1/wlt/profiles/", {"page_size": 200, "in_group": "false"})
+
+    assert len(seated.captured_queries) == len(unseated.captured_queries)
+
+
+def test_an_empty_pool_says_how_many_women_wait_in_other_kebeles(
+    as_user, facilitator, wlt_group, wlt_members, wlt_locations, make_wlt_member
+):
+    """The reported fault: the picker showed nothing and looked broken.
+
+    A group recruits from its own kebele — it meets weekly in person — so the
+    usual reason for an empty list is geography, not eligibility. The screen
+    could not say so because the endpoint did not tell it.
+    """
+    # A second group of hers, so the other kebele is inside her scope at all.
+    # Without one she cannot see those women, and must not be told they exist.
+    formation_service.open_draft(
+        name="Second SHG", kebele=wlt_locations["other_kebele"], facilitator=facilitator
+    )
+    make_wlt_member("Woman Elsewhere", kebele=wlt_locations["other_kebele"])
+
+    pool = as_user(facilitator).get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
+
+    # Everyone eligible in this kebele is already seated by `wlt_group`.
+    assert pool.data["results"] == []
+    assert pool.data["kebele"]["name"] == wlt_group.kebele.name
+    assert pool.data["waiting_elsewhere"] == 1
+
+
+def test_the_count_of_women_elsewhere_excludes_the_ones_it_is_offering(
+    as_user, facilitator, wlt_group, wlt_locations, make_wlt_member
+):
+    """`waiting_elsewhere` is elsewhere, not everywhere.
+
+    Adding the two together has to give the whole waiting pool, or the message
+    double-counts the women already on the list in front of you.
+    """
+    formation_service.open_draft(
+        name="Second SHG", kebele=wlt_locations["other_kebele"], facilitator=facilitator
+    )
+    make_wlt_member("Here One")
+    make_wlt_member("Here Two")
+    make_wlt_member("There One", kebele=wlt_locations["other_kebele"])
+
+    pool = as_user(facilitator).get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
+
+    assert {row["full_name"] for row in pool.data["results"]} == {"Here One", "Here Two"}
+    assert pool.data["waiting_elsewhere"] == 1
+
+
+def test_the_count_never_reports_women_outside_her_scope(
+    as_user, facilitator, wlt_group, wlt_locations, make_wlt_member
+):
+    """"Elsewhere" means elsewhere *that she can see*.
+
+    A facilitator's register is the kebeles of the groups she runs. Counting
+    women in a kebele she has no group in would disclose the size of a
+    population she is not entitled to read — an aggregate is still a
+    disclosure — and would offer her a number she can do nothing about.
+    """
+    make_wlt_member("Invisible Woman", kebele=wlt_locations["other_kebele"])
+
+    pool = as_user(facilitator).get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
+
+    assert pool.data["waiting_elsewhere"] == 0
+
+
+def test_a_pool_with_no_kebele_asked_for_makes_no_claim_about_elsewhere(as_user, facilitator, wlt_group):
+    """No kebele means no "somewhere else" to count, so it reports zero rather
+    than a number that would mean something different from the same field
+    when a kebele *was* named."""
+    pool = as_user(facilitator).get("/api/v1/wlt/profiles/candidates/")
+
+    assert pool.data["kebele"] is None
+    assert pool.data["waiting_elsewhere"] == 0
+
+
+def test_the_context_counts_are_scoped_like_every_other_aggregate(
+    as_user, facilitator, wlt_group, wlt_members, wlt_locations, make_wlt_member
+):
+    """`registered_here` and `already_grouped_here` narrow the scoped queryset.
+
+    They were briefly built on `BeneficiaryProfile.objects`, which counts women
+    the caller may not read. "40 women registered here" told to somebody
+    entitled to see four is a disclosure, not a hint — the same rule the
+    dashboard states and `waiting_elsewhere` already followed.
+    """
+    # A woman in a kebele this facilitator runs no group in.
+    make_wlt_member("Out Of Scope", kebele=wlt_locations["other_kebele"])
+
+    pool = as_user(facilitator).get(
+        "/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_locations["other_kebele"].pk)}
+    )
+
+    assert pool.data["registered_here"] == 0
+    assert pool.data["already_grouped_here"] == 0
+
+
+def test_the_context_counts_separate_nobody_registered_from_everybody_placed(
+    as_user, facilitator, wlt_group, wlt_members
+):
+    """Two very different empty pools, and they need opposite next steps."""
+    pool = as_user(facilitator).get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
+
+    assert pool.data["registered_here"] == len(wlt_members)
+    assert pool.data["already_grouped_here"] == len(wlt_members)
+
+
+def test_a_seated_woman_is_counted_once_not_once_per_membership(
+    as_user, facilitator, wlt_group, wlt_members
+):
+    """A membership join multiplies the row — the lesson `unassigned()` carries.
+
+    She has one open membership and one closed one; a join would count her
+    twice and report more women grouped here than are registered here.
+    """
+    membership = GroupMembership.objects.get(group=wlt_group, person=wlt_members[0])
+    formation_service.exit_member(membership, reason=ExitReason.MOVED, on_date=date(2026, 4, 1))
+    formation_service.add_member(wlt_group, wlt_members[0], on_date=date(2026, 5, 1))
+
+    pool = as_user(facilitator).get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
+
+    assert pool.data["already_grouped_here"] <= pool.data["registered_here"]
+    assert pool.data["already_grouped_here"] == len(wlt_members)

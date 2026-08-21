@@ -211,11 +211,25 @@ class BeneficiaryProfile(BaseModel):
 
     @property
     def is_assignable(self):
-        """Eligible, verified, and not already in a group."""
+        """Eligible, verified, and not already in a group.
+
+        Reads the `open_memberships` prefetch when the caller set one up. It is
+        the same question the register's group column asks, and answering it
+        with `.exists()` per row cost one query per woman on a screen that
+        lists the whole kebele. `is not None` rather than truthiness: an empty
+        prefetched list means "prefetched, and she is in no group", which is a
+        different thing from "nobody prefetched anything".
+        """
+        prefetched = getattr(self.person, "open_memberships", None)
+        if prefetched is None:
+            in_a_group = self.person.wlt_memberships.filter(exited_on__isnull=True).exists()
+        else:
+            in_a_group = bool(prefetched)
+
         return (
             self.is_programme_eligible
             and self.verification_status == VerificationStatus.VERIFIED
-            and not self.person.wlt_memberships.filter(exited_on__isnull=True).exists()
+            and not in_a_group
         )
 
 

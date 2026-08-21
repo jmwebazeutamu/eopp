@@ -1,11 +1,19 @@
 import { App, Form, Input, Modal, Select } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { api, errorMessage } from "../../api/client";
-import type { WltCandidate, WltExitReason, WltGroup, WltGroupMembership } from "../../api/types";
+import type {
+  WltCandidate,
+  WltCandidatePool,
+  WltExitReason,
+  WltGroup,
+  WltGroupMembership,
+} from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { Button, CapsLabel, Card } from "../../components/ui";
 import { useLang } from "../../i18n/LanguageContext";
+import RegisterWomanModal from "./RegisterWomanModal";
 
 /**
  * The roster — who is in this group, who has left, and the two moves that
@@ -38,11 +46,13 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
   const { message } = App.useApp();
   const { t } = useLang();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [roster, setRoster] = useState<WltGroupMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [exiting, setExiting] = useState<WltGroupMembership | null>(null);
+  const [registering, setRegistering] = useState(false);
 
   // The tab gate is not the security boundary — `CanAccessGroups` refuses the
   // write regardless. This only stops offering a button that would 403.
@@ -125,10 +135,11 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
       )}
 
       {canWrite && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Button variant="primary" onClick={() => setAdding(true)}>
             {t("wlt.addMember")}
           </Button>
+          <Button onClick={() => setRegistering(true)}>Register and add</Button>
         </div>
       )}
 
@@ -157,6 +168,19 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
         seated={current.length}
       />
       <ExitMemberModal group={group} membership={exiting} onClose={() => setExiting(null)} onDone={refresh} />
+      <RegisterWomanModal open={registering} initialKebele={group.kebele} onClose={() => setRegistering(false)} onDone={() => undefined} onCreated={({ profileId, personId }) => {
+        void (async () => {
+          try {
+            if (user?.role === "SYSTEM_ADMIN") await api.post(`/wlt/profiles/${profileId}/verify/`, { approved: true, reason: "Verified during group registration." });
+            await api.post(`/wlt/groups/${group.id}/members/`, { person: personId });
+            message.success("The woman was registered and added to this group.");
+            setRegistering(false); refresh();
+          } catch (error) {
+            message.warning(errorMessage(error, "She was registered and is awaiting verification before she can join."));
+            setRegistering(false); navigate(`/wlt/beneficiaries?search=${personId}`);
+          }
+        })();
+      }} />
     </Card>
   );
 }
@@ -188,9 +212,13 @@ function AddMemberModal({
 }) {
   const { message } = App.useApp();
   const { t } = useLang();
-  const [form] = Form.useForm<{ person: string }>();
+  const [form] = Form.useForm<{ people: string[] }>();
 
   const [candidates, setCandidates] = useState<WltCandidate[]>([]);
+  // Eligible women this group cannot recruit, because they live elsewhere.
+  const [elsewhere, setElsewhere] = useState(0);
+  const [registeredHere, setRegisteredHere] = useState(0);
+  const [alreadyGroupedHere, setAlreadyGroupedHere] = useState(0);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -200,10 +228,14 @@ function AddMemberModal({
     setLoading(true);
     void (async () => {
       try {
-        const response = await api.get<WltCandidate[]>("/wlt/profiles/candidates/", {
+        const response = await api.get<WltCandidatePool>("/wlt/profiles/candidates/", {
           params: { kebele: group.kebele },
         });
-        if (!cancelled) setCandidates(response.data);
+        if (cancelled) return;
+        setCandidates(response.data.results);
+        setElsewhere(response.data.waiting_elsewhere);
+        setRegisteredHere(response.data.registered_here ?? 0);
+        setAlreadyGroupedHere(response.data.already_grouped_here ?? 0);
       } catch (error) {
         if (!cancelled) message.error(errorMessage(error, t("wlt.candidatesLoadFailed")));
       } finally {
@@ -217,13 +249,11 @@ function AddMemberModal({
     // the woman just seated must not still be offered.
   }, [open, group.kebele, seated, message, t]);
 
-  const submit = async (values: { person: string }) => {
+  const submit = async (values: { people: string[] }) => {
     setSubmitting(true);
     try {
-      const created = await api.post<{ full_name: string }>(`/wlt/groups/${group.id}/members/`, {
-        person: values.person,
-      });
-      message.success(t("wlt.addMemberDone", { name: created.data.full_name }));
+      await api.post(`/wlt/groups/${group.id}/members/`, { people: values.people });
+      message.success(`${values.people.length} ${values.people.length === 1 ? "woman was" : "women were"} added to the group.`);
       form.resetFields();
       onDone();
       onClose();
@@ -253,17 +283,27 @@ function AddMemberModal({
     >
       {empty ? (
         <>
-          <p>{t("wlt.candidatesEmpty")}</p>
+          <p>{t("wlt.candidatesEmpty", { kebele: group.kebele_name })}</p>
+          <p>{registeredHere} {registeredHere === 1 ? "woman is" : "women are"} registered there; {alreadyGroupedHere} already {alreadyGroupedHere === 1 ? "belongs" : "belong"} to a group.</p>
+          {elsewhere > 0 && (
+            <p>
+              {t(elsewhere === 1 ? "wlt.candidatesElsewhere" : "wlt.candidatesElsewherePlural", {
+                count: elsewhere,
+              })}
+            </p>
+          )}
           <p className="t-meta">{t("wlt.candidatesEmptyBody")}</p>
+          <Button onClick={() => { onClose(); window.location.href = `/wlt/beneficiaries?kebele=${group.kebele}`; }}>View this kebele in the WLT register</Button>
         </>
       ) : (
         <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
           <Form.Item
-            name="person"
+            name="people"
             label={t("wlt.addMemberField")}
             rules={[{ required: true, message: t("wlt.addMemberRequired") }]}
           >
             <Select
+              mode="multiple"
               showSearch
               loading={loading}
               placeholder={t("wlt.addMemberPlaceholder")}
