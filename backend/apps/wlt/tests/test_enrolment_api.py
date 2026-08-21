@@ -15,7 +15,13 @@ from openpyxl import Workbook
 
 from apps.users.models import User
 from apps.wlt.imports import COLUMNS
-from apps.wlt.models import BeneficiaryProfile, EnrolmentRoute, GroupMembership, VerificationStatus
+from apps.wlt.models import (
+    BeneficiaryProfile,
+    EnrolmentRoute,
+    GroupMembership,
+    LinkageStatus,
+    VerificationStatus,
+)
 from apps.wlt.services import formation as formation_service
 from apps.youth.models import Sex, Youth
 
@@ -311,6 +317,10 @@ def _journey(client, profile):
     return {stage["code"]: stage for stage in response.data["stages"]}, response.data
 
 
+def profile_of(person):
+    return BeneficiaryProfile.objects.get(person=person)
+
+
 def test_the_journey_walks_registered_verified_grouped_linked(as_user, facilitator, wlt_group, wlt_members):
     profile = BeneficiaryProfile.objects.get(person=wlt_members[0])
 
@@ -425,3 +435,103 @@ def test_a_facilitator_with_no_scope_registers_nowhere(as_user, wlt_locations, d
     )
 
     assert _register(as_user(unassigned), wlt_locations["kebele"]).status_code == 400
+
+
+def test_her_profile_names_the_group_and_how_it_is_doing(as_user, facilitator, wlt_group, wlt_members):
+    """The register lands here, so a bare group name is not enough.
+
+    A facilitator reading "Temsalet SHG" and nothing else had to open the group
+    screen to learn whether that group was even operating.
+    """
+    profile = BeneficiaryProfile.objects.get(person=wlt_members[0])
+    stages, _payload = _journey(as_user(facilitator), profile)
+    detail = stages["GROUPED"]["detail"]
+
+    assert detail["group_name"] == wlt_group.name
+    assert detail["group_status"] == wlt_group.status
+    assert detail["group_status_display"]
+    assert detail["kebele_name"] == wlt_group.kebele.name
+    assert detail["facilitator_name"] == facilitator.full_name
+    assert detail["members_current"] == wlt_group.current_members.count()
+    assert detail["joined_on"]
+
+
+def test_her_profile_shows_a_blocked_linkage_rather_than_hiding_it(
+    as_user, facilitator, wlt_group, wlt_members, make_partner
+):
+    """The reported gap, in the form that matters most.
+
+    `BLOCKED` is a first-class state — the model says so, because it names what
+    the group still has to reach. Filtering the profile to ACTIVE/APPROVED made
+    a group with one stuck bank linkage look like a group with none.
+    """
+    from apps.wlt.models import ServiceLinkage
+
+    provider = make_partner(name="Amhara Rural Bank", woredas=["Dessie Zuria"])
+    ServiceLinkage.objects.create(
+        linkage_type_id="market_offtake",
+        provider=provider,
+        subject_group=wlt_group,
+        status=LinkageStatus.BLOCKED,
+        opened_on=date(2026, 3, 1),
+    )
+
+    stages, _payload = _journey(as_user(facilitator), profile_of(wlt_members[0]))
+    linkages = stages["LINKED"]["detail"]["service_linkages"]
+
+    assert len(linkages) == 1
+    row = linkages[0]
+    assert row["status"] == LinkageStatus.BLOCKED
+    assert row["status_display"] == "Blocked"
+    assert row["provider_name"] == provider.partner_name
+    assert row["is_live"] is False
+    assert row["is_settled"] is False
+
+    # A blocked linkage is work to do, not evidence that she is linked.
+    assert stages["LINKED"]["state"] != "done"
+
+
+def test_a_live_linkage_is_marked_live_and_completes_the_stage(
+    as_user, facilitator, wlt_group, wlt_members, make_partner
+):
+    from apps.wlt.models import ServiceLinkage
+
+    provider = make_partner(name="Amhara Rural Bank", woredas=["Dessie Zuria"])
+    ServiceLinkage.objects.create(
+        linkage_type_id="market_offtake",
+        provider=provider,
+        subject_group=wlt_group,
+        status=LinkageStatus.ACTIVE,
+        opened_on=date(2026, 3, 1),
+        activated_on=date(2026, 3, 15),
+    )
+
+    stages, _payload = _journey(as_user(facilitator), profile_of(wlt_members[0]))
+    row = stages["LINKED"]["detail"]["service_linkages"][0]
+
+    assert row["is_live"] is True
+    assert row["activated_on"] == "2026-03-15"
+    assert stages["LINKED"]["state"] == "done"
+
+
+def test_a_closed_linkage_stays_on_the_profile_as_settled(as_user, facilitator, wlt_group, wlt_members, make_partner):
+    """History, not clutter: a group that once held a bank account and closed it
+    is a different group from one that never had one."""
+    from apps.wlt.models import ServiceLinkage
+
+    provider = make_partner(name="Amhara Rural Bank", woredas=["Dessie Zuria"])
+    ServiceLinkage.objects.create(
+        linkage_type_id="market_offtake",
+        provider=provider,
+        subject_group=wlt_group,
+        status=LinkageStatus.CLOSED,
+        opened_on=date(2026, 1, 1),
+        closed_on=date(2026, 6, 1),
+    )
+
+    stages, _payload = _journey(as_user(facilitator), profile_of(wlt_members[0]))
+    row = stages["LINKED"]["detail"]["service_linkages"][0]
+
+    assert row["is_settled"] is True
+    assert row["is_live"] is False
+    assert stages["LINKED"]["state"] != "done"

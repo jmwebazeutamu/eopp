@@ -183,7 +183,9 @@ def _grouped(profile):
     """
     person = profile.person
     open_membership = (
-        GroupMembership.objects.filter(person=person, exited_on__isnull=True).select_related("group").first()
+        GroupMembership.objects.filter(person=person, exited_on__isnull=True)
+        .select_related("group", "group__kebele", "group__facilitator")
+        .first()
     )
 
     conditions = [
@@ -211,15 +213,31 @@ def _grouped(profile):
         label=_("In a savings group"),
         state=_state_from(conditions, done=open_membership is not None),
         conditions=conditions,
+        # Enough to answer "which group, and how is it doing?" without opening
+        # the group screen. Her profile is where a facilitator lands from the
+        # register, and a bare group *name* sent her somewhere else to find out
+        # whether that group was even operating.
         detail=(
             {
                 "group": str(open_membership.group_id),
                 "group_name": open_membership.group.name,
                 "group_status": open_membership.group.status,
+                "group_status_display": str(open_membership.group.get_status_display()),
+                "group_phase": open_membership.group.current_phase,
+                "group_phase_display": str(open_membership.group.get_current_phase_display() or ""),
+                "kebele": str(open_membership.group.kebele_id) if open_membership.group.kebele_id else None,
+                "kebele_name": open_membership.group.kebele.name if open_membership.group.kebele_id else "",
+                "facilitator_name": (
+                    open_membership.group.facilitator.full_name if open_membership.group.facilitator_id else ""
+                ),
+                "members_current": open_membership.group.current_members.count(),
                 "joined_on": open_membership.joined_on.isoformat(),
             }
             if open_membership is not None
-            else {}
+            else {
+                "kebele": str(profile.psnp_kebele_id) if profile.psnp_kebele_id else None,
+                "kebele_name": profile.psnp_kebele.name if profile.psnp_kebele_id else "",
+            }
         ),
     )
 
@@ -241,21 +259,40 @@ def _linked(profile):
             code=LINKED,
             label=_("Linked to a service or a structure"),
             state=BLOCKED,
-            conditions=[_boolean_condition("in_group", _("In a savings group"), False)],
+            # Deliberately not "In a savings group": that is the label of the
+            # stage directly above this one, which is `ready` for a woman who
+            # has none. Two rows with identical text, one green and one blocked,
+            # read as a contradiction — and it was reported as one.
+            conditions=[_boolean_condition("in_group", _("Must already be in a savings group"), False)],
             detail={},
         )
 
     group = membership.group
+
+    # **Every** linkage her group holds, not only the live ones. `BLOCKED` is a
+    # first-class state and the model says so — it names exactly what the group
+    # still has to reach — and `DISTRESSED`, `DEFAULTED` and `PENDING_APPROVAL`
+    # are each something somebody has to act on. Filtering to ACTIVE/APPROVED
+    # meant her profile showed nothing at all for a group whose bank linkage was
+    # sitting blocked, which reads as "no linkages" rather than "one, stuck".
+    #
+    # The stage's own `done` still keys off the live ones: a blocked linkage is
+    # a thing to work on, not evidence that she is linked.
+    all_linkages = (
+        ServiceLinkage.objects.filter(subject_group=group)
+        .select_related("linkage_type", "provider")
+        .order_by("-opened_on")
+    )
     active_linkages = ServiceLinkage.objects.filter(
         subject_group=group, status__in=[LinkageStatus.ACTIVE, LinkageStatus.APPROVED]
-    ).select_related("linkage_type", "provider")
+    )
     structural = StructuralMembership.objects.filter(
         child_type=ChildType.GROUP, child_id=group.pk, exited_on__isnull=True
     ).first()
     parent_cla = CLA.objects.filter(pk=structural.parent_id).first() if structural is not None else None
 
     conditions = [
-        _boolean_condition("in_group", _("In a savings group"), True),
+        _boolean_condition("in_group", _("Must already be in a savings group"), True),
         _value_condition(
             "group_operating",
             _("Group operating"),
@@ -300,8 +337,15 @@ def _linked(profile):
                     "status": linkage.status,
                     "status_display": str(linkage.get_status_display()),
                     "provider_name": linkage.provider.partner_name if linkage.provider_id else None,
+                    "opened_on": linkage.opened_on.isoformat() if linkage.opened_on else None,
+                    "activated_on": linkage.activated_on.isoformat() if linkage.activated_on else None,
+                    # Whether this one is still live, so the screen can lead with
+                    # the ones somebody has to do something about rather than
+                    # sorting a facilitator's attention by date.
+                    "is_live": linkage.status in LinkageStatus.open_statuses(),
+                    "is_settled": linkage.status in LinkageStatus.terminal(),
                 }
-                for linkage in active_linkages
+                for linkage in all_linkages
             ],
             "structural_membership": (
                 {
