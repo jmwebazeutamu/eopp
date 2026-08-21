@@ -1,7 +1,7 @@
 import { Alert, App, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Radio, Select } from "antd";
 import { useEffect, useState } from "react";
 
-import { api, errorMessage } from "../../api/client";
+import { api, errorMessage, formErrors } from "../../api/client";
 import type { Location, Paginated, WltMobilisationEvent } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { useLang } from "../../i18n/LanguageContext";
@@ -50,6 +50,7 @@ export default function DraftGroupModal({
   const [kebeles, setKebeles] = useState<Location[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [facilitators, setFacilitators] = useState<Array<{ id: string; full_name: string }>>([]);
+  const [popupOpen, setPopupOpen] = useState(false);
   /** Draft from a meeting already recorded, or record the meeting now. */
   const [source, setSource] = useState<"existing" | "new">("existing");
   const [endorsed, setEndorsed] = useState(true);
@@ -110,7 +111,11 @@ export default function DraftGroupModal({
     return () => { cancelled = true; };
   }, [facilitatorKebele, form, open, recordingRefusal, user]);
 
-  function close() {
+  function close(force = false) {
+    if (!force && form.isFieldsTouched()) {
+      Modal.confirm({ title: "Discard this draft group?", content: "Your unsaved entries will be lost.", okText: "Discard", okButtonProps: { danger: true }, onOk: () => close(true) });
+      return;
+    }
     form.resetFields();
     setSource("existing");
     setEndorsed(true);
@@ -140,7 +145,7 @@ export default function DraftGroupModal({
         // is a success, and the message says so rather than apologising.
         if (!endorsed) {
           message.success(t("wlt.meetingRecordedNoGroup"));
-          close();
+          close(true);
           onDone();
           return;
         }
@@ -153,9 +158,11 @@ export default function DraftGroupModal({
         facilitator: values.facilitator,
       });
       message.success(t("wlt.groupDrafted", { name: created.data.name }));
-      close();
+      close(true);
       onDone();
     } catch (error) {
+      const fields = formErrors(error);
+      if (fields.length) form.setFields(fields);
       message.error(errorMessage(error, t("wlt.groupDraftFailed")));
     } finally {
       setSubmitting(false);
@@ -165,12 +172,13 @@ export default function DraftGroupModal({
   return (
     <Modal
       open={open}
-      onCancel={close}
+      onCancel={() => close()}
       onOk={() => form.submit()}
       okText={recordingRefusal ? t("wlt.recordRefusal") : t("wlt.draftGroup")}
       confirmLoading={submitting}
       title={t("wlt.draftGroupTitle")}
       destroyOnHidden
+      keyboard={!popupOpen}
     >
       <Form form={form} layout="vertical" onFinish={submit} requiredMark="optional">
         <Alert
@@ -200,6 +208,7 @@ export default function DraftGroupModal({
             extra={t("wlt.endorsedMeetingHelp")}
           >
             <Select
+              onOpenChange={setPopupOpen}
               showSearch
               optionFilterProp="label"
               placeholder={t("wlt.chooseMeeting")}
@@ -222,6 +231,7 @@ export default function DraftGroupModal({
               extra={t("wlt.kebeleDerivesGroup")}
             >
               <Select
+                onOpenChange={setPopupOpen}
                 showSearch
                 optionFilterProp="label"
                 placeholder={t("wlt.chooseKebele")}
@@ -234,7 +244,7 @@ export default function DraftGroupModal({
               label={t("wlt.meetingHeldOn")}
               rules={[{ required: true, message: t("wlt.meetingHeldOnRequired") }]}
             >
-              <DatePicker style={{ width: "100%" }} />
+              <DatePicker onOpenChange={setPopupOpen} style={{ width: "100%" }} placement="bottomLeft" needConfirm={false} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
             </Form.Item>
 
             {/* Counts by category, as the handbook asks. No attendee names: it
@@ -292,6 +302,7 @@ export default function DraftGroupModal({
             extra={facilitatorKebele ? "Only facilitators whose WLT scope covers this kebele are shown." : "Choose the meeting or kebele first."}
           >
             <Select
+              onOpenChange={setPopupOpen}
               showSearch
               optionFilterProp="label"
               disabled={!facilitatorKebele}

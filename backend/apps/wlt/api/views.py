@@ -13,7 +13,7 @@ read-only on every serializer here.
 """
 
 from django.core.exceptions import ValidationError
-from django.db.models import Exists, OuterRef, Prefetch
+from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -22,13 +22,14 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from apps.common.summaries import counters_for, summary_response
 from apps.locations.models import Location
+from apps.users.models import Role
 from apps.users.permissions import (
     CanAccessGroups,
     CanEnrolBeneficiaries,
@@ -38,6 +39,7 @@ from apps.users.permissions import (
 )
 from apps.wlt import imports as wlt_imports
 from apps.wlt import reporting
+from apps.wlt import policy as wlt_policy
 from apps.wlt.models import (
     BeneficiaryProfile,
     ExitReason,
@@ -142,6 +144,11 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
     search_fields = ["name", "kebele__name"]
     ordering_fields = ["name", "activated_on", "status"]
 
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsOperational()]
+        return super().get_permissions()
+
     def perform_create(self, serializer):
         """Draft through `formation.open_draft`, never around it.
 
@@ -156,6 +163,8 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
         accepting a typed one lets the two disagree, and then the group scopes
         to one place and reports in another.
         """
+        if self.request.user.role not in {Role.WLT_FACILITATOR, Role.WLT_WOREDA_OFFICER, Role.SYSTEM_ADMIN}:
+            raise PermissionDenied(_("Your role cannot draft a savings group."))
         event = serializer.validated_data["mobilisation_event"]
         try:
             group = formation_service.open_draft(
@@ -445,7 +454,7 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
         # approval decisions are their named administrative responsibility.
         # Domain services still validate the configured approval role and
         # prohibit self/repeat approval.
-        if self.action in {"approve", "return_for_revision", "reject"}:
+        if self.action in {"approve", "return_for_revision", "reject", "write_off_obligation"}:
             return [IsOperational()]
         return super().get_permissions()
 
@@ -462,6 +471,17 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="types")
     def types(self, request):
         return Response(ServiceLinkageTypeSerializer(ServiceLinkageType.objects.active(), many=True).data)
+
+    @action(detail=False, methods=["get"], url_path="eligible-providers")
+    def eligible_providers(self, request):
+        linkage_type = ServiceLinkageType.objects.filter(pk=request.query_params.get("linkage_type")).first()
+        group = scope_group_queryset(
+            Group.objects.filter(pk=request.query_params.get("subject_group")), request.user
+        ).first()
+        if linkage_type is None or group is None:
+            return Response([])
+        providers = linkage_service.proposable_providers(linkage_type, group)
+        return Response([{"id": str(provider.pk), "name": provider.partner_name, "type": provider.partner_type} for provider in providers])
 
     def create(self, request, *args, **kwargs):
         subject, linkage_type, provider = self._resolve_proposal(request)
@@ -577,9 +597,14 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
             raise _as_drf_error(exc)
         return Response(ServiceLinkageSerializer(linkage).data)
 
-    @action(detail=True, methods=["post"], url_path="obligations")
+    @action(detail=True, methods=["get", "post"], url_path="obligations")
     def obligation(self, request, pk=None):
         linkage = self.get_object()
+        if request.method == "GET":
+            rows = linkage_service.obligation_register(linkage)
+            for row in rows:
+                row["occurred_at"] = row["occurred_at"].isoformat()
+            return Response(rows)
         try:
             linkage_service.record_obligation(
                 linkage,
@@ -589,6 +614,47 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
                 outstanding=request.data.get("outstanding", True),
                 note=request.data.get("note", ""),
                 actor=request.user,
+            )
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        return Response(ServiceLinkageSerializer(linkage).data)
+
+    @action(detail=True, methods=["post"], url_path="obligations/settle")
+    def settle_obligation(self, request, pk=None):
+        linkage = self.get_object()
+        try:
+            linkage_service.resolve_obligation(
+                linkage, reference=request.data.get("reference", ""), resolution="SETTLED",
+                note=request.data.get("note", ""), actor=request.user,
+            )
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        return Response(ServiceLinkageSerializer(linkage).data)
+
+    @action(detail=True, methods=["post"], url_path="obligations/write-off")
+    def write_off_obligation(self, request, pk=None):
+        if request.user.role not in {
+            Role.WLT_WOREDA_OFFICER, Role.WLT_REGION_OFFICER, Role.WLT_FEDERAL_OFFICER, Role.SYSTEM_ADMIN
+        }:
+            raise DRFValidationError({"detail": _("An approver must authorize a write-off.")})
+        linkage = self.get_object()
+        try:
+            linkage_service.resolve_obligation(
+                linkage, reference=request.data.get("reference", ""), resolution="WRITE_OFF",
+                note=request.data.get("note", ""), actor=request.user,
+            )
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        return Response(ServiceLinkageSerializer(linkage).data)
+
+    @action(detail=True, methods=["post"], url_path="obligations/transfer")
+    def transfer_obligation(self, request, pk=None):
+        linkage = self.get_object()
+        try:
+            linkage_service.resolve_obligation(
+                linkage, reference=request.data.get("reference", ""), resolution="TRANSFER",
+                transfer_reference=request.data.get("transfer_reference", ""),
+                note=request.data.get("note", ""), actor=request.user,
             )
         except ValidationError as exc:
             raise _as_drf_error(exc)
@@ -781,32 +847,16 @@ class BeneficiaryProfileViewSet(viewsets.ModelViewSet):
         elsewhere = pool.exclude(psnp_kebele_id=kebele_id).count() if kebele_id else 0
         kebele = Location.objects.filter(pk=kebele_id).first() if kebele_id else None
 
-        # Context for the empty state: how many women are on the register here
-        # at all, and how many of them are already seated. Together they say
-        # whether an empty pool means "nobody registered" or "everybody placed",
-        # which call for opposite next steps.
-        registered_here = 0
-        grouped_here = 0
-        if kebele_id:
-            in_kebele = self.get_queryset().filter(psnp_kebele_id=kebele_id)
-            registered_here = in_kebele.count()
-            grouped_here = in_kebele.filter(
-                Exists(GroupMembership.objects.filter(person=OuterRef("person_id"), exited_on__isnull=True))
-            ).count()
-
         return Response(
             {
                 "results": rows,
                 "kebele": {"code": kebele.code, "name": kebele.name} if kebele else None,
                 "waiting_elsewhere": elsewhere,
-                # Narrowed from the *scoped* queryset, never from `.objects`.
-                # These are aggregates about a population, and an aggregate is a
-                # disclosure: "40 women registered here" told to somebody
-                # entitled to see four is still a leak. `Exists` rather than a
-                # join for the second, for the reason `unassigned()` documents —
-                # a membership join multiplies the row and inflates the count.
-                "registered_here": registered_here,
-                "already_grouped_here": grouped_here,
+                "registered_here": self.get_queryset().filter(psnp_kebele_id=kebele_id).count() if kebele_id else 0,
+                "already_grouped_here": self.get_queryset().filter(
+                    psnp_kebele_id=kebele_id,
+                    person__wlt_memberships__exited_on__isnull=True,
+                ).distinct().count() if kebele_id else 0,
             }
         )
 
@@ -1057,9 +1107,19 @@ class ReportViewSet(viewsets.ViewSet):
     permission_classes = [IsOperational, CanAccessGroups]
 
     def _visible_kebele_ids(self, request):
-        return list(
-            scope_group_queryset(Group.objects.all(), request.user).values_list("kebele_id", flat=True).distinct()
-        )
+        kebeles = Location.objects.active().filter(level="KEBELE")
+        scope = request.user.wlt_scope_location
+        if request.user.group_scope() == "ALL" or scope is None:
+            return list(kebeles.values_list("pk", flat=True))
+        visible = []
+        for kebele in kebeles.select_related("parent__parent__parent"):
+            node = kebele
+            while node is not None:
+                if node.pk == scope.pk:
+                    visible.append(kebele.pk)
+                    break
+                node = node.parent
+        return visible
 
     @action(detail=False, methods=["get"], url_path="cla-readiness")
     def cla_readiness(self, request):
@@ -1069,7 +1129,14 @@ class ReportViewSet(viewsets.ViewSet):
         too: "eleven groups in Chifra" told to somebody entitled to see two is
         still a leak.
         """
-        return Response({"rows": reporting.cla_readiness(self._visible_kebele_ids(request))})
+        kebele_ids = self._visible_kebele_ids(request)
+        rows = reporting.cla_readiness(kebele_ids)
+        present = {row["kebele_id"] for row in rows}
+        for kebele in Location.objects.filter(pk__in=set(kebele_ids) - present):
+            threshold = wlt_policy.resolve_int("gate.cla.min_groups", location=kebele, default=8)
+            rows.append({"kebele_id": kebele.pk, "kebele": kebele.name, "eligible_groups": 0, "threshold": threshold, "groups_short": threshold})
+        rows.sort(key=lambda row: (row["groups_short"], row["kebele"]))
+        return Response({"rows": rows})
 
     @action(detail=False, methods=["get"], url_path="linkage-funnel")
     def linkage_funnel(self, request):

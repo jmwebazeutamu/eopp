@@ -132,7 +132,7 @@ export default function ImportExtractModal({
               maxCount={1}
               accept=".xlsx"
             >
-              <Button>{t("wlt.importFile")}</Button>
+              <Button>Choose .xlsx file</Button>
             </Upload>
           </Form.Item>
         </Form>

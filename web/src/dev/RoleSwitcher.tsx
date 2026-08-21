@@ -32,7 +32,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { api, errorMessage, tokens } from "../api/client";
 import type { CurrentUser } from "../api/types";
@@ -52,6 +52,7 @@ interface AccountsResponse {
 export default function RoleSwitcher() {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<CurrentUser[] | null>(null);
@@ -99,18 +100,14 @@ export default function RoleSwitcher() {
         // The probe belongs to the account that ran it; keeping it across a
         // switch would show one role's answers under another role's name.
         setResults(null);
-        // Land on the first destination the resolved access row offers. A
-        // single generic route is not safe here: WLT-only roles have no case
-        // home, while linked partner roles have no WLT home.
-        const firstDestination = buildNav(response.data.user, { openAlerts: 0 })[0]?.items[0]?.path ?? "/";
-        navigate(firstDestination);
+        navigate(`${location.pathname}${location.search}`, { replace: true });
       } catch (caught) {
         setError(errorMessage(caught, `Could not switch to ${username}.`));
       } finally {
         setBusy(null);
       }
     },
-    [navigate, setUser],
+    [location.pathname, location.search, navigate, setUser],
   );
 
   const runProbe = useCallback(async () => {

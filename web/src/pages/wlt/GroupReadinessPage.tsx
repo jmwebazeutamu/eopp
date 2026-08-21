@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, errorMessage } from "../../api/client";
 import type { Paginated, ServiceLinkage, WltReadiness } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
-import { Button, Card, CapsLabel, Field, PageHeader } from "../../components/ui";
+import { Button, Card, CapsLabel, PageHeader } from "../../components/ui";
 import { CONDITION_TONE, LINKAGE_TONE, WLT_GROUP_TONE } from "../../design/wltStatus";
 import { useLang } from "../../i18n/LanguageContext";
 import GroupRoster from "./GroupRoster";
@@ -135,7 +135,7 @@ export default function GroupReadinessPage() {
         title={group.name}
         subtitle={
           <span>
-            {group.kebele_name} · {t("wlt.membersCount", { count: group.members_current })} ·{" "}
+            {group.kebele_name} · {group.members_current} {group.members_current === 1 ? "member" : "members"} ·{" "}
             <span className="chip" style={{ color: tone.fg, background: tone.bg, borderColor: tone.bd }}>
               <span className="chip__mark" aria-hidden>
                 {tone.mark}
@@ -146,7 +146,7 @@ export default function GroupReadinessPage() {
         }
       />
 
-      <Card>
+      <Card className="card--tight">
         <CapsLabel>Group management</CapsLabel>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
           {canManage && <Button onClick={() => { setValue(group.name); setAction("edit"); }}>Edit group</Button>}
@@ -168,7 +168,7 @@ export default function GroupReadinessPage() {
           wrong — the handoff's rule for offline reading. */}
       {stale && <div className="t-meta">{stale}</div>}
 
-      <Card>
+      <Card className="card--tight">
         <div style={{ display: "flex", gap: 12, alignItems: "baseline", justifyContent: "space-between" }}>
           <CapsLabel>{t("wlt.readiness")}</CapsLabel>
           <span className="t-meta">
@@ -185,11 +185,11 @@ export default function GroupReadinessPage() {
             <p style={{ marginTop: 8 }}>
               {summary.passed ? t("wlt.gatePassed") : t("wlt.gateOutstanding", { count: summary.outstanding.length })}
             </p>
-            <ul className="stack" style={{ listStyle: "none", padding: 0, margin: "12px 0 0" }}>
+            <div className="condition-grid">
               {summary.lines.map((line) => (
-                <ConditionRow key={line.code} line={line} />
+                <ConditionTile key={line.code} line={line} />
               ))}
-            </ul>
+            </div>
           </>
         )}
       </Card>
@@ -200,45 +200,56 @@ export default function GroupReadinessPage() {
           facilitator checks them in. */}
       <GroupRoster group={group} onChanged={load} />
 
-      <div className="grid-cards">
-        <Card>
-          <CapsLabel>{t("wlt.savings")}</CapsLabel>
-          <Field label={t("wlt.fund")}>{String(indicators.fund_etb ?? "0")} ETB</Field>
-          <Field label={t("wlt.cash")}>{String(indicators.cash_balance_etb ?? "0")} ETB</Field>
-          <Field label={t("wlt.bank")}>{String(indicators.bank_balance_etb ?? "0")} ETB</Field>
-          <Field label={t("wlt.fundWeeks")}>
-            {indicators.fund_weeks_of_contribution === null
-              ? t("wlt.notMeasurable")
-              : t("wlt.weeks", { count: String(indicators.fund_weeks_of_contribution) })}
-          </Field>
-        </Card>
-
-        <Card>
-          <CapsLabel>{t("wlt.meetings")}</CapsLabel>
-          <Field label={t("wlt.meetingsHeld")}>{String(indicators.meetings_held_total ?? 0)}</Field>
-          <Field label={t("wlt.attendance")}>
-            {indicators.attendance_pct === null ? t("wlt.notMeasurable") : `${indicators.attendance_pct}%`}
-          </Field>
-          <Field label={t("wlt.savingsCompliance")}>
-            {indicators.savings_compliance_pct === null
-              ? t("wlt.notMeasurable")
-              : `${indicators.savings_compliance_pct}%`}
-          </Field>
-          <Field label={t("wlt.lastMeeting")}>{String(indicators.last_meeting_on ?? "—")}</Field>
-        </Card>
-
-        <Card>
-          <CapsLabel>{t("wlt.lending")}</CapsLabel>
-          <Field label={t("wlt.outstanding")}>{String(indicators.loans_outstanding_etb ?? "0")} ETB</Field>
-          <Field label="PAR30">
-            {indicators.par30_pct === null ? t("wlt.notMeasurable") : `${indicators.par30_pct}%`}
-          </Field>
-          <Field label={t("wlt.completedCycles")}>{String(indicators.completed_loan_cycles ?? 0)}</Field>
-        </Card>
-      </div>
+      {/* Three cards became one with three columns. They are read together —
+          a fund covering four weeks means one thing beside 91% attendance and
+          another beside 60% — and as three cards the third sat below the fold
+          on a phone. Every value and every not-measurable branch is unchanged. */}
+      <Card className="card--tight">
+        <div className="indicator-cols">
+          <IndicatorColumn
+            title={t("wlt.savings")}
+            rows={[
+              [t("wlt.fund"), `${String(indicators.fund_etb ?? "0")} ETB`],
+              [t("wlt.cash"), `${String(indicators.cash_balance_etb ?? "0")} ETB`],
+              [t("wlt.bank"), `${String(indicators.bank_balance_etb ?? "0")} ETB`],
+              [
+                t("wlt.fundWeeks"),
+                indicators.fund_weeks_of_contribution === null
+                  ? t("wlt.notMeasurable")
+                  : t("wlt.weeks", { count: String(indicators.fund_weeks_of_contribution) }),
+              ],
+            ]}
+          />
+          <IndicatorColumn
+            title={t("wlt.meetings")}
+            rows={[
+              [t("wlt.meetingsHeld"), String(indicators.meetings_held_total ?? 0)],
+              [
+                t("wlt.attendance"),
+                indicators.attendance_pct === null ? t("wlt.notMeasurable") : `${indicators.attendance_pct}%`,
+              ],
+              [
+                t("wlt.savingsCompliance"),
+                indicators.savings_compliance_pct === null
+                  ? t("wlt.notMeasurable")
+                  : `${indicators.savings_compliance_pct}%`,
+              ],
+              [t("wlt.lastMeeting"), String(indicators.last_meeting_on ?? "—")],
+            ]}
+          />
+          <IndicatorColumn
+            title={t("wlt.lending")}
+            rows={[
+              [t("wlt.outstanding"), `${String(indicators.loans_outstanding_etb ?? "0")} ETB`],
+              ["PAR30", indicators.par30_pct === null ? t("wlt.notMeasurable") : `${indicators.par30_pct}%`],
+              [t("wlt.completedCycles"), String(indicators.completed_loan_cycles ?? 0)],
+            ]}
+          />
+        </div>
+      </Card>
 
       {riskFlags.length > 0 && (
-        <Card>
+        <Card className="card--tight">
           <CapsLabel>{t("wlt.atRisk")}</CapsLabel>
           {/* An early warning, not a demotion. It is visible to the facilitator
               and does not by itself move the group backwards. */}
@@ -253,7 +264,7 @@ export default function GroupReadinessPage() {
         </Card>
       )}
 
-      <Card>
+      <Card className="card--tight">
         <CapsLabel>{t("wlt.linkages")}</CapsLabel>
         {linkages.length === 0 && <p className="t-meta">{t("wlt.noLinkages")}</p>}
         <div className="stack" style={{ marginTop: 8 }}>
@@ -301,7 +312,6 @@ export default function GroupReadinessPage() {
     </div>
   );
 }
-
 type PhaseEvent = {
   id: string;
   from_phase: string;
@@ -310,21 +320,43 @@ type PhaseEvent = {
   decided_at: string | null;
 };
 
-function ConditionRow({ line }: { line: ConditionLine }) {
+function ConditionTile({ line }: { line: ConditionLine }) {
   const tone = CONDITION_TONE[line.state];
   return (
-    <li style={{ display: "flex", gap: 12, alignItems: "baseline", justifyContent: "space-between" }}>
-      <span style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+    <div className="condition-tile">
+      <div className="condition-tile__label">
         <span aria-hidden style={{ color: tone.fg }}>
           {tone.mark}
         </span>
         <span>{line.label}</span>
-      </span>
-      {/* The whole point of the card: what it has, then what it needs. */}
-      <span style={{ whiteSpace: "nowrap" }}>
-        <strong style={{ color: tone.fg }}>{line.state === "unmeasurable" ? "—" : line.actual}</strong>
-        <span className="t-meta"> (need {line.threshold})</span>
-      </span>
-    </li>
+      </div>
+      {/* Smaller box, unchanged rule: what it has, then what it needs. The
+          threshold stays on every tile because these values are quantitative —
+          "91.7%" says nothing without "(need 90%)" beside it. */}
+      <div className="condition-tile__value" style={{ color: tone.fg }}>
+        {line.state === "unmeasurable" ? "—" : line.actual}
+        <span className="t-meta" style={{ fontWeight: 500 }}>
+          {" "}
+          (need {line.threshold})
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** One indicator column — label left, value right, one line rather than two. */
+function IndicatorColumn({ title, rows }: { title: string; rows: Array<[string, string]> }) {
+  return (
+    <div className="indicator-col">
+      <CapsLabel>{title}</CapsLabel>
+      {rows.map(([label, value]) => (
+        <div key={label} className="indicator-row">
+          <span className="t-meta">{label}</span>
+          <span className="tabular" style={{ fontWeight: 600 }}>
+            {value}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }

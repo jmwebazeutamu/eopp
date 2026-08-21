@@ -20,6 +20,7 @@ const post = vi.fn();
 vi.mock("../../api/client", () => ({
   api: { get: (...args: unknown[]) => get(...args), post: (...args: unknown[]) => post(...args) },
   errorMessage: (_: unknown, fallback: string) => fallback,
+  formErrors: () => [],
 }));
 
 const { default: JourneyPage } = await import("./JourneyPage");
@@ -116,6 +117,15 @@ describe("JourneyPage", () => {
     mount({ next_action: stage("GROUPED", "ready") });
 
     expect(await screen.findByText(/Next: GROUPED/)).toBeInTheDocument();
+  });
+
+  it("offers the ready woman a direct route into a group in her kebele", async () => {
+    const readyStages = [stage("REGISTERED", "done"), stage("VERIFIED", "done"), stage("GROUPED", "ready", [], { kebele: "k1", kebele_name: "Bishoftu 01" })];
+    mount({ stages: readyStages });
+    get.mockImplementation((url: string) => String(url).includes("/groups/") ? Promise.resolve({ data: { results: [{ id: "g1", name: "Adey SHG", status_display: "Draft", members_current: 1 }] } }) : Promise.resolve({ data: { person: "p1", profile: "b1", full_name: "Almaz Tesfaye", stages: readyStages, stages_done: 2, stages_total: 4, next_action: null } }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add her to a group" }));
+    expect(await screen.findByText("Groups in Bishoftu 01")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start a new group" })).toBeInTheDocument();
   });
 
   it("shows the entire ordered sequence with completed stages ticked", async () => {

@@ -349,6 +349,23 @@ class GroupSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"facilitator": _("Name the facilitator who will run this group.")}
                 )
+        facilitator = attrs.get("facilitator")
+        event = attrs.get("mobilisation_event")
+        if self.instance is None and facilitator is not None:
+            if facilitator.role != Role.WLT_FACILITATOR:
+                raise serializers.ValidationError({"facilitator": _("Choose a WLT group facilitator.")})
+            if event is not None and facilitator.wlt_scope_location_id:
+                node = event.kebele
+                covered = False
+                while node is not None:
+                    if node.pk == facilitator.wlt_scope_location_id:
+                        covered = True
+                        break
+                    node = node.parent
+                if not covered:
+                    raise serializers.ValidationError(
+                        {"facilitator": _("This facilitator's geography does not cover the meeting's kebele.")}
+                    )
 
         # Required on create, immutable afterwards. Required because the
         # endorsement check is only a control if it cannot be skipped, and
@@ -471,6 +488,7 @@ class ServiceLinkageSerializer(serializers.ModelSerializer):
     provider_name = serializers.CharField(source="provider.partner_name", read_only=True, default=None)
     subject_name = serializers.SerializerMethodField()
     next_approval_role = serializers.SerializerMethodField()
+    next_action_role_display = serializers.SerializerMethodField()
     can_current_user_approve = serializers.SerializerMethodField()
 
     class Meta:
@@ -499,6 +517,7 @@ class ServiceLinkageSerializer(serializers.ModelSerializer):
             # blocked screen renders in one request.
             "block_reasons",
             "next_approval_role",
+            "next_action_role_display",
             "can_current_user_approve",
         ]
         read_only_fields = ["status", "subject_type", "block_reasons", "approved_on", "activated_on", "closed_on"]
@@ -515,6 +534,17 @@ class ServiceLinkageSerializer(serializers.ModelSerializer):
     def get_next_approval_role(self, linkage):
         approval = self._next_approval(linkage)
         return approval.required_role if approval else None
+
+    def get_next_action_role_display(self, linkage):
+        if linkage.status in {LinkageStatus.REJECTED, LinkageStatus.CLOSED, LinkageStatus.LAPSED, LinkageStatus.DEFAULTED}:
+            return None
+        role = self.get_next_approval_role(linkage)
+        if not role:
+            role = Role.WLT_FACILITATOR
+        try:
+            return str(Role(role).label)
+        except ValueError:
+            return str(role).replace("_", " ").title()
 
     def get_can_current_user_approve(self, linkage):
         approval = self._next_approval(linkage)

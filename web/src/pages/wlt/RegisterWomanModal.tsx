@@ -1,7 +1,7 @@
 import { Alert, App, Checkbox, DatePicker, Form, Input, Modal, Select } from "antd";
 import { useEffect, useState } from "react";
 
-import { api, errorMessage } from "../../api/client";
+import { api, errorMessage, formErrors } from "../../api/client";
 import type { Location } from "../../api/types";
 import { useLang } from "../../i18n/LanguageContext";
 
@@ -41,6 +41,16 @@ export default function RegisterWomanModal({
   const [form] = Form.useForm();
   const [kebeles, setKebeles] = useState<Location[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(false);
+
+  function close(force = false) {
+    if (!force && form.isFieldsTouched()) {
+      Modal.confirm({ title: "Discard this registration?", content: "Your unsaved entries will be lost.", okText: "Discard", okButtonProps: { danger: true }, onOk: () => close(true) });
+      return;
+    }
+    form.resetFields();
+    onClose();
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -76,8 +86,10 @@ export default function RegisterWomanModal({
       form.resetFields();
       onCreated?.({ profileId: created.data.id, personId: created.data.person });
       onDone();
-      onClose();
+      close(true);
     } catch (error) {
+      const fields = formErrors(error);
+      if (fields.length) form.setFields(fields);
       message.error(errorMessage(error, t("wlt.registerFailed")));
     } finally {
       setSubmitting(false);
@@ -91,13 +103,11 @@ export default function RegisterWomanModal({
       okText={t("wlt.registerOk")}
       cancelText={t("common.cancel")}
       confirmLoading={submitting}
-      onCancel={() => {
-        form.resetFields();
-        onClose();
-      }}
+      onCancel={() => close()}
       onOk={() => form.submit()}
       destroyOnHidden
       width={560}
+      keyboard={!popupOpen}
     >
       <Alert type="info" showIcon style={{ marginBottom: 16 }} message={t("wlt.registerIntro")} />
 
@@ -106,7 +116,7 @@ export default function RegisterWomanModal({
           <Input />
         </Form.Item>
         <Form.Item name="date_of_birth" label={t("wlt.dateOfBirth")} rules={[{ required: true }]}>
-          <DatePicker style={{ width: "100%" }} />
+          <DatePicker onOpenChange={setPopupOpen} style={{ width: "100%" }} placement="bottomLeft" needConfirm={false} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
         </Form.Item>
         <Form.Item
           name="kebele"
@@ -115,6 +125,7 @@ export default function RegisterWomanModal({
           rules={[{ required: true }]}
         >
           <Select
+            onOpenChange={setPopupOpen}
             showSearch
             optionFilterProp="label"
             options={kebeles.map((kebele) => ({ value: kebele.code, label: kebele.name }))}
@@ -128,10 +139,10 @@ export default function RegisterWomanModal({
         </Form.Item>
 
         <Form.Item name="els_completed_on" label={t("wlt.elsCompleted")} extra={t("wlt.elsHelp")}>
-          <DatePicker style={{ width: "100%" }} />
+          <DatePicker onOpenChange={setPopupOpen} style={{ width: "100%" }} placement="bottomLeft" needConfirm={false} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
         </Form.Item>
         <Form.Item name="els_grant_received_on" label={t("wlt.elsGrant")}>
-          <DatePicker style={{ width: "100%" }} />
+          <DatePicker onOpenChange={setPopupOpen} style={{ width: "100%" }} placement="bottomLeft" needConfirm={false} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
         </Form.Item>
         <Form.Item
           name="consent_given"
@@ -150,7 +161,7 @@ export default function RegisterWomanModal({
           <Checkbox>{t("wlt.consentGiven")}</Checkbox>
         </Form.Item>
         <Form.Item name="consent_date" label={t("wlt.consentDate")} rules={[{ required: true }]}>
-          <DatePicker style={{ width: "100%" }} />
+          <DatePicker onOpenChange={setPopupOpen} style={{ width: "100%" }} placement="bottomLeft" needConfirm={false} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
         </Form.Item>
 
         <Form.Item name="note" label={t("wlt.registerNote")}>

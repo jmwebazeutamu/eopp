@@ -116,7 +116,7 @@ export default function AppLayout() {
           />
         )}
 
-        <main id="main" tabIndex={-1} style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+        <main id="main" tabIndex={-1} style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", paddingBottom: import.meta.env.DEV ? 72 : 0 }}>
           <div style={{ flex: 1 }}>
             <Outlet />
           </div>

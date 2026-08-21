@@ -84,14 +84,23 @@ export function errorMessage(error: unknown, fallback = "Something went wrong.")
     if (typeof data === "string") return data;
     if (data && typeof data === "object") {
       const detail = data.detail;
-      if (typeof detail === "string") return detail;
+      if (typeof detail === "string") return detail.replace(/^detail:\s*/i, "");
+      if (Array.isArray(detail)) return detail.map(String).join(" ").replace(/^detail:\s*/i, "");
       const [field, messages] = Object.entries(data)[0] ?? [];
       if (field && messages) {
         const text = Array.isArray(messages) ? messages.join(" ") : String(messages);
-        return field === "non_field_errors" ? text : `${field}: ${text}`;
+        return text.replace(new RegExp(`^${field}:\\s*`, "i"), "").replace(/^detail:\s*/i, "");
       }
     }
     return error.message;
   }
   return fallback;
+}
+
+/** DRF 400/422 field errors in the shape Ant Form expects. */
+export function formErrors(error: unknown): Array<{ name: string; errors: string[] }> {
+  if (!axios.isAxiosError(error) || !error.response?.data || typeof error.response.data !== "object") return [];
+  return Object.entries(error.response.data as Record<string, unknown>)
+    .filter(([field]) => !["detail", "non_field_errors"].includes(field))
+    .map(([name, value]) => ({ name, errors: (Array.isArray(value) ? value : [value]).map(String) }));
 }

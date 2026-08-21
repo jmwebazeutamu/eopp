@@ -190,6 +190,14 @@ def record_resolution(linkage, *, reference, actor=None, meeting_id=None):
     terms["resolution_recorded_at"] = timezone.now().isoformat()
     linkage.terms = terms
     linkage.save(update_fields=["terms", "updated_at"])
+    LinkageEvent.objects.create(
+        linkage=linkage,
+        from_status=linkage.status,
+        to_status=linkage.status,
+        actor=actor,
+        reason=_("Group resolution recorded: %(reference)s") % {"reference": str(reference).strip()},
+        gate_snapshot={"resolution": {"reference": str(reference).strip(), "meeting_id": str(meeting_id or "")}},
+    )
     return linkage
 
 
@@ -357,7 +365,7 @@ def approve(linkage, *, actor, note="", as_of=None):
         return linkage
 
     return linkage.transition_to(
-        LinkageStatus.APPROVED, actor=actor, gate_snapshot=result.as_snapshot() if result else None
+        LinkageStatus.APPROVED, actor=actor, reason=note, gate_snapshot=result.as_snapshot() if result else None
     )
 
 
@@ -514,6 +522,63 @@ def record_obligation(linkage, *, kind, reference, actor=None, missed=False, out
             reason=note,
             gate_snapshot=snapshot,
         )
+    return linkage
+
+
+def obligation_register(linkage):
+    """Current state of every obligation reference, reconstructed from immutable events."""
+    register = {}
+    events = linkage.events.order_by("occurred_at", "pk")
+    for event in events:
+        obligation = (event.gate_snapshot or {}).get("obligation")
+        if not obligation or not obligation.get("reference"):
+            continue
+        register[str(obligation["reference"])] = {
+            **obligation,
+            "occurred_at": event.occurred_at,
+            "note": event.reason,
+        }
+    return list(register.values())
+
+
+@transaction.atomic
+def resolve_obligation(linkage, *, reference, resolution, actor=None, note="", transfer_reference=""):
+    current = {row["reference"]: row for row in obligation_register(linkage)}
+    obligation = current.get(str(reference))
+    if not obligation or not obligation.get("outstanding"):
+        raise LinkageError({"reference": _("Choose an outstanding obligation.")})
+    if resolution == "WRITE_OFF" and not str(note or "").strip():
+        raise LinkageError({"note": _("Explain why this obligation is being written off.")})
+    if resolution == "TRANSFER" and not str(transfer_reference or "").strip():
+        raise LinkageError({"transfer_reference": _("Name the receiving obligation reference.")})
+
+    snapshot = {"obligation": {**obligation, "outstanding": False, "resolution": resolution}}
+    snapshot["obligation"].pop("occurred_at", None)
+    snapshot["obligation"].pop("note", None)
+    LinkageEvent.objects.create(
+        linkage=linkage,
+        from_status=linkage.status,
+        to_status=linkage.status,
+        actor=actor,
+        reason=note or {"SETTLED": _("Obligation settled."), "WRITE_OFF": _("Obligation written off."), "TRANSFER": _("Obligation transferred.")}[resolution],
+        gate_snapshot=snapshot,
+    )
+    current[str(reference)] = snapshot["obligation"]
+    if resolution == "TRANSFER":
+        record_obligation(
+            linkage,
+            kind=obligation.get("kind", "transfer"),
+            reference=str(transfer_reference).strip(),
+            outstanding=True,
+            missed=False,
+            note=_("Transferred from %(reference)s") % {"reference": reference},
+            actor=actor,
+        )
+        current[str(transfer_reference).strip()] = {"outstanding": True}
+    terms = dict(linkage.terms or {})
+    terms["outstanding_obligation"] = any(row.get("outstanding") for row in current.values())
+    linkage.terms = terms
+    linkage.save(update_fields=["terms", "updated_at"])
     return linkage
 
 

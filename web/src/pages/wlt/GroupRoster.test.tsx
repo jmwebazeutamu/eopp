@@ -1,5 +1,5 @@
 import { App } from "antd";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,6 +24,7 @@ vi.mock("../../api/client", () => ({
     post: (...args: unknown[]) => post(...args),
   },
   errorMessage: (_: unknown, fallback: string) => fallback,
+  formErrors: () => [],
 }));
 
 const { default: GroupRoster } = await import("./GroupRoster");
@@ -63,7 +64,7 @@ function membership(overrides: Partial<WltGroupMembership> = {}): WltGroupMember
 
 function mount(
   roster: WltGroupMembership[],
-  { canWrite = true, pool }: { canWrite?: boolean; pool?: { results: unknown[]; waiting_elsewhere: number } } = {},
+  { canWrite = true, pool }: { canWrite?: boolean; pool?: { results: unknown[]; waiting_elsewhere: number; registered_here?: number; already_grouped_here?: number } } = {},
 ) {
   // Two endpoints behind one mock: the roster and the candidate pool. Routing
   // by URL rather than by call order, because the modal fetches on open and the
@@ -100,6 +101,22 @@ function mount(
   );
 }
 
+
+/**
+ * The laptop roster, scoped.
+ *
+ * The panel renders the table and the phone cards together — jsdom applies no
+ * stylesheet, so both branches of a `.only-laptop` / `.only-phone` pair are in
+ * the tree. Every query below would otherwise find each member twice. Which
+ * branch actually shows at a given width is a stylesheet question, and
+ * `src/styles/responsive.test.ts` is what guards it.
+ */
+function laptopRoster(): HTMLElement {
+  const table = document.querySelector(".roster-table");
+  if (!table) throw new Error("no roster table rendered");
+  return table as HTMLElement;
+}
+
 describe("GroupRoster", () => {
   beforeEach(() => {
     get.mockReset();
@@ -109,8 +126,9 @@ describe("GroupRoster", () => {
   it("names every current member, which the member count never did", async () => {
     mount([membership(), membership({ id: "m2", person: "p2", full_name: "Bontu Diriba" })]);
 
-    expect(await screen.findByText("Chaltu Bekele")).toBeInTheDocument();
-    expect(screen.getByText("Bontu Diriba")).toBeInTheDocument();
+    await screen.findAllByText("Chaltu Bekele");
+    expect(within(laptopRoster()).getByText("Chaltu Bekele")).toBeInTheDocument();
+    expect(within(laptopRoster()).getByText("Bontu Diriba")).toBeInTheDocument();
     expect(screen.getByText(/2 on the roster today/)).toBeInTheDocument();
   });
 
@@ -143,16 +161,16 @@ describe("GroupRoster", () => {
     // control that 403s.
     mount([membership()], { canWrite: false });
 
-    expect(await screen.findByText("Chaltu Bekele")).toBeInTheDocument();
+    await screen.findAllByText("Chaltu Bekele");
     expect(screen.queryByRole("button", { name: /Add a member/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Record that she left/i })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("button", { name: /Record that she left/i })).toHaveLength(0);
   });
 
   it("offers both write controls to a facilitator", async () => {
     mount([membership()]);
 
     expect(await screen.findByRole("button", { name: /Add a member/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Record that she left/i })).toBeInTheDocument();
+    expect(within(laptopRoster()).getByRole("button", { name: /Record that she left/i })).toBeInTheDocument();
   });
 
   it("refuses to record an exit with no reason", async () => {
@@ -161,7 +179,7 @@ describe("GroupRoster", () => {
     mount([membership()]);
     const person = userEvent.setup();
 
-    await person.click(await screen.findByRole("button", { name: /Record that she left/i }));
+    await person.click((await screen.findAllByRole("button", { name: /Record that she left/i }))[0]);
     await person.click(await screen.findByRole("button", { name: /Record the exit/i }));
 
     await waitFor(() => expect(screen.getByText(/Choose why she is leaving/)).toBeInTheDocument());
@@ -172,12 +190,14 @@ describe("GroupRoster", () => {
     // The reported fault: the picker showed nothing and read as broken. A group
     // recruits only in its own kebele, so an empty list usually means geography
     // — and geography is something a facilitator can act on.
-    mount([membership()], { pool: { results: [], waiting_elsewhere: 3 } });
+    mount([membership()], { pool: { results: [], waiting_elsewhere: 3, registered_here: 1, already_grouped_here: 1 } });
 
     await userEvent.click(await screen.findByRole("button", { name: /add a member/i }));
 
     expect(await screen.findByText(/No eligible women are free to join in Dembela/i)).toBeTruthy();
     expect(screen.getByText(/3 eligible women are waiting for a group in other kebeles/i)).toBeTruthy();
+    expect(screen.getByText(/1 woman is registered there; 1 already belongs to a group/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /View this kebele in the WLT register/i })).toBeTruthy();
   });
 
   it("does not claim women wait elsewhere when none do", async () => {
@@ -195,7 +215,7 @@ describe("GroupRoster", () => {
     mount([membership()]);
     const person = userEvent.setup();
 
-    await person.click(await screen.findByRole("button", { name: /Record that she left/i }));
+    await person.click((await screen.findAllByRole("button", { name: /Record that she left/i }))[0]);
 
     expect(await screen.findByText(/stays on the record with the date she left/i)).toBeInTheDocument();
   });

@@ -7,7 +7,7 @@ import { LanguageProvider } from "../../i18n/LanguageContext";
 import { TestAuth, testUser } from "../../test/authHarness";
 
 const get = vi.fn();
-vi.mock("../../api/client", () => ({ api: { get: (...args: unknown[]) => get(...args), post: vi.fn() }, errorMessage: (_: unknown, fallback: string) => fallback }));
+vi.mock("../../api/client", () => ({ api: { get: (...args: unknown[]) => get(...args), post: vi.fn() }, errorMessage: (_: unknown, fallback: string) => fallback, formErrors: () => [] }));
 const { default: LinkagesPage } = await import("./LinkagesPage");
 
 const linkage = {

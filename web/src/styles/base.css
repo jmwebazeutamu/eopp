@@ -170,6 +170,81 @@ p {
   background: var(--surface-alt);
 }
 
+/* The WLT group screens only — `docs/design_handoff_wlt_groups_compact/`.
+   Scoped rather than a token change: `.card` is used on every screen, and the
+   18/20 padding above is a confirmed programme decision. These three screens
+   stack a readiness card, a roster and three indicator cards, which ran to
+   ~1300px before the linkages panel was reachable. */
+.card--tight {
+  padding: 12px 14px;
+}
+
+/* Six conditions as six full-width rows is six lines of mostly empty card.
+   Same text, same three-state tone, tiled instead. */
+.condition-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+.condition-tile {
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--surface-alt);
+  padding: 8px 10px;
+}
+
+.condition-tile__label {
+  font-size: 11.5px;
+  color: var(--ink-600);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.condition-tile__value {
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+/* Savings, meetings and lending as three columns of one card rather than three
+   cards. Each label/value pair is one line instead of two. */
+.indicator-cols {
+  display: flex;
+  gap: var(--s5);
+  flex-wrap: wrap;
+}
+
+.indicator-col {
+  flex: 1;
+  min-width: 170px;
+}
+
+.indicator-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 12.5px;
+}
+
+/* The roster. Twenty women wrapping two lines each is the screen's largest
+   block; in fixed columns it is one line each. Laptop only — below 780px the
+   phone cards take over, per the breakpoint rule. */
+.roster-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: var(--s2);
+}
+
+.roster-table td {
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
+}
+
 .card--interactive {
   cursor: pointer;
 }

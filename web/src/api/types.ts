@@ -1102,6 +1102,7 @@ export interface ServiceLinkage {
   /** What the subject still needs, in sentences. Empty unless BLOCKED. */
   block_reasons: string[];
   next_approval_role: string | null;
+  next_action_role_display: string | null;
   can_current_user_approve: boolean;
 }
 
@@ -1122,6 +1123,12 @@ export interface LinkageObligationEvidence {
   reference: string;
   outstanding: boolean;
   missed: boolean;
+}
+
+export interface LinkageObligation extends LinkageObligationEvidence {
+  occurred_at: string;
+  note: string;
+  resolution?: "SETTLED" | "WRITE_OFF" | "TRANSFER";
 }
 
 export interface LinkageEvent {

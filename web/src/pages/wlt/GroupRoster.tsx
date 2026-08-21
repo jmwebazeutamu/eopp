@@ -2,7 +2,7 @@ import { App, Form, Input, Modal, Select } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { api, errorMessage } from "../../api/client";
+import { api, errorMessage, formErrors } from "../../api/client";
 import type {
   WltCandidate,
   WltCandidatePool,
@@ -85,7 +85,7 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
   }, [load, onChanged]);
 
   return (
-    <Card>
+    <Card className="card--tight">
       <div
         style={{
           display: "flex",
@@ -107,31 +107,64 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
         </>
       )}
 
+      {/* Twenty women, each wrapping onto two lines, was this screen's largest
+          block. In fixed columns each is one line. The table is laptop-only:
+          780px is the structural switch, and three columns at 360px is exactly
+          the density the handoff asks about — so below it the rows stay cards,
+          as they do on every other list screen. */}
       {current.length > 0 && (
-        <ul className="stack" style={{ listStyle: "none", padding: 0, margin: "12px 0 0" }}>
-          {current.map((membership) => (
-            <li
-              key={membership.id}
-              style={{
-                display: "flex",
-                gap: 12,
-                alignItems: "baseline",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-              }}
-            >
-              <span>
-                <strong>{membership.full_name}</strong>
-                <span className="t-meta"> · {t("wlt.joinedOn", { date: membership.joined_on })}</span>
-              </span>
-              {canWrite && (
-                <Button size="sm" onClick={() => setExiting(membership)}>
-                  {t("wlt.exitMember")}
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="only-laptop">
+            <table className="roster-table">
+              <tbody>
+                {current.map((membership) => (
+                  <tr key={membership.id}>
+                    <td style={{ fontWeight: 600 }}>{membership.full_name}</td>
+                    <td className="t-meta">{t("wlt.joinedOn", { date: membership.joined_on })}</td>
+                    <td style={{ textAlign: "right" }}>
+                      {canWrite && (
+                        <Button size="sm" onClick={() => setExiting(membership)}>
+                          {t("wlt.exitMember")}
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <ul className="stack only-phone" style={{ listStyle: "none", padding: 0, margin: "12px 0 0" }}>
+            {current.map((membership) => (
+              // The exit button wraps to its own line at 360px, which put it
+              // directly above the *next* woman's name and read as hers. The
+              // separator is what the table gets from `.roster-table td`, and
+              // it is what makes each row one unit here.
+              <li
+                key={membership.id}
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  paddingBottom: 8,
+                  borderBottom: "1px solid var(--line-soft)",
+                }}
+              >
+                <span>
+                  <strong>{membership.full_name}</strong>
+                  <span className="t-meta"> · {t("wlt.joinedOn", { date: membership.joined_on })}</span>
+                </span>
+                {canWrite && (
+                  <Button size="sm" onClick={() => setExiting(membership)}>
+                    {t("wlt.exitMember")}
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {canWrite && (
@@ -258,6 +291,8 @@ function AddMemberModal({
       onDone();
       onClose();
     } catch (error) {
+      const fields = formErrors(error);
+      if (fields.length) form.setFields(fields as Parameters<typeof form.setFields>[0]);
       message.error(errorMessage(error, t("wlt.addMemberFailed")));
     } finally {
       setSubmitting(false);
