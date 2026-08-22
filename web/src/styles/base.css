@@ -245,6 +245,417 @@ p {
   vertical-align: middle;
 }
 
+/* The audit trail, grouped by day. Three exits on one date read as one event
+   with a cause; the same three down a flat list read as three unrelated
+   departures. */
+.history-day {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+@media (max-width: 780px) {
+  .history-day {
+    grid-template-columns: 1fr;
+    gap: var(--s1);
+  }
+}
+
+.history-day__date {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-400);
+  padding-top: 2px;
+}
+
+.history-day__events {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 var(--s4);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.history-event {
+  position: relative;
+  font-size: 13px;
+}
+
+/* The dot sits on the rule, ringed in the page ground so the rule appears to
+   pass behind it rather than through it. */
+.history-event__dot {
+  position: absolute;
+  left: -26px;
+  top: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-chip);
+  box-shadow: 0 0 0 3px var(--paper);
+}
+
+/* Loading skeletons. The shape of the content, not a spinner: the reader
+   learns the layout while it loads and nothing jumps when it lands. */
+.skeleton {
+  background: var(--fill-muted);
+  border-radius: var(--r-control);
+}
+
+.skeleton--title {
+  height: 30px;
+  width: 260px;
+}
+
+.skeleton--line {
+  height: 14px;
+}
+
+.skeleton--tabs {
+  height: 42px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, var(--fill-muted) 0 60%, transparent 60%);
+}
+
+.skeleton--card {
+  border-radius: var(--r-card);
+}
+
+/* Motion only where it is wanted, and never for a reader who has asked for
+   none — a pulsing block is exactly what `prefers-reduced-motion` is for. */
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    animation: skeleton-pulse 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* A panel that failed, said in place. */
+.callout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--r-button);
+  font-size: 12.5px;
+}
+
+.callout--error {
+  background: var(--terra-100);
+  border: 1px solid var(--terra-border);
+  color: var(--terra-700);
+}
+
+.callout--warn {
+  background: var(--gold-100);
+  border: 1px solid var(--gold-border);
+  color: var(--gold-700);
+}
+
+/* Labelled linkage lanes. A fixed label column and a plotting area, rather
+   than the unlabelled lanes and overflowing labels this replaces. */
+.lanes {
+  margin-top: var(--s3);
+}
+
+.lanes__axis,
+.lanes__row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--s3);
+  align-items: center;
+}
+
+/* Below the structural breakpoint the label column would leave no plotting
+   area worth having, so the marker moves under its label instead. */
+@media (max-width: 780px) {
+  .lanes__axis,
+  .lanes__row {
+    grid-template-columns: 1fr;
+    gap: var(--s1);
+  }
+}
+
+.lanes__axis {
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: var(--s2);
+}
+
+.lanes__plot {
+  position: relative;
+  min-height: 30px;
+}
+
+.lanes__tick {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11.5px;
+  color: var(--ink-400);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* First and last ticks pull inside, so the axis labels do not overhang the
+   card the way the markers used to. */
+.lanes__tick:first-child {
+  transform: none;
+}
+
+.lanes__tick:last-child {
+  transform: translateX(-100%);
+}
+
+.lanes__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.lanes__row {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.lanes__label-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lanes__partner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lanes__rule {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--line-soft);
+}
+
+.lanes__marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+
+/* The anchoring that keeps a marker inside the area. Centring a chip on a
+   point near the edge hangs half of it off; anchoring moves the box without
+   moving the point it refers to. */
+.lanes__marker[data-anchor="start"] {
+  transform: translate(0, -50%);
+}
+
+.lanes__marker[data-anchor="end"] {
+  transform: translate(-100%, -50%);
+}
+
+@media (max-width: 780px) {
+  .lanes__marker,
+  .lanes__marker[data-anchor="start"],
+  .lanes__marker[data-anchor="end"] {
+    position: static;
+    transform: none;
+  }
+
+  .lanes__rule {
+    display: none;
+  }
+}
+
+/* The pill that leads to the work. Terra only when it has a non-zero count —
+   a "Below 80%: 0" pill in alert colours would cry wolf on a healthy group. */
+.pill-filter[data-alert="true"] {
+  border-color: var(--terra-border);
+  color: var(--terra-700);
+}
+
+.pill-filter[data-alert="true"] .pill-filter__count {
+  background: var(--terra-100);
+  color: var(--terra-700);
+}
+
+/* Overview: the two-column grid from the SHG handoff. Main carries the
+   readiness card and the follow-up work; the side column carries the figures
+   that are read *about* them rather than acted on. Collapses to one column at
+   the 900px breakpoint like every other multi-column grid here. */
+.group-overview {
+  display: grid;
+  grid-template-columns: 1fr 344px;
+  gap: var(--s5);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .group-overview {
+    grid-template-columns: 1fr;
+  }
+}
+
+.group-overview > .stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+/* Three counts across a card. `auto-fit` rather than a fixed three, because
+   the "not yet recorded" well only appears when there is something in it. */
+.stat-wells {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+.stat-well {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--surface-alt);
+}
+
+.stat-well strong {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+/* The compliance meter. Length encodes the value as well as colour, so the
+   bands still read on a monochrome screen and for a colour-blind reader. */
+.meter {
+  display: inline-block;
+  width: 60px;
+  height: 5px;
+  border-radius: var(--r-chip);
+  background: var(--fill-muted);
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-chip);
+}
+
+/* Readiness progress. Gold is "in progress", never a failure. */
+.progress {
+  height: 6px;
+  border-radius: var(--r-chip);
+  background: var(--fill-muted);
+  overflow: hidden;
+  margin: var(--s3) 0;
+}
+
+.progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-chip);
+  background: var(--gold-500);
+}
+
+.progress__fill[data-complete="true"] {
+  background: var(--green-500);
+}
+
+/* The page title, 26px on this screen only. `PageHeader` is shared, and the
+   handoff changes the title for the group record rather than everywhere. */
+.group-title h1,
+.group-title .page-header__title {
+  font-size: 26px;
+  letter-spacing: -0.4px;
+}
+
+/* The group record's tab strip. Routes, not local state — see GroupTabs.tsx.
+   Scrolls horizontally below 1024 rather than wrapping: a wrapped strip
+   changes height as counts load and pushes the content down under the reader. */
+.group-tabs {
+  display: flex;
+  gap: var(--s1);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--s4);
+  /* Sticky inside the scrolling main column, never fixed — the shell owns the
+     viewport, and a fixed strip would sit over the phone tab bar. On Members
+     and Meetings the list runs well past a screen, and navigation that scrolls
+     away means scrolling back up to leave the tab. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--paper);
+  /* The scrollbar is a scroll affordance on a phone and clutter on a laptop. */
+  scrollbar-width: none;
+}
+
+.group-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.group-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  min-height: var(--touch);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-600);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.group-tabs__tab:hover {
+  color: var(--ink-900);
+}
+
+/* Underline *and* weight and colour: the active tab must survive a monochrome
+   screen, which a colour change alone would not. */
+.group-tabs__tab[data-active="true"] {
+  color: var(--green-700);
+  border-bottom-color: var(--green-700);
+}
+
+.group-tabs__count {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: var(--r-chip);
+  background: var(--fill-muted);
+  color: var(--ink-600);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.group-tabs__tab[data-active="true"] .group-tabs__count {
+  background: var(--green-100);
+  color: var(--green-ink);
+}
+
 /* Chair, secretary, treasurer beside a name. Ink on green rather than a status
    tone: an office is a fact about a member, not a state she is in, and a
    status colour here would compete with the group's own chip. */
