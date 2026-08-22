@@ -1322,6 +1322,15 @@ export interface ServiceLinkage {
   can_current_user_approve: boolean;
 }
 
+/** One thing that happened to a group — `wlt.services.history`. */
+export interface WltHistoryEvent {
+  at: string;
+  type: "PHASE" | "MEMBERSHIP" | "MEETING" | "LINKAGE";
+  title: string;
+  detail: string;
+  actor: string;
+}
+
 export interface FederationReadinessRow {
   woreda_id: string;
   woreda: string;

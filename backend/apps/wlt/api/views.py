@@ -64,6 +64,7 @@ from apps.wlt.models import (
 )
 from apps.wlt.services import enrolment as enrolment_service
 from apps.wlt.services import formation as formation_service
+from apps.wlt.services import history as history_service
 from apps.wlt.services import indicators as indicator_service
 from apps.wlt.services import journey as journey_service
 from apps.wlt.services import ledger as ledger_service
@@ -388,6 +389,27 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
                 "charge_label": ledger_service.charge_label(group),
             }
         )
+
+    @action(detail=True, methods=["get"], url_path="history")
+    def history(self, request, pk=None):
+        """The group's audit trail — "why did three members leave on 20 August".
+
+        Assembled from the records that already exist rather than from an event
+        table: phase decisions, linkage status changes, dated memberships and
+        office terms, and closed meetings. Writing those a second time into a
+        log would create a second version of the truth that could disagree with
+        the first, and the audit trail is the one place that must not happen.
+        """
+        group = self.get_object()
+        types = [value for value in request.query_params.getlist("type") if value]
+        try:
+            limit = min(200, max(1, int(request.query_params.get("limit", 40))))
+            offset = max(0, int(request.query_params.get("offset", 0)))
+        except ValueError:
+            # Paging values arrive from a URL. A bad one is the first page, not
+            # a 500 on a screen somebody opened from a link.
+            limit, offset = 40, 0
+        return Response(history_service.build(group, types=types or None, limit=limit, offset=offset))
 
     @action(detail=True, methods=["get"], url_path="loans")
     def loans(self, request, pk=None):

@@ -28,7 +28,7 @@ export const STRINGS = {
   "nav.myWork": "My work",
   "nav.primary": "Main navigation",
   "nav.sectionDashboard": "Dashboard",
-  "nav.sectionWork": "Work",
+  "nav.sectionWork": "PSNP Beneficiary Referrals",
   "nav.sectionDirectory": "Directory",
   "nav.expand": "Expand navigation",
   "nav.collapse": "Collapse navigation",
@@ -66,11 +66,13 @@ export const STRINGS = {
   "profile.managedByAdmin": "Set by an administrator",
   "profile.changePassword": "Change password",
   "profile.currentPassword": "Current password",
-  "profile.currentPasswordWhy": "Asked for because a signed-in screen alone should not be enough to change it.",
+  "profile.currentPasswordWhy":
+    "Asked for because a signed-in screen alone should not be enough to change it.",
   "profile.currentPasswordRequired": "Enter your current password.",
   "profile.newPassword": "New password",
   "profile.newPasswordRequired": "Enter a new password.",
-  "profile.passwordChanged": "Password changed. Any other device signed in to this account has been signed out.",
+  "profile.passwordChanged":
+    "Password changed. Any other device signed in to this account has been signed out.",
   "profile.passwordFailed": "Could not change your password.",
   "users.role": "Role",
   "common.saving": "Saving…",
@@ -127,7 +129,8 @@ export const STRINGS = {
   "empty.casesLinked": "Your account works from referrals, not case records.",
   "empty.casesLinkedBody":
     "Cases stay with the case manager who owns them. The referrals sent to your institution are on the Referrals screen.",
-  "empty.youthLinked": "Your account works from referrals, not the beneficiary registry.",
+  "empty.youthLinked":
+    "Your account works from referrals, not the beneficiary registry.",
   "empty.youthLinkedBody":
     "Beneficiary records stay with the case manager who registered them. The referrals sent to your institution are on the Referrals screen.",
   "empty.casesBody":
@@ -142,9 +145,11 @@ export const STRINGS = {
   "empty.youthBody":
     "Young people and PSNP women appear here once registered, one at a time or imported from a spreadsheet.",
   "empty.partners": "These are the institutions referrals can be sent to.",
-  "empty.partnersBody": "A partner has to exist here before a referral can name it as the receiving institution.",
+  "empty.partnersBody":
+    "A partner has to exist here before a referral can name it as the receiving institution.",
   "empty.users": "These are the platform accounts.",
-  "empty.usersBody": "Every account here can sign in. Roles decide what each one may read and change.",
+  "empty.usersBody":
+    "Every account here can sign in. Roles decide what each one may read and change.",
   "search.placeholder": "Search youth, cases, partners",
   "search.none": "Nothing found.",
   "search.youth": "Youth",
@@ -180,7 +185,8 @@ export const STRINGS = {
   "cm.activeMeta": "across {youth} youth",
   "cm.overThreshold": "{count} older than {days} days",
   "cm.noneOverThreshold": "none past {days} days",
-  "cm.thresholdNote": "Threshold: partner confirmation overdue after {days} days. Configurable per alert type.",
+  "cm.thresholdNote":
+    "Threshold: partner confirmation overdue after {days} days. Configurable per alert type.",
   "cm.freshness": "Live · refreshed {when}",
   "cm.justNow": "just now",
   "cm.weekOpened": "Opened this week",
@@ -193,10 +199,12 @@ export const STRINGS = {
   "cm.oldest": "Oldest",
   "cm.cases": "Cases",
   "cm.nothingOverdue": "Nothing is overdue.",
-  "cm.noneAssigned": "No alerts are assigned to you. {count} are open on cases you can see.",
+  "cm.noneAssigned":
+    "No alerts are assigned to you. {count} are open on cases you can see.",
   "cm.nothingWaiting": "No referral is waiting on a partner.",
   "cm.noneAtRisk": "No case has gone quiet.",
-  "cm.notInstrumented": "This list checks one of four conditions. Not yet instrumented:",
+  "cm.notInstrumented":
+    "This list checks one of four conditions. Not yet instrumented:",
   "cm.viewAll": "View all {n} →",
 
   // Tier 2 cards
@@ -213,7 +221,8 @@ export const STRINGS = {
   "ws.awaitingAlerts": "{count} overdue for confirmation",
   "ws.noCaseMeta": "registered but never opened",
   "ws.thisMonth": "of {recorded} recorded, this month",
-  "me.recordedBeside": "Recorded: {percent}% ({n} of {d}). Verified is the subset with someone other than the youth behind it.",
+  "me.recordedBeside":
+    "Recorded: {percent}% ({n} of {d}). Verified is the subset with someone other than the youth behind it.",
   "ws.acrossTeam": "across the team",
   "ws.team": "Team caseload by case manager",
   "ws.teamWhy": "Caseload size and mix, with open alerts past their threshold.",
@@ -224,7 +233,8 @@ export const STRINGS = {
   "ws.noCaseYet": "Registered, no case yet",
   "ws.response": "Partner response time",
   "ws.staffRecorded": "{count} recorded by staff",
-  "ws.staffRecordedNote": "Medians cover confirmations the partner entered themselves. Answers staff recorded on their behalf are counted separately, or a partner who never replies would score like one who replies the same day.",
+  "ws.staffRecordedNote":
+    "Medians cover confirmations the partner entered themselves. Answers staff recorded on their behalf are counted separately, or a partner who never replies would score like one who replies the same day.",
   "ws.responseWhy": "Median days from referral sent to partner decision.",
   "ws.completeness": "Data completeness",
   "ws.completenessWhy": "Required fields missing on records in scope.",
@@ -232,8 +242,10 @@ export const STRINGS = {
   "ws.complete": "Complete",
 
   // Tier 3 cards
-  "pm.noCrossovers": "The taxonomy admits one specific outcome per category, plus Other, so the only cells that can fall off the diagonal are in the Other column. Widening it is a taxonomy decision.",
-  "pm.otherShare": "{percent}% of completed referrals are recorded as Other ({n} of {d}). Above a threshold that is a reporting failure, not an outcome.",
+  "pm.noCrossovers":
+    "The taxonomy admits one specific outcome per category, plus Other, so the only cells that can fall off the diagonal are in the Other column. Widening it is a taxonomy decision.",
+  "pm.otherShare":
+    "{percent}% of completed referrals are recorded as Other ({n} of {d}). Above a threshold that is a reporting failure, not an outcome.",
   "pm.unitYouth": "Counts youth. A youth can hold several referrals.",
   "pm.unitReferrals": "Counts referrals, not youth.",
   "pm.asOf": "As of {when}",
@@ -260,15 +272,18 @@ export const STRINGS = {
   "me.value": "Value",
   "me.source": "Framework",
   "me.cumulative": "Cumulative placements",
-  "me.cumulativeUnit": "Counts {unit}. A youth placed twice enters once, on their first placement.",
+  "me.cumulativeUnit":
+    "Counts {unit}. A youth placed twice enters once, on their first placement.",
   "me.openingBalance": "{n} carried in from before this window",
   "me.cumulativeWhy": "Placements to date, by month.",
   "me.disaggregation": "Disaggregation",
   "me.registered": "Registered",
   "me.placed": "Placed",
   "me.caveats": "What is uncertain",
-  "me.provisionalNote": "* Provisional — too few records for the rate to be stable. Not used in any comparison.",
-  "me.noRural": "Rural/urban is not available: nothing in the record says which a youth lives in.",
+  "me.provisionalNote":
+    "* Provisional — too few records for the rate to be stable. Not used in any comparison.",
+  "me.noRural":
+    "Rural/urban is not available: nothing in the record says which a youth lives in.",
 
   // Programme dashboard
   "dash.title": "Programme dashboard",
@@ -286,7 +301,8 @@ export const STRINGS = {
   "dash.registrationBaseline": "Registration is {percent}% women.",
   "dash.noPlacementsYet": "No placements recorded yet.",
   "dash.funnel": "Pipeline: where youth are lost",
-  "dash.funnelWhy": "Youth reaching each stage. Median days is the time spent in the stage above.",
+  "dash.funnelWhy":
+    "Youth reaching each stage. Median days is the time spent in the stage above.",
   "dash.lost": "{count} lost ({percent}%)",
   "dash.lostUnknown": "{count} lost",
   "dash.lostTo": "reaching {stage}",
@@ -307,7 +323,8 @@ export const STRINGS = {
   "dash.empty": "No youth registered yet. The funnel fills as intake begins.",
   "dash.tooFew": "too few to assess",
   "dash.ofCount": "{n} of {d}",
-  "dash.provisionalNote": "* Provisional — fewer than 30 cases. Not for comparison or ranking.",
+  "dash.provisionalNote":
+    "* Provisional — fewer than 30 cases. Not for comparison or ranking.",
   "dash.lagOrder": "Most-observed partners first.",
   "dash.lagReferrals": "from {count} confirmed referrals",
   "dash.quarterElapsed": "{percent}% of the quarter elapsed",
@@ -362,10 +379,12 @@ export const STRINGS = {
   "case.slot": "Slot {n}",
   "case.slotFree": "Free",
   "case.exempt": "Exempt",
-  "case.exemptNote": "Complementary Service referrals are exempt — they never use a slot",
+  "case.exemptNote":
+    "Complementary Service referrals are exempt — they never use a slot",
   "case.newReferral": "New referral",
   "case.newReferralBlocked": "New referral (blocked)",
-  "case.limitReached": "Parallel limit reached — close or withdraw a referral first",
+  "case.limitReached":
+    "Parallel limit reached — close or withdraw a referral first",
   "case.timeline": "Referral timeline {year}",
   "case.history": "Referral history",
   "case.noReferrals": "No referrals yet",
@@ -401,7 +420,8 @@ export const STRINGS = {
   "alerts.subtitle": "{count} open · {scope}",
   "alerts.showAll": "Show all alerts",
   "alerts.emptyTitle": "No alerts of this type",
-  "alerts.emptyBody": "Nothing here needs attention right now. Alerts are raised by scheduled checks, not by anything you did.",
+  "alerts.emptyBody":
+    "Nothing here needs attention right now. Alerts are raised by scheduled checks, not by anything you did.",
   "alerts.today": "today",
   "alerts.days": "{days} days",
   "alerts.action": "Mark actioned",
@@ -417,8 +437,10 @@ export const STRINGS = {
   "alerts.resolveDismissTitle": "Dismiss this alert?",
   "alerts.resolveActionTitleBulk": "Mark {count} alerts actioned?",
   "alerts.resolveDismissTitleBulk": "Dismiss {count} alerts?",
-  "alerts.resolveActionBody": "Recorded against the alert with your name and the date.",
-  "alerts.resolveDismissBody": "Dismissing closes the alert without recording an action on the case.",
+  "alerts.resolveActionBody":
+    "Recorded against the alert with your name and the date.",
+  "alerts.resolveDismissBody":
+    "Dismissing closes the alert without recording an action on the case.",
   "alerts.note": "Note",
   "alerts.filter.all": "All",
   "alerts.filter.stall": "Stall",
@@ -430,7 +452,8 @@ export const STRINGS = {
 
   // Beneficiary registry — youth-side young people and WLT's adult PSNP women
   "registry.title": "Beneficiary registry",
-  "registry.subtitle": "{registered} registered · {withCase} with an open case · {scope}. Phone numbers hidden by default.",
+  "registry.subtitle":
+    "{registered} registered · {withCase} with an open case · {scope}. Phone numbers hidden by default.",
   "registry.openCase": "Open case",
   "registry.noCase": "No case",
   "registry.consent": "Consent",
@@ -451,9 +474,11 @@ export const STRINGS = {
   // Bulk intake from a woreda register
   "registry.import": "Import from Excel",
   "import.title": "Import youth from Excel",
-  "import.intro": "Upload a woreda register as .xlsx. Every row is checked before anything is saved.",
+  "import.intro":
+    "Upload a woreda register as .xlsx. Every row is checked before anything is saved.",
   "import.template": "Download the template",
-  "import.templateHint": "The template carries the column names and allowed values on a second sheet.",
+  "import.templateHint":
+    "The template carries the column names and allowed values on a second sheet.",
   "import.choose": "Choose a file",
   "import.change": "Choose a different file",
   "import.consentNote":
@@ -468,12 +493,15 @@ export const STRINGS = {
   "import.outcome.error": "Cannot import",
   "import.row": "Row {row}",
   "import.commit": "Import {count} youth",
-  "import.blocked": "Fix the rows below in the spreadsheet, then upload it again. Nothing has been saved.",
-  "import.allDuplicates": "Every row is already on file. There is nothing to import.",
+  "import.blocked":
+    "Fix the rows below in the spreadsheet, then upload it again. Nothing has been saved.",
+  "import.allDuplicates":
+    "Every row is already on file. There is nothing to import.",
   "import.done": "{count} youth imported.",
   "import.doneNone": "Nothing was imported.",
   "import.skipped": "{count} rows were already on file and were skipped.",
-  "import.checkAge": "{count} imported youth fall outside the age band and need eligibility confirmed.",
+  "import.checkAge":
+    "{count} imported youth fall outside the age band and need eligibility confirmed.",
   "import.unnamed": "(no name)",
 
   // Partners
@@ -512,7 +540,8 @@ export const STRINGS = {
   "training.loadFailed": "Could not load the training enrolments.",
   "training.all": "All",
   "training.empty": "No training enrolments yet",
-  "training.emptyBody": "An enrolment appears here once a youth is put into a course.",
+  "training.emptyBody":
+    "An enrolment appears here once a youth is put into a course.",
   "training.youth": "Youth",
   "training.course": "Course",
   "training.provider": "Provider",
@@ -521,10 +550,12 @@ export const STRINGS = {
   "training.status": "Status",
   "training.overdue": "Past its end date",
   "training.overdueHeading": "{count} course(s) past their end date",
-  "training.overdueBody": "Until the outcome is recorded the youth is neither in training nor ready for a next step.",
+  "training.overdueBody":
+    "Until the outcome is recorded the youth is neither in training nor ready for a next step.",
   "training.openReferral": "Open source referral",
   "training.markComplete": "Mark complete",
-  "training.completed": "Training marked complete. The case manager will be prompted for the next referral.",
+  "training.completed":
+    "Training marked complete. The case manager will be prompted for the next referral.",
   "training.completeFailed": "Could not complete this enrolment.",
   "placements.title": "Placements",
   "placements.subtitle": "{count} placements · {due} check(s) due",
@@ -534,13 +565,15 @@ export const STRINGS = {
   "placements.emptyBody": "A placement appears here once a youth starts work.",
   "placements.dueNow": "Checks due",
   "placements.allPlacements": "All placements",
-  "placements.queueClear": "No retention checks are due. Nothing to call about today.",
+  "placements.queueClear":
+    "No retention checks are due. Nothing to call about today.",
   "placements.checkpointDue": "{days}-day check",
   "placements.checkpointLabel": "{days} days",
   "placements.dueSince": "Due since {date}",
   "placements.stillThere": "Still in the placement",
   "placements.unreachable": "Could not be contacted",
-  "placements.exitHint": "If she has left, record the exit on the placement — that closes every outstanding check.",
+  "placements.exitHint":
+    "If she has left, record the exit on the placement — that closes every outstanding check.",
   "placements.recordCheck": "Record the check",
   "placements.recordCheckBody": "What did the call find?",
   "placements.checkRecorded": "Check recorded.",
@@ -562,10 +595,13 @@ export const STRINGS = {
   "enterprises.loadFailed": "Could not load the enterprises.",
   "enterprises.all": "All",
   "enterprises.empty": "No enterprises yet",
-  "enterprises.emptyBody": "A record appears here once a youth starts on the self-employment pathway.",
+  "enterprises.emptyBody":
+    "A record appears here once a youth starts on the self-employment pathway.",
   "enterprises.noSector": "sector not recorded",
-  "enterprises.waitingHeading": "{count} approved plan(s) with no support disbursed",
-  "enterprises.waitingBody": "These youth are waiting on the programme, not on themselves.",
+  "enterprises.waitingHeading":
+    "{count} approved plan(s) with no support disbursed",
+  "enterprises.waitingBody":
+    "These youth are waiting on the programme, not on themselves.",
   "enterprises.supported": "{kind}: {amount} ETB",
   "enterprises.noSupport": "No support disbursed",
   "enterprises.tradingSince": "Trading since {date}",
@@ -582,7 +618,8 @@ export const STRINGS = {
   "verification.search": "Search by youth or partner",
   "verification.loadFailed": "Could not load the verification queues.",
   "verification.empty": "Nothing to verify",
-  "verification.emptyBody": "Recorded outcomes appear here until somebody other than the youth has confirmed them.",
+  "verification.emptyBody":
+    "Recorded outcomes appear here until somebody other than the youth has confirmed them.",
   "verification.unverified": "Unverified outcomes",
   "verification.contactDue": "Awaiting contact",
   "verification.explainer":
@@ -593,7 +630,8 @@ export const STRINGS = {
   "verification.noSource": "none recorded",
   "verification.record": "Record verification",
   "verification.modalBody": "Who confirmed this outcome?",
-  "verification.contactNote": "Verification contact recorded from the M&E queue.",
+  "verification.contactNote":
+    "Verification contact recorded from the M&E queue.",
   "verification.providerConfirmed": "Confirmed by the receiving provider",
   "verification.employerConfirmed": "Confirmed by the employer",
   "verification.documentVerified": "Verified against a document",
@@ -631,7 +669,8 @@ export const STRINGS = {
   "grievances.raisedBy": "Raised by {who}",
   "grievances.openDays": "{days} day(s) open",
   "grievances.overdueChip": "Past the standard",
-  "grievances.overdueHeading": "{count} grievance(s) past the response standard",
+  "grievances.overdueHeading":
+    "{count} grievance(s) past the response standard",
   "grievances.overdueBody":
     "A complaints channel nobody answers is worse than none: it collects the complaint and creates the expectation.",
   "grievances.referralFeedback": "Referral quality feedback",
@@ -679,7 +718,8 @@ export const STRINGS = {
   "wlt.groupsLoadFailed": "Could not load the groups.",
   "wlt.allGroups": "All",
   "wlt.noGroups": "No groups yet",
-  "wlt.noGroupsBody": "Groups appear here once a facilitator has opened a draft in a kebele.",
+  "wlt.noGroupsBody":
+    "Groups appear here once a facilitator has opened a draft in a kebele.",
   "wlt.group": "Group",
   "wlt.kebele": "Kebele",
   "wlt.members": "Members",
@@ -687,10 +727,64 @@ export const STRINGS = {
   "wlt.status": "Status",
   "wlt.phase": "Phase",
   "wlt.noPhase": "Not yet in a phase",
+  // The group record's tabs. Routes, not local state, so a field officer can
+  // link a colleague to the roster rather than to the top of a long page.
+  "wlt.tabOverview": "Overview",
+  "wlt.tabHistory": "History",
+  "wlt.historyTitle": "History",
+  "wlt.historyCount": "{count} recorded",
+  "wlt.historyFilterLabel": "Filter the history",
+  "wlt.historyAll": "Everything",
+  "wlt.historyPhase": "Phase",
+  "wlt.historyMembership": "Membership",
+  "wlt.historyMeetings": "Meetings",
+  "wlt.historyLinkages": "Linkages",
+  "wlt.historyMeeting": "Meetings",
+  "wlt.historyLinkage": "Linkages",
+  "wlt.historyEmpty": "Nothing recorded for this group yet.",
+  "wlt.historyMore": "Load earlier activity",
+  "wlt.historyLoadFailed": "The history could not be loaded.",
+  // The follow-up card. The signal it exists for used to be one cell in row 14
+  // of a twenty-row table, never stated in words.
+  "wlt.followUp": "Needs follow-up",
+  "wlt.followUpSummary": "{count} member(s) are saving below {threshold}%.",
+  "wlt.followUpClean": "Every member is at or above {threshold}%.",
+  "wlt.followUpNothingMeasured":
+    "No savings have been recorded yet, so there is nothing to measure. This is not the same as every member being compliant.",
+  "wlt.followUpCompliant": "Compliant",
+  "wlt.followUpBelow": "Below {threshold}%",
+  "wlt.followUpUnmeasured": "Not yet recorded",
+  "wlt.followUpMet": "{met} of {expected} meetings",
+  "wlt.followUpAllMembers": "All members",
+  "wlt.recentMeetings": "Recent meetings",
+  "wlt.meetingFilterLabel": "Filter meetings by status",
+  "wlt.fundTrend": "Group fund, last {count} closed meetings",
+  "wlt.fundTrendDrop":
+    "Meeting {no}: the fund fell by more than half. Check what left the box.",
+  "wlt.fundTrendEmpty": "No closed meetings to chart yet.",
+  "wlt.seeAllMeetings": "All meetings",
+  "wlt.conditionsMetOf": "{met} of {total} conditions met",
+  "wlt.tabMembers": "Members",
+  "wlt.tabMeetings": "Meetings",
+  "wlt.tabSavings": "Savings & loans",
+  "wlt.tabLinkages": "Linkages",
+  "wlt.groupTabsLabel": "Sections of this group record",
+  // The group record's states. A failure explains itself in place rather than
+  // as a toast that is gone before the reader looks up.
+  "wlt.loadingGroup": "Loading the group record…",
+  "wlt.groupUnavailable": "This group record could not be loaded",
+  "wlt.groupUnavailableBody":
+    "The record may be outside your woreda, or the server may not have answered. Nothing has been changed.",
+  "wlt.groupUnavailableRef": "Reference {ref}",
+  "wlt.backToGroups": "Back to the groups list",
+  "wlt.phasesLoadFailed": "The phase history could not be loaded.",
+  "wlt.readOnlyBanner": "You are viewing this record. Your role does not record meetings, members or money for this group.",
+  "wlt.viewOnly": "View only",
   "wlt.readiness": "Readiness",
   "wlt.readinessLoadFailed": "Could not load this group.",
   "wlt.conditionsMet": "{met} of {total} conditions met",
-  "wlt.gatePassed": "This group meets every condition for its next phase. A woreda officer decides.",
+  "wlt.gatePassed":
+    "This group meets every condition for its next phase. A woreda officer decides.",
   "wlt.gateOutstanding": "{count} condition(s) still to meet.",
   "wlt.noGate": "This group is at the highest phase the pilot builds.",
   "wlt.notMeasurable": "Not measurable yet",
@@ -715,7 +809,8 @@ export const STRINGS = {
   "wlt.compliant": "Compliant",
   "wlt.notCompliant": "Not compliant",
   "wlt.formerMember": "Former member",
-  "wlt.noSavingsComplianceMembers": "No members can be assessed until a meeting is closed.",
+  "wlt.noSavingsComplianceMembers":
+    "No members can be assessed until a meeting is closed.",
   "wlt.lastMeeting": "Last meeting",
   "wlt.lending": "Lending",
   // The loans panel on the group screen. Lending is written at a meeting; this
@@ -738,7 +833,8 @@ export const STRINGS = {
   "wlt.outstanding": "Outstanding principal",
   "wlt.completedCycles": "Completed loan cycles",
   "wlt.atRisk": "At risk",
-  "wlt.atRiskExplainer": "An early warning for the facilitator. It does not move the group back a phase on its own.",
+  "wlt.atRiskExplainer":
+    "An early warning for the facilitator. It does not move the group back a phase on its own.",
   "wlt.linkages": "Linkages",
   "wlt.linkagesTitle": "Service linkages",
   "wlt.linkagesSubtitle": "{count} linkages",
@@ -746,27 +842,34 @@ export const STRINGS = {
   "wlt.linkagesLoadFailed": "Could not load the linkages.",
   "wlt.allLinkages": "All",
   "wlt.noLinkages": "No linkages yet",
-  "wlt.noLinkagesBody": "A savings account can be proposed once a group reaches Phase 2.",
+  "wlt.noLinkagesBody":
+    "A savings account can be proposed once a group reaches Phase 2.",
   "wlt.noProvider": "No provider named",
+  "wlt.lanesSingleDay": "Everything here happened on {date}, so the axis shows a single day.",
   "wlt.stillNeeded": "Still needed",
   // Federation readiness — the CLA screen one level up. Same shape on purpose.
   "wlt.federationTitle": "Federation readiness",
-  "wlt.federationSubtitle": "How close each woreda is to forming a federation of its Cluster Level Associations.",
+  "wlt.federationSubtitle":
+    "How close each woreda is to forming a federation of its Cluster Level Associations.",
   "wlt.federationLoadFailed": "Could not load federation readiness.",
   "wlt.federationEmpty": "No woredas in your scope yet.",
   "wlt.federationReadyNow": "Ready now",
-  "wlt.federationReadyBody": "{count} woreda(s) have enough Cluster Level Associations to form a federation.",
-  "wlt.federationCanForm": "Enough Cluster Level Associations to form a federation.",
+  "wlt.federationReadyBody":
+    "{count} woreda(s) have enough Cluster Level Associations to form a federation.",
+  "wlt.federationCanForm":
+    "Enough Cluster Level Associations to form a federation.",
   "wlt.federationShort": "{count} more Cluster Level Association(s) needed.",
   "wlt.federationMature": "{count} operating long enough",
   "wlt.federationNotYet":
     "No woreda is close yet, which is the expected reading at this stage. A federation needs more groups in a single woreda than the largest regional allocation holds, so this screen reports the arithmetic rather than a target for this year.",
   "wlt.claTitle": "CLA readiness",
-  "wlt.claSubtitle": "How close each kebele is to forming a Cluster Level Association.",
+  "wlt.claSubtitle":
+    "How close each kebele is to forming a Cluster Level Association.",
   "wlt.claLoadFailed": "Could not load CLA readiness.",
   "wlt.claEmpty": "No kebeles with groups yet.",
   "wlt.claReadyNow": "Ready now",
-  "wlt.claReadyBody": "{count} kebele(s) have enough mature groups to form a CLA.",
+  "wlt.claReadyBody":
+    "{count} kebele(s) have enough mature groups to form a CLA.",
   "wlt.claCanForm": "Enough mature groups to form a CLA.",
   "wlt.claShort": "{count} more group(s) at Phase 2 or above.",
   "wlt.ofThreshold": "{actual} of {threshold}",
@@ -808,7 +911,8 @@ export const STRINGS = {
   "wlt.exitMemberTitle": "{name} is leaving the group",
   "wlt.exitMemberOk": "Record the exit",
   "wlt.exitReason": "Why is she leaving",
-  "wlt.exitReasonRequired": 'Choose why she is leaving. "Moved away" and "expelled" are different programme outcomes.',
+  "wlt.exitReasonRequired":
+    'Choose why she is leaving. "Moved away" and "expelled" are different programme outcomes.',
   "wlt.exitNote": "Note",
   "wlt.exitNotePlaceholder": "Anything the next facilitator should know.",
   "wlt.exitMemberDone": "{name} is no longer a member.",
@@ -824,17 +928,22 @@ export const STRINGS = {
   "wlt.exitReasonGROUP_SPLIT": "Moved in a group split",
 
   // The WLT register, and the journey through the programme.
-  "nav.wltBeneficiaries": "Beneficiaries",
+  "nav.wltBeneficiaries": "Women",
   "wlt.beneficiariesTitle": "WLT register",
-  "wlt.beneficiariesSubtitle": "{count} women · {scope}. Register → group → linkage.",
+  "wlt.beneficiariesSubtitle":
+    "{count} women · {scope}. Register → group → linkage.",
   "wlt.beneficiariesSearch": "Search by name or PSNP client ID",
+  "wlt.rosterFilterLabel": "Filter members",
+  "wlt.filterOfficers": "Officers",
+  "wlt.filterBelow": "Below {threshold}% savings compliance",
   "wlt.verificationFilter": "Verification status",
   "wlt.enrolmentRouteFilter": "Enrolment route",
   "wlt.eligibilityFilter": "Eligibility",
   "wlt.beneficiariesPages": "Beneficiary register pages",
   "wlt.beneficiariesLoadFailed": "Could not load the register.",
   "wlt.beneficiariesEmpty": "No women on the WLT register yet.",
-  "wlt.beneficiariesEmptyBody": "Load the PSNP ELS extract for a kebele, or register a woman the extract missed.",
+  "wlt.beneficiariesEmptyBody":
+    "Load the PSNP ELS extract for a kebele, or register a woman the extract missed.",
   "wlt.allBeneficiaries": "All",
   "wlt.col.clientId": "PSNP ID",
   "wlt.col.route": "How she joined",
@@ -855,7 +964,8 @@ export const STRINGS = {
   "wlt.registerWoman": "Register a woman",
   "wlt.registerTitle": "Register a woman the extract missed",
   "wlt.registerOk": "Register",
-  "wlt.registerIntro": "She starts as pending. A woreda officer verifies her against PSNP records before she can join a group.",
+  "wlt.registerIntro":
+    "She starts as pending. A woreda officer verifies her against PSNP records before she can join a group.",
   "wlt.registerDone": "{name} is on the register, pending verification.",
   // Drafting a group — handbook 3.4 steps 1 and 2. The wording carries the
   // rule: a group starts with a community meeting endorsing it, and a meeting
@@ -878,7 +988,8 @@ export const STRINGS = {
   // The facilitator picker on the draft-group form. A failed lookup and an
   // empty one must not read alike: the first is a fault, the second is an
   // instruction to assign somebody.
-  "wlt.facilitatorsLoadFailed": "The facilitator list could not be loaded. This is a fault, not an empty list.",
+  "wlt.facilitatorsLoadFailed":
+    "The facilitator list could not be loaded. This is a fault, not an empty list.",
   "wlt.noFacilitatorCovers":
     "No facilitator covers this kebele. Assign one a WLT scope that includes it, or leave her scope empty for every kebele.",
   "wlt.chooseKebeleFirst": "Choose a kebele first.",
@@ -924,7 +1035,8 @@ export const STRINGS = {
   "wlt.repayOk": "Record the repayment",
   "wlt.repayDone": "Repayment recorded.",
   "wlt.repayFailed": "The repayment could not be recorded.",
-  "wlt.repaySomething": "A repayment has to be for something — enter principal, charge, or both.",
+  "wlt.repaySomething":
+    "A repayment has to be for something — enter principal, charge, or both.",
   "wlt.meetingsTitle": "Meetings",
   "wlt.meetingCount": "{count} recorded",
   "wlt.showAllMeetings": "Show all {count}",
@@ -1009,12 +1121,14 @@ export const STRINGS = {
   "wlt.useRecordedMeeting": "Use a recorded meeting",
   "wlt.recordMeetingNow": "Record the meeting now",
   "wlt.endorsedMeeting": "Endorsed meeting",
-  "wlt.endorsedMeetingHelp": "Only meetings that obtained endorsement can start a group.",
+  "wlt.endorsedMeetingHelp":
+    "Only meetings that obtained endorsement can start a group.",
   "wlt.endorsedMeetingRequired": "Choose the meeting this group comes from.",
   "wlt.chooseMeeting": "Choose a community meeting",
   "wlt.chooseKebele": "Choose a kebele",
   "wlt.kebeleRequired": "Say which kebele the meeting was held in.",
-  "wlt.kebeleDerivesGroup": "The group belongs to the kebele its meeting was held in.",
+  "wlt.kebeleDerivesGroup":
+    "The group belongs to the kebele its meeting was held in.",
   "wlt.meetingHeldOn": "Meeting held on",
   "wlt.meetingHeldOnRequired": "Say when the meeting was held.",
   "wlt.attendeesPotential": "Potential members attending",
@@ -1024,13 +1138,16 @@ export const STRINGS = {
   "wlt.endorsementObtained": "The community endorsed the group",
   "wlt.endorsementNote": "Note",
   "wlt.refusalReason": "Why the community did not endorse",
-  "wlt.refusalReasonRequired": "Say why. A refusal with no reason teaches us nothing.",
-  "wlt.refusalReasonHelp": "This is recorded as programme learning, not as a failure.",
+  "wlt.refusalReasonRequired":
+    "Say why. A refusal with no reason teaches us nothing.",
+  "wlt.refusalReasonHelp":
+    "This is recorded as programme learning, not as a failure.",
   "wlt.refusalClosesMobilisation": "This closes the mobilisation",
   "wlt.refusalClosesMobilisationBody":
     "No group is drafted. The meeting is kept on file — it is what explains a kebele with no groups in it.",
   "wlt.recordRefusal": "Record the meeting",
-  "wlt.meetingRecordedNoGroup": "Meeting recorded. No group was drafted, because the community did not endorse one.",
+  "wlt.meetingRecordedNoGroup":
+    "Meeting recorded. No group was drafted, because the community did not endorse one.",
   "wlt.groupsAlreadyDrafted": "{count} group(s) already drafted",
   "wlt.groupName": "Group name",
   "wlt.groupNameRequired": "Give the group a name.",
@@ -1055,18 +1172,21 @@ export const STRINGS = {
   "wlt.clientId": "PSNP client ID",
   "wlt.elsCompleted": "ELS package completed",
   "wlt.elsGrant": "ELS grant received",
-  "wlt.elsHelp": "Two of the four eligibility conditions. She cannot join a group until both are recorded.",
+  "wlt.elsHelp":
+    "Two of the four eligibility conditions. She cannot join a group until both are recorded.",
   "wlt.hasDeviceField": "Has a phone",
   "wlt.consentGiven": "Consent given",
   "wlt.consentDate": "Consent date",
   "wlt.consentHelp": "A record cannot be held without recorded consent.",
-  "wlt.consentRequired": "Consent must be recorded before she can be registered.",
+  "wlt.consentRequired":
+    "Consent must be recorded before she can be registered.",
   "wlt.registerNote": "Why she is not on the extract",
 
   "wlt.importExtract": "Import ELS extract",
   "wlt.importTitle": "Import a PSNP ELS extract",
   "wlt.importOk": "Import",
-  "wlt.importIntro": "One kebele per file. Unlike the youth register this is not all or nothing: a row that needs a woreda officer is queued and named, and the rest still lands.",
+  "wlt.importIntro":
+    "One kebele per file. Unlike the youth register this is not all or nothing: a row that needs a woreda officer is queued and named, and the rest still lands.",
   "wlt.importTemplate": "Download the template",
   "wlt.importFile": "Extract file (.xlsx)",
   "wlt.importFailed": "The extract could not be imported.",
@@ -1074,16 +1194,19 @@ export const STRINGS = {
   "wlt.importLinked": "{count} matched to a woman already on file",
   "wlt.importQueued": "{count} need a woreda officer to confirm the match",
   "wlt.importSkipped": "{count} already imported",
-  "wlt.importUnreadable": "{count} row(s) could not be read and were not imported",
+  "wlt.importUnreadable":
+    "{count} row(s) could not be read and were not imported",
   "wlt.importRowError": "Row {row}: {error}",
 
   "wlt.memberFinances": "Savings and loans",
-  "wlt.memberFinancesBody": "Her recorded totals across every savings group she has belonged to.",
+  "wlt.memberFinancesBody":
+    "Her recorded totals across every savings group she has belonged to.",
   "wlt.individualSavings": "Savings",
   "wlt.loansReceived": "Loans received",
   "wlt.loanCount": "{count} loan(s)",
   "wlt.repaymentsMade": "Repayments",
-  "wlt.repaymentsBreakdown": "{principal} principal · {charges} service charges",
+  "wlt.repaymentsBreakdown":
+    "{principal} principal · {charges} service charges",
   "wlt.principalOutstanding": "Principal outstanding",
   "wlt.journeyTitle": "Her path through the programme",
   "wlt.journeyLoadFailed": "Could not load her journey.",
@@ -1098,18 +1221,23 @@ export const STRINGS = {
   "wlt.goToGroup": "Open the group",
   "wlt.goToLinkages": "Open linkages",
   "wlt.addToGroup": "Add her to a group",
-  "wlt.addToGroupHelp": "Open the group she is joining and add her from its roster.",
-  "wlt.awaitingVerification": "A woreda officer verifies her against PSNP records. There is nothing for a facilitator to do here.",
+  "wlt.addToGroupHelp":
+    "Open the group she is joining and add her from its roster.",
+  "wlt.awaitingVerification":
+    "A woreda officer verifies her against PSNP records. There is nothing for a facilitator to do here.",
   "wlt.verifyRegistration": "Verify registration",
   "wlt.refuseRegistration": "Refuse registration",
   "wlt.confirmVerification": "Confirm verification",
   "wlt.confirmRefusal": "Confirm refusal",
-  "wlt.verifyRegistrationHelp": "Confirm that her registration matches the PSNP records.",
-  "wlt.refuseRegistrationHelp": "Record why this registration does not match the PSNP records.",
+  "wlt.verifyRegistrationHelp":
+    "Confirm that her registration matches the PSNP records.",
+  "wlt.refuseRegistrationHelp":
+    "Record why this registration does not match the PSNP records.",
   "wlt.verificationNote": "Verification note",
   "wlt.verificationNoteOptional": "Optional evidence or reference",
   "wlt.verificationReasonPlaceholder": "Reason required",
-  "wlt.verificationReasonRequired": "Enter a reason for refusing this registration.",
+  "wlt.verificationReasonRequired":
+    "Enter a reason for refusing this registration.",
   "wlt.verificationApproved": "Registration verified.",
   "wlt.verificationRefused": "Registration refused.",
   "wlt.verificationSaveFailed": "Could not save the verification decision.",
@@ -1121,6 +1249,7 @@ export const STRINGS = {
   "wlt.joinedGroupOn": "Joined {name} on {date}",
 
   // Generic
+  "common.retry": "Try again",
   "common.loading": "Loading…",
   "common.cancel": "Cancel",
   "common.save": "Save",
