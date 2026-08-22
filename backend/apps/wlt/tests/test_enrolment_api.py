@@ -331,6 +331,15 @@ def test_the_journey_walks_registered_verified_grouped_linked(as_user, facilitat
     assert stages["VERIFIED"]["state"] == "done"
     assert stages["GROUPED"]["state"] == "done"
     assert stages["GROUPED"]["detail"]["group_name"] == wlt_group.name
+    assert payload["financials"] == {
+        "savings_etb": "240.00",
+        "loans_disbursed_etb": "0",
+        "repayments_etb": "0",
+        "principal_repaid_etb": "0",
+        "charges_repaid_etb": "0",
+        "outstanding_principal_etb": "0",
+        "loans_disbursed_count": 0,
+    }
 
 
 def test_a_pending_woman_is_waiting_not_blocked(as_user, facilitator, wlt_group, wlt_locations):

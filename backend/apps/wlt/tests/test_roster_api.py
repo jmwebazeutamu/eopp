@@ -6,7 +6,7 @@ particular was written, tested and then never routed, so the only way to close
 a membership was a test or a shell.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -477,3 +477,228 @@ def test_a_seated_woman_is_counted_once_not_once_per_membership(
 
     assert pool.data["already_grouped_here"] <= pool.data["registered_here"]
     assert pool.data["already_grouped_here"] == len(wlt_members)
+
+
+# ---------------------------------------------------------------------------
+# Office holders — chair, secretary, treasurer
+# ---------------------------------------------------------------------------
+
+
+OFFICES = "/api/v1/wlt/groups/{}/officers/"
+
+
+def test_the_roster_can_read_back_who_holds_office(as_user, facilitator, wlt_group, wlt_members):
+    """The GET that did not exist.
+
+    Officers could be elected and never read, so no screen could say who the
+    chair was and the roster listed twenty indistinguishable names.
+    """
+    client = as_user(facilitator)
+    elected = client.post(
+        OFFICES.format(wlt_group.pk), {"person": str(wlt_members[0].pk), "role": "CHAIR"}, format="json"
+    )
+    assert elected.status_code == 201
+
+    holders = client.get(OFFICES.format(wlt_group.pk))
+    assert holders.status_code == 200
+    chair = next(row for row in holders.data if row["role"] == "CHAIR" and row["to_date"] is None)
+    assert chair["full_name"] == wlt_members[0].full_name
+
+
+def test_electing_a_new_chair_closes_the_old_term_rather_than_editing_it(
+    as_user, facilitator, wlt_group, wlt_members
+):
+    """A8: "who was treasurer on the date of that disbursement" gets asked.
+
+    So a term is a dated range and the previous holder stays on the record with
+    her end date, exactly like a membership.
+    """
+    client = as_user(facilitator)
+    # Yesterday's election, so this is a real succession rather than a same-day
+    # correction — the two are different records and are tested apart. The
+    # group fixture already seats three officers, so assertions here are about
+    # who currently holds the office, never about how many rows exist.
+    formation_service.elect_officer(
+        wlt_group, person=wlt_members[0], role="TREASURER", from_date=date.today() - timedelta(days=1)
+    )
+    client.post(OFFICES.format(wlt_group.pk), {"person": str(wlt_members[1].pk), "role": "TREASURER"}, format="json")
+
+    treasurers = [row for row in client.get(OFFICES.format(wlt_group.pk)).data if row["role"] == "TREASURER"]
+    current = [row for row in treasurers if row["to_date"] is None]
+
+    assert len(current) == 1
+    assert current[0]["full_name"] == wlt_members[1].full_name
+
+    # Her predecessor is still on the record, closed rather than removed.
+    predecessor = next(row for row in treasurers if row["full_name"] == wlt_members[0].full_name)
+    assert predecessor["to_date"] is not None
+
+
+def test_the_three_offices_are_held_independently(as_user, facilitator, wlt_group, wlt_members):
+    client = as_user(facilitator)
+    for role, person in (("CHAIR", wlt_members[0]), ("SECRETARY", wlt_members[1]), ("TREASURER", wlt_members[2])):
+        elected = client.post(
+            OFFICES.format(wlt_group.pk), {"person": str(person.pk), "role": role}, format="json"
+        )
+        assert elected.status_code == 201
+
+    current = {
+        row["role"]: row["full_name"]
+        for row in client.get(OFFICES.format(wlt_group.pk)).data
+        if row["to_date"] is None
+    }
+    assert current == {
+        "CHAIR": wlt_members[0].full_name,
+        "SECRETARY": wlt_members[1].full_name,
+        "TREASURER": wlt_members[2].full_name,
+    }
+
+
+def test_only_a_current_member_can_hold_office(as_user, facilitator, wlt_group, make_wlt_member):
+    outsider = make_wlt_member("Not A Member")
+    refused = as_user(facilitator).post(
+        OFFICES.format(wlt_group.pk), {"person": str(outsider.pk), "role": "CHAIR"}, format="json"
+    )
+    assert refused.status_code == 400
+
+
+def test_an_officer_who_leaves_the_group_is_no_longer_offered_as_one(
+    as_user, facilitator, wlt_group, wlt_members
+):
+    """Her term does not silently continue after she leaves.
+
+    The roster is the source of truth for who may hold office, so re-electing
+    her is refused once her membership is closed.
+    """
+    client = as_user(facilitator)
+    client.post(OFFICES.format(wlt_group.pk), {"person": str(wlt_members[0].pk), "role": "CHAIR"}, format="json")
+
+    membership = GroupMembership.objects.get(group=wlt_group, person=wlt_members[0], exited_on__isnull=True)
+    formation_service.exit_member(membership, reason=ExitReason.MOVED, on_date=date(2026, 4, 1))
+
+    again = client.post(
+        OFFICES.format(wlt_group.pk), {"person": str(wlt_members[0].pk), "role": "CHAIR"}, format="json"
+    )
+    assert again.status_code == 400
+
+
+def test_an_officer_read_is_refused_across_the_module_boundary(as_user, case_manager, wlt_group):
+    assert as_user(case_manager).get(OFFICES.format(wlt_group.pk)).status_code == 403
+
+
+def test_correcting_a_same_day_election_is_not_a_succession(as_user, facilitator, wlt_group, wlt_members):
+    """Picking the wrong name and fixing it immediately used to be a 500.
+
+    `elect_officer` closed the sitting term at today's date, and a term elected
+    today would then have `to_date == from_date`, which
+    `wlt_office_period_valid` refuses. The zero-length term is a correction:
+    it goes, and `history` keeps both the election and its removal.
+
+    Members 3 and 4 because the fixture already seats 0, 1 and 2 — electing a
+    sitting officer to her own office is a no-op, which would test nothing.
+    """
+    client = as_user(facilitator)
+
+    # A real succession first: this closes the fixture's January chair.
+    client.post(OFFICES.format(wlt_group.pk), {"person": str(wlt_members[3].pk), "role": "CHAIR"}, format="json")
+    # Then the correction, on the same day, which is what used to 500.
+    corrected = client.post(
+        OFFICES.format(wlt_group.pk), {"person": str(wlt_members[4].pk), "role": "CHAIR"}, format="json"
+    )
+    assert corrected.status_code == 201
+
+    chairs = [row for row in client.get(OFFICES.format(wlt_group.pk)).data if row["role"] == "CHAIR"]
+    current = [row for row in chairs if row["to_date"] is None]
+
+    assert len(current) == 1
+    assert current[0]["full_name"] == wlt_members[4].full_name
+    # The mistaken term left no dated row behind — it never ran.
+    assert all(row["full_name"] != wlt_members[3].full_name for row in chairs)
+    # The January chair is untouched: a closed term, not a deleted one.
+    january = next(row for row in chairs if row["full_name"] == wlt_members[0].full_name)
+    assert january["to_date"] is not None
+
+
+def test_the_register_filters_to_one_named_group(
+    as_user, facilitator, wlt_group, wlt_members, wlt_locations, make_wlt_member
+):
+    """"Filter by group" on the register — which women are in this group."""
+    outsider = make_wlt_member("Not In That Group")
+
+    filtered = _profiles(as_user(facilitator), group=str(wlt_group.pk))
+    names = {row["full_name"] for row in filtered}
+
+    assert wlt_members[0].full_name in names
+    assert outsider.full_name not in names
+    assert len(filtered) == len(wlt_members)
+
+
+def test_a_former_member_is_not_in_the_group_now(as_user, facilitator, wlt_group, wlt_members):
+    """Her closed row stays on the roster for the meeting denominators. It does
+    not make her a current member of the group on this list."""
+    membership = GroupMembership.objects.get(group=wlt_group, person=wlt_members[0], exited_on__isnull=True)
+    formation_service.exit_member(membership, reason=ExitReason.MOVED, on_date=date(2026, 4, 1))
+
+    names = {row["full_name"] for row in _profiles(as_user(facilitator), group=str(wlt_group.pk))}
+    assert wlt_members[0].full_name not in names
+
+
+def test_a_woman_who_left_and_rejoined_appears_once(as_user, facilitator, wlt_group, wlt_members):
+    """`Exists`, not a join — a join multiplies her row per membership."""
+    membership = GroupMembership.objects.get(group=wlt_group, person=wlt_members[0], exited_on__isnull=True)
+    formation_service.exit_member(membership, reason=ExitReason.MOVED, on_date=date(2026, 4, 1))
+    formation_service.add_member(wlt_group, wlt_members[0], on_date=date(2026, 5, 1))
+
+    rows = [r for r in _profiles(as_user(facilitator), group=str(wlt_group.pk))
+            if r["full_name"] == wlt_members[0].full_name]
+    assert len(rows) == 1
+
+
+def test_a_malformed_group_id_is_empty_not_a_crash(as_user, facilitator, wlt_group):
+    """The register is reachable from a pasted URL."""
+    response = as_user(facilitator).get("/api/v1/wlt/profiles/", {"group": "not-a-uuid", "page_size": 200})
+    assert response.status_code == 200
+    assert response.data["results"] == []
+
+
+def test_the_group_filter_cannot_reach_outside_scope(
+    as_user, facilitator, other_facilitator, wlt_locations, make_wlt_member
+):
+    """Naming a group id you cannot see returns nothing, not its roster."""
+    theirs = formation_service.open_draft(
+        name="Someone Else's SHG", kebele=wlt_locations["other_kebele"], facilitator=other_facilitator
+    )
+    assert _profiles(as_user(facilitator), group=str(theirs.pk)) == []
+
+
+def test_the_roster_carries_each_woman_s_profile_id(as_user, facilitator, wlt_group, wlt_members):
+    """So a name on the roster can link to her record.
+
+    The membership carries a person id and the beneficiary screen is keyed on
+    the profile; without this the roster had her name and no way to reach her.
+    """
+    rows = _roster(as_user(facilitator), wlt_group)
+    row = next(r for r in rows if r["full_name"] == wlt_members[0].full_name)
+
+    profile = BeneficiaryProfile.objects.get(person=wlt_members[0])
+    assert str(row["profile"]) == str(profile.pk)
+
+
+def test_the_roster_costs_the_same_however_many_women_are_on_it(
+    as_user, facilitator, wlt_group, wlt_members, make_wlt_member
+):
+    """The profile is selected with the row, not fetched per name."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    client = as_user(facilitator)
+    with CaptureQueriesContext(connection) as first:
+        client.get(f"/api/v1/wlt/groups/{wlt_group.pk}/members/")
+
+    for index in range(10):
+        formation_service.add_member(wlt_group, make_wlt_member(f"Extra {index:02d}"))
+
+    with CaptureQueriesContext(connection) as second:
+        client.get(f"/api/v1/wlt/groups/{wlt_group.pk}/members/")
+
+    assert len(second.captured_queries) == len(first.captured_queries)

@@ -409,8 +409,20 @@ def elect_officer(group, *, person, role, from_date=None):
     if sitting is not None:
         if sitting.person_id == person.pk:
             return sitting
-        sitting.to_date = from_date
-        sitting.save(update_fields=["to_date", "updated_at"])
+        if sitting.from_date == from_date:
+            # Elected and replaced on the same day: a correction, not a
+            # succession. The term has zero length, and closing it would set
+            # `to_date == from_date` — which `wlt_office_period_valid` rightly
+            # refuses, so the facilitator who simply picked the wrong name got
+            # an IntegrityError instead of a corrected roster.
+            #
+            # The row goes rather than being edited in place. `history` keeps
+            # both the election and this removal, so the §9 trail still shows
+            # what happened, and "who was treasurer today" keeps one answer.
+            sitting.delete()
+        else:
+            sitting.to_date = from_date
+            sitting.save(update_fields=["to_date", "updated_at"])
 
     return OfficeHolder.objects.create(group=group, person=person, role=role, from_date=from_date)
 
