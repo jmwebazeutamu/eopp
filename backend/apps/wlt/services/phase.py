@@ -33,19 +33,51 @@ class PhaseError(ValidationError):
 NEXT_PHASE = {None: Phase.P1, "": Phase.P1, Phase.P1: Phase.P2, Phase.P2: Phase.P3, Phase.P3: Phase.P4}
 
 
-def readiness(group, as_of=None):
-    """The gate result for this group's next phase.
+# The phase gate sets in order, with the label the card shows. Ordered because
+# "which gates has this group already passed" is a walk along this list.
+PHASE_GATE_SETS = [
+    ("forming_to_p1", _("Forming → Phase 1")),
+    ("p1_to_p2", _("Phase 1 → Phase 2")),
+    ("p2_to_p3", _("Phase 2 → Phase 3")),
+]
+
+
+def readiness(group, as_of=None, gate_set=None):
+    """The gate result for a phase gate — by default the group's next one.
 
     What the readiness card renders: every condition, with the actual value next
     to the threshold. Computed on demand so it changes the moment a meeting
     closes — that immediate feedback is most of the module's behaviour-change
     value, and a figure that only moves overnight does not produce it.
+
+    `gate_set` names an earlier gate instead. A Phase 2 group asked for
+    `p1_to_p2` gets those conditions **against today's data**, which answers a
+    different and equally real question: does it still hold the discipline it
+    was promoted on? Savings compliance and attendance are continuous, so a
+    group can fall back below a gate it has already passed, and until this was
+    reachable nothing on any screen would have shown it.
     """
     as_of = as_of or timezone.localdate()
-    gate_set = gates.gate_set_for_phase(group.current_phase or None)
+    gate_set = gate_set or gates.gate_set_for_phase(group.current_phase or None)
     if gate_set is None:
         return None
     return gates.evaluate(group, gate_set, as_of=as_of)
+
+
+def available_gate_sets(group):
+    """The phase gates worth offering for this group: everything up to its next.
+
+    A gate beyond the next one is not offered. Its conditions would be measured
+    against a phase the group has not entered, so the numbers would be real and
+    the comparison meaningless.
+    """
+    next_set = gates.gate_set_for_phase(group.current_phase or None)
+    offered = []
+    for name, label in PHASE_GATE_SETS:
+        offered.append({"name": name, "label": str(label), "is_next": name == next_set})
+        if name == next_set:
+            break
+    return offered
 
 
 @transaction.atomic

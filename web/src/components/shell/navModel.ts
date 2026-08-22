@@ -105,6 +105,7 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
         item("/wlt/groups", "nav.wltGroups", ICON_PATHS.cases),
         item("/wlt/linkages", "nav.wltLinkages", ICON_PATHS.partners),
         item("/wlt/cla-readiness", "nav.wltCla", ICON_PATHS.dashboard),
+        item("/wlt/federation-readiness", "nav.wltFederation", ICON_PATHS.dashboard),
       ]
     : [];
 

@@ -74,6 +74,48 @@ def cla_readiness(kebele_ids=None):
     return _rows(sql, params)
 
 
+def federation_readiness(woreda_ids=None):
+    """Per woreda: active CLAs, how many are mature, the threshold, the shortfall.
+
+    The same shape as `cla_readiness` one level up — that screen counts groups
+    in a kebele, this counts CLAs in a woreda — so the two read alike.
+
+    Computed live rather than from a materialized view, unlike its CLA
+    counterpart. There are orders of magnitude fewer CLAs than groups, so the
+    query is cheap, and a nightly refresh would make a screen about "how close
+    are we" up to a day stale for no gain. It is also the honest reading of
+    decision D8: federation is not reachable in the pre-pilot, so this reports
+    the arithmetic rather than driving a workflow.
+
+    Maturity is counted as well as membership because the gate has two
+    conditions, and a woreda with ten new CLAs is not ready in the way a
+    woreda with ten established ones is.
+    """
+    sql = """
+        SELECT w.id                                            AS woreda_id,
+               w.name                                          AS woreda,
+               count(c.id) FILTER (WHERE c.status = 'ACTIVE')   AS active_clas,
+               count(c.id) FILTER (
+                   WHERE c.status = 'ACTIVE'
+                     AND c.formed_on <= (CURRENT_DATE - (wlt_policy_int('gate.federation.min_cla_months', 12)
+                                                         * 30 || ' days')::interval)
+               )                                                AS mature_clas,
+               wlt_policy_int('gate.federation.min_clas', 10)   AS threshold,
+               greatest(0, wlt_policy_int('gate.federation.min_clas', 10)
+                           - count(c.id) FILTER (WHERE c.status = 'ACTIVE')) AS clas_short
+          FROM locations_location w
+          LEFT JOIN locations_location k ON k.parent_id = w.id AND k.level = 'KEBELE'
+          LEFT JOIN wlt_cla c           ON c.kebele_id = k.id
+         WHERE w.level = 'WOREDA'
+    """
+    params = []
+    if woreda_ids is not None:
+        sql += " AND w.id = ANY(%s)"
+        params.append(list(woreda_ids))
+    sql += " GROUP BY w.id, w.name ORDER BY clas_short, w.name"
+    return _rows(sql, params)
+
+
 def linkage_funnel():
     """Proposed through closed, across both linkage surfaces."""
     return _rows("SELECT * FROM wlt_mv_linkage_funnel ORDER BY source, type_code, status")

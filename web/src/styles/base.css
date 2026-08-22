@@ -245,6 +245,19 @@ p {
   vertical-align: middle;
 }
 
+/* Chair, secretary, treasurer beside a name. Ink on green rather than a status
+   tone: an office is a fact about a member, not a state she is in, and a
+   status colour here would compete with the group's own chip. */
+.officer-tag {
+  display: inline-block;
+  background: var(--green-100);
+  color: var(--green-ink);
+  border-radius: var(--r-chip);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .card--interactive {
   cursor: pointer;
 }

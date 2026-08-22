@@ -25,7 +25,10 @@ import PlacementsPage from "./pages/PlacementsPage";
 import TrainingPage from "./pages/TrainingPage";
 import BeneficiariesPage from "./pages/wlt/BeneficiariesPage";
 import ClaReadinessPage from "./pages/wlt/ClaReadinessPage";
+import FederationReadinessPage from "./pages/wlt/FederationReadinessPage";
 import GroupReadinessPage from "./pages/wlt/GroupReadinessPage";
+import MeetingPage from "./pages/wlt/MeetingPage";
+import NotFoundPage from "./pages/NotFoundPage";
 import GroupsPage from "./pages/wlt/GroupsPage";
 import JourneyPage from "./pages/wlt/JourneyPage";
 import LinkagesPage from "./pages/wlt/LinkagesPage";
@@ -158,13 +161,22 @@ export default function App() {
                 <Route path="/wlt/beneficiaries/:profileId" element={<JourneyPage />} />
                 <Route path="/wlt/groups" element={<GroupsPage />} />
                 <Route path="/wlt/groups/:groupId" element={<GroupReadinessPage />} />
+                {/* The weekly meeting: attendance, savings, and the cash count.
+                    Its own route rather than a panel — it is worked through in a
+                    room, in order, and it is the screen the offline client will
+                    need first. */}
+                <Route path="/wlt/groups/:groupId/meetings/:meetingId" element={<MeetingPage />} />
                 <Route path="/wlt/linkages" element={<LinkagesPage />} />
                 <Route path="/wlt/linkages/:linkageId" element={<LinkageDetailPage />} />
                 <Route path="/wlt/cla-readiness" element={<ClaReadinessPage />} />
+                <Route path="/wlt/federation-readiness" element={<FederationReadinessPage />} />
                 <Route path="/users" element={<UsersPage />} />
               </Route>
               {/* Unknown paths go through Home so the landing screen stays role-aware. */}
-              <Route path="*" element={<Navigate to="/" replace />} />
+              {/* D16: an unknown URL said nothing and silently landed on the
+                  home route, so a URL-tampering permission test could not tell
+                  "you may not see this" from "that page does not exist". */}
+              <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </LanguageProvider>
           </AuthProvider>

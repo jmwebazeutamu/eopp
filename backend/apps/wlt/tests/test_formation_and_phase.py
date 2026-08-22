@@ -391,3 +391,70 @@ def test_the_exception_route_share_is_reported_per_woreda(db, wlt_locations, mak
     share = enrolment_service.exception_route_share(location=wlt_locations["woreda"])
     assert share["pct"] == 10
     assert not share["above_threshold"]
+
+
+# ---------------------------------------------------------------------------
+# Looking back at a gate the group has already passed
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestEarlierGateSets:
+    """A promoted group can fall back below the discipline it was promoted on.
+
+    Savings compliance and attendance are continuous, so "does it still meet
+    Phase 1?" is a live question for a Phase 2 group — and until the readiness
+    card could be pointed at an earlier gate, no screen answered it.
+    """
+
+    def _readiness(self, client, group, **params):
+        response = client.get(f"/api/v1/wlt/groups/{group.pk}/readiness/", params)
+        assert response.status_code == 200
+        return response.data
+
+    def test_a_phase_two_group_is_offered_both_gates(self, as_user, facilitator, wlt_group):
+        Group.objects.filter(pk=wlt_group.pk).update(current_phase=Phase.P2)
+
+        data = self._readiness(as_user(facilitator), wlt_group)
+        names = [row["name"] for row in data["gate_sets"]]
+
+        assert names == ["forming_to_p1", "p1_to_p2", "p2_to_p3"]
+        assert [row["is_next"] for row in data["gate_sets"]] == [False, False, True]
+
+    def test_it_defaults_to_the_next_gate(self, as_user, facilitator, wlt_group):
+        Group.objects.filter(pk=wlt_group.pk).update(current_phase=Phase.P2)
+
+        data = self._readiness(as_user(facilitator), wlt_group)
+        assert data["gate_set"] == "p2_to_p3"
+
+    def test_an_earlier_gate_can_be_asked_for(self, as_user, facilitator, wlt_group):
+        Group.objects.filter(pk=wlt_group.pk).update(current_phase=Phase.P2)
+
+        data = self._readiness(as_user(facilitator), wlt_group, gate_set="p1_to_p2")
+
+        assert data["gate_set"] == "p1_to_p2"
+        assert data["gate"] is not None
+        assert data["gate"]["gate_set"] == "p1_to_p2"
+        # Measured now, not frozen at promotion — that is the point of asking.
+        assert data["gate"]["computed_at"]
+
+    def test_a_gate_beyond_the_next_one_is_not_offered_or_honoured(self, as_user, facilitator, wlt_group):
+        """Its conditions would be measured against a phase the group has not
+        entered: real numbers, meaningless comparison."""
+        Group.objects.filter(pk=wlt_group.pk).update(current_phase=Phase.P1)
+
+        data = self._readiness(as_user(facilitator), wlt_group, gate_set="p2_to_p3")
+
+        assert [row["name"] for row in data["gate_sets"]] == ["forming_to_p1", "p1_to_p2"]
+        assert data["gate_set"] == "p1_to_p2"
+
+    def test_a_junk_gate_set_falls_back_rather_than_erroring(self, as_user, facilitator, wlt_group):
+        """The parameter arrives from a URL."""
+        data = self._readiness(as_user(facilitator), wlt_group, gate_set="../../etc/passwd")
+        assert data["gate_set"] == phase_service.available_gate_sets(wlt_group)[-1]["name"]
+
+    def test_a_forming_group_is_offered_only_its_own_gate(self, as_user, facilitator, wlt_group):
+        Group.objects.filter(pk=wlt_group.pk).update(current_phase="")
+
+        data = self._readiness(as_user(facilitator), wlt_group)
+        assert [row["name"] for row in data["gate_sets"]] == ["forming_to_p1"]
