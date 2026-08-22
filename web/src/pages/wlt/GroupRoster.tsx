@@ -10,11 +10,13 @@ import type {
   WltGroup,
   WltGroupMembership,
   WltOfficeHolder,
+  WltMemberSavingsCompliance,
   WltOfficeRole,
 } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { Button, CapsLabel, Card } from "../../components/ui";
 import { useLang } from "../../i18n/LanguageContext";
+import { BAND_STYLE, bandFor, FALLBACK_THRESHOLD, pctOf } from "./compliance";
 import RegisterWomanModal from "./RegisterWomanModal";
 
 /**
@@ -44,7 +46,19 @@ const EXIT_REASONS: Exclude<WltExitReason, "">[] = [
   "GROUP_SPLIT",
 ];
 
-export default function GroupRoster({ group, onChanged }: { group: WltGroup; onChanged: () => void }) {
+export default function GroupRoster({
+  group,
+  onChanged,
+  compliance = [],
+  threshold,
+}: {
+  group: WltGroup;
+  onChanged: () => void;
+  /** Per-member savings compliance, so the roster can lead with who needs
+   *  chasing rather than with who happens to be first alphabetically. */
+  compliance?: WltMemberSavingsCompliance[];
+  threshold?: number;
+}) {
   const { message } = App.useApp();
   const { t } = useLang();
   const { user } = useAuth();
@@ -61,6 +75,14 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
   // The tab gate is not the security boundary — `CanAccessGroups` refuses the
   // write regardless. This only stops offering a button that would 403.
   const canWrite = Boolean(user?.access.group_write);
+  /** "", "officers", "below" or "former". Local: it narrows one tab's list. */
+  const [filter, setFilter] = useState("");
+
+  const bar = threshold ?? FALLBACK_THRESHOLD;
+  const complianceFor = useMemo(() => {
+    const byPerson = new Map(compliance.map((row) => [row.person_id, row]));
+    return (personId: string) => byPerson.get(personId) ?? null;
+  }, [compliance]);
   const onOpenMember = (profileId: string) => navigate(`/wlt/beneficiaries/${profileId}`);
 
   const load = useCallback(async () => {
@@ -83,8 +105,42 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
     void load();
   }, [load]);
 
-  const current = useMemo(() => roster.filter((row) => row.exited_on === null), [roster]);
+  const allCurrent = useMemo(() => roster.filter((row) => row.exited_on === null), [roster]);
   const former = useMemo(() => roster.filter((row) => row.exited_on !== null), [roster]);
+
+  /**
+   * Worst compliance first, by default.
+   *
+   * The roster is read to find who needs chasing, and a list sorted by name
+   * buries exactly those people. A member with nothing recorded sorts last
+   * rather than first: not yet asked is not the same as saving nothing.
+   */
+  const current = useMemo(() => {
+    const rank = (personId: string) => {
+      const row = complianceFor(personId);
+      const pct = row ? pctOf(row) : null;
+      return pct === null ? Number.POSITIVE_INFINITY : pct;
+    };
+    const rows = [...allCurrent].sort((a, b) => rank(a.person) - rank(b.person));
+    if (filter === "officers") return rows.filter((row) => officeOf(officers, row.person) !== null);
+    if (filter === "below") {
+      return rows.filter((row) => {
+        const pct = complianceFor(row.person) ? pctOf(complianceFor(row.person)!) : null;
+        return pct !== null && pct < bar;
+      });
+    }
+    return rows;
+  }, [allCurrent, complianceFor, filter, officers, bar]);
+
+  const belowCount = useMemo(
+    () =>
+      allCurrent.filter((row) => {
+        const entry = complianceFor(row.person);
+        const pct = entry ? pctOf(entry) : null;
+        return pct !== null && pct < bar;
+      }).length,
+    [allCurrent, complianceFor, bar],
+  );
 
   const refresh = useCallback(() => {
     void load();
@@ -105,6 +161,29 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
       >
         <CapsLabel>{t("wlt.roster")}</CapsLabel>
         <span className="t-meta">{t("wlt.rosterCount", { count: current.length })}</span>
+      </div>
+
+      {/* The "below the bar" pill is the fastest route to the work, so it
+          carries the count and takes the terra treatment when it is non-zero.
+          The bar is the group's own gate threshold, not a fixed 90. */}
+      <div className="pill-row" role="group" aria-label={t("wlt.rosterFilterLabel")} style={{ margin: "10px 0 0" }}>
+        {[
+          { value: "", label: t("filters.all"), count: allCurrent.length },
+          { value: "officers", label: t("wlt.filterOfficers"), count: null },
+          { value: "below", label: t("wlt.filterBelow", { threshold: bar }), count: belowCount },
+        ].map((pill) => (
+          <button
+            key={pill.value || "all"}
+            type="button"
+            className="pill-filter"
+            data-active={pill.value === filter ? "true" : undefined}
+            data-alert={pill.value === "below" && belowCount > 0 ? "true" : undefined}
+            onClick={() => setFilter(pill.value)}
+          >
+            {pill.label}
+            {pill.count !== null && <span className="pill-filter__count">{pill.count}</span>}
+          </button>
+        ))}
       </div>
 
       {loading && roster.length === 0 && <p className="t-meta">{t("common.loading")}</p>}
@@ -132,6 +211,9 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
                       <MemberName membership={membership} onOpen={onOpenMember} />
                     </td>
                     <td className="t-meta">{t("wlt.joinedOn", { date: membership.joined_on })}</td>
+                    <td>
+                      <ComplianceCell entry={complianceFor(membership.person)} threshold={bar} />
+                    </td>
                     <td style={{ textAlign: "right" }}>
                       <OfficeTag role={officeOf(officers, membership.person)} />
                     </td>
@@ -250,6 +332,38 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
  * server applies the same three filters the service does — eligible, verified,
  * not currently in a group — so what is listed is what will be accepted.
  */
+/**
+ * A member's savings compliance, as a meter and a number.
+ *
+ * The length carries the value as well as the colour, so the bands read on a
+ * monochrome screen. Nothing recorded shows a dash rather than 0% — not yet
+ * asked and saved nothing are different findings, and only one is a problem.
+ */
+function ComplianceCell({
+  entry,
+  threshold,
+}: {
+  entry: WltMemberSavingsCompliance | null;
+  threshold: number;
+}) {
+  const pct = entry ? pctOf(entry) : null;
+  const band = bandFor(pct, threshold);
+  if (pct === null || !band) return <span className="t-meta">—</span>;
+
+  const style = BAND_STYLE[band];
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+      <span className="meter" aria-hidden>
+        <span className="meter__fill" style={{ width: `${Math.min(100, pct)}%`, background: style.fill }} />
+      </span>
+      <span className="tabular" style={{ fontWeight: 700, color: style.fg }}>
+        {pct}%
+      </span>
+      <span className="t-meta">{style.label}</span>
+    </span>
+  );
+}
+
 /** The three offices, in the order the handbook lists them. */
 const OFFICES: WltOfficeRole[] = ["CHAIR", "SECRETARY", "TREASURER"];
 
