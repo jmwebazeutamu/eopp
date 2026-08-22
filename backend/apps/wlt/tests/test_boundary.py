@@ -139,11 +139,20 @@ def test_scoping_fails_closed_when_the_key_is_missing(db, wlt_group, wlt_locatio
     assert not scope_group_queryset(Group.objects.all(), unscoped).exists()
 
 
-def test_a_facilitator_may_write_and_an_officer_may_not(as_user, facilitator, woreda_officer, wlt_locations):
-    """Read and approve, not record. An officer who could post a ledger entry
-    could also settle a discrepancy nobody witnessed."""
-    # A group is drafted from an endorsed community meeting, so the payload
-    # carries one. The kebele is not sent: it is derived from the meeting.
+def test_an_officer_may_draft_a_group_but_not_run_one(as_user, facilitator, woreda_officer, wlt_locations):
+    """Confirmed 2026-08-22: a woreda officer drafts groups.
+
+    This test used to assert she could not, and the reasoning it carried is
+    still right about the half that matters — "read and approve, not record. An
+    officer who could post a ledger entry could also settle a discrepancy
+    nobody witnessed." Drafting is not recording. She holds the ELS extract and
+    convenes the mobilisation, and a facilitator's scope is the kebeles of
+    groups she already runs, so gating drafting on `group_write` left the first
+    group in a new kebele creatable by nobody.
+
+    So the boundary moved for one action and held for the rest, and both halves
+    are asserted here rather than the file quietly losing the second.
+    """
     event = MobilisationEvent.objects.create(
         kebele=wlt_locations["kebele"],
         held_on="2026-01-20",
@@ -153,8 +162,49 @@ def test_a_facilitator_may_write_and_an_officer_may_not(as_user, facilitator, wo
     payload = {
         "name": "New SHG",
         "mobilisation_event": str(event.pk),
+        # An officer is not a facilitator, so she must name the one who will run
+        # it — her draft always lands with somebody accountable for it.
         "facilitator": str(facilitator.pk),
         "drafted_on": "2026-02-01",
     }
+
     assert as_user(facilitator).post("/api/v1/wlt/groups/", payload, format="json").status_code == 201
-    assert as_user(woreda_officer).post("/api/v1/wlt/groups/", payload, format="json").status_code == 403
+    assert as_user(woreda_officer).post("/api/v1/wlt/groups/", payload, format="json").status_code == 201
+
+
+def test_drafting_does_not_widen_anything_else_for_an_officer(
+    as_user, woreda_officer, wlt_group, wlt_members, make_wlt_member
+):
+    """The half that did not move. Running a group is still the facilitator's."""
+    joiner = make_wlt_member("Officer Cannot Seat Her")
+
+    assert (
+        as_user(woreda_officer)
+        .post(f"/api/v1/wlt/groups/{wlt_group.pk}/members/", {"person": str(joiner.pk)})
+        .status_code
+        == 403
+    )
+    assert (
+        as_user(woreda_officer)
+        .post("/api/v1/wlt/meetings/", {"group": str(wlt_group.pk)}, format="json")
+        .status_code
+        == 403
+    )
+
+
+def test_a_case_manager_still_cannot_draft_a_group(as_user, case_manager, facilitator, wlt_locations):
+    """The module boundary is not what moved.
+
+    Worth pinning because the first implementation of this widening dropped
+    `CanAccessGroups` from the create action entirely, which removed the
+    `group_scope != NONE` check along with it.
+    """
+    event = MobilisationEvent.objects.create(
+        kebele=wlt_locations["kebele"], held_on="2026-01-20", facilitator=facilitator, endorsement_obtained=True
+    )
+    refused = as_user(case_manager).post(
+        "/api/v1/wlt/groups/",
+        {"name": "Not hers", "mobilisation_event": str(event.pk), "facilitator": str(facilitator.pk)},
+        format="json",
+    )
+    assert refused.status_code == 403

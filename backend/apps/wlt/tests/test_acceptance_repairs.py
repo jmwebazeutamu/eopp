@@ -23,7 +23,11 @@ def test_admin_and_woreda_officer_can_draft_with_an_explicit_facilitator(
     actor = request.getfixturevalue(actor_fixture)
     response = as_user(actor).post(
         "/api/v1/wlt/groups/",
-        {"name": f"{actor_fixture} group", "mobilisation_event": str(endorsed_meeting.pk), "facilitator": str(facilitator.pk)},
+        {
+            "name": f"{actor_fixture} group",
+            "mobilisation_event": str(endorsed_meeting.pk),
+            "facilitator": str(facilitator.pk),
+        },
         format="json",
     )
     assert response.status_code == 201
@@ -57,7 +61,11 @@ def test_bulk_roster_add_uses_the_same_member_rules(as_user, facilitator, endors
 def test_resolution_and_obligation_resolution_are_immutable_evidence(wlt_group, make_partner, facilitator):
     Group.objects.filter(pk=wlt_group.pk).update(current_phase=Phase.P2)
     wlt_group.refresh_from_db()
-    bank = make_partner(name="Repair test bank", partner_type=PartnerType.FINANCE_INSTITUTION, woredas=[wlt_group.kebele.parent.name])
+    bank = make_partner(
+        name="Repair test bank",
+        partner_type=PartnerType.FINANCE_INSTITUTION,
+        woredas=[wlt_group.kebele.parent.name],
+    )
     linkage = linkage_service.propose(
         linkage_type="savings_account", subject=wlt_group, provider=bank, actor=facilitator
     )

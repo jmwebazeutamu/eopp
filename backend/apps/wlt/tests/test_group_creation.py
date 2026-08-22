@@ -126,15 +126,25 @@ class TestMobilisationEvent:
         assert response.status_code == 400
         assert "kebele" in response.data
 
-    def test_an_officer_may_read_but_not_record(self, as_user, woreda_officer, endorsed, wlt_locations):
-        """Same boundary as every other group record: read and approve, not record."""
+    def test_an_officer_may_convene_a_meeting(self, as_user, woreda_officer, endorsed, wlt_locations):
+        """Changed 2026-08-22, when the officer was confirmed as able to draft.
+
+        This asserted she could not record one. Convening the community meeting
+        and drafting the group from it are one act, so refusing her the first
+        while allowing the second would leave her able to start a group only
+        where a facilitator had already been.
+
+        What did **not** change is the rest: she still cannot add a member,
+        open a savings meeting or post to the ledger. Those are pinned in
+        `test_boundary.py`.
+        """
         assert as_user(woreda_officer).get(EVENTS).status_code == 200
-        refused_write = as_user(woreda_officer).post(
+        recorded = as_user(woreda_officer).post(
             EVENTS,
             {"kebele": wlt_locations["kebele"].code, "held_on": "2026-02-05", "endorsement_obtained": True},
             format="json",
         )
-        assert refused_write.status_code == 403
+        assert recorded.status_code == 201
 
     def test_a_case_manager_cannot_see_meetings_at_all(self, as_user, case_manager, endorsed):
         """The module boundary holds on the new route too."""
@@ -261,3 +271,46 @@ class TestDraftAGroup:
         )
         assert response.status_code == 201
         assert response.data["status"] == GroupStatus.DRAFT
+
+
+def test_a_woreda_officer_can_convene_and_draft(as_user, woreda_officer, facilitator, wlt_locations):
+    """Confirmed 2026-08-22. The two are one act, so both are hers.
+
+    Recording the meeting and drafting from it cannot be split: an officer who
+    could draft but not convene could only start a group where a facilitator
+    had already been, which is the bootstrap problem the widening solves.
+    """
+    client = as_user(woreda_officer)
+
+    meeting = client.post(
+        EVENTS,
+        {"kebele": wlt_locations["kebele"].code, "held_on": "2026-02-10", "endorsement_obtained": True},
+        format="json",
+    )
+    assert meeting.status_code == 201
+
+    drafted = client.post(
+        GROUPS,
+        {
+            "name": "Officer's SHG",
+            "mobilisation_event": meeting.data["id"],
+            # She is not a facilitator, so she names the one who will run it.
+            "facilitator": str(facilitator.pk),
+        },
+        format="json",
+    )
+    assert drafted.status_code == 201
+    assert drafted.data["status"] == GroupStatus.DRAFT
+    assert str(drafted.data["facilitator"]) == str(facilitator.pk)
+
+
+def test_an_officer_drafting_must_still_name_a_facilitator(as_user, woreda_officer, wlt_locations, facilitator):
+    """Her draft has to land with somebody accountable for running it."""
+    meeting = MobilisationEvent.objects.create(
+        kebele=wlt_locations["kebele"], held_on="2026-02-11", facilitator=facilitator, endorsement_obtained=True
+    )
+    refused = as_user(woreda_officer).post(
+        GROUPS, {"name": "Nobody's SHG", "mobilisation_event": str(meeting.pk)}, format="json"
+    )
+    assert refused.status_code == 400
+    assert "facilitator" in refused.data

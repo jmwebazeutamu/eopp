@@ -794,6 +794,27 @@ spec's §10 at all. Stages 0-8 of the handoff's own sequence are built; stage 9
   never be created against a group or land on a group timeline. An **empty list
   means CASE**, not "anything" — reading it as unrestricted would open the rule
   the moment somebody cleared the field.
+- **A woreda officer may draft a group; she may not run one.** Confirmed
+  2026-08-22, and implemented as `CanDraftGroups` rather than as a widening of
+  `group_write`. The two writes look alike and are not: *running* a group is
+  recording what happened in the room — meetings, attendance, the ledger — and
+  stays the facilitator's alone, because an officer who could post a ledger
+  entry could also settle a discrepancy nobody witnessed. *Drafting* one is an
+  administrative act at woreda level: she holds the ELS extract and convenes
+  the mobilisation, and a facilitator's scope is the kebeles of groups she
+  already runs, so gating drafting on `group_write` left the first group in a
+  new kebele creatable by nobody. Same shape as `CanEnrolBeneficiaries` and
+  `delivery_write` — named for the work rather than stretching §7's write
+  column over it. Anybody who is not a facilitator must name the facilitator
+  who will run the group, so an officer's draft lands with somebody
+  accountable. Region and federal officers are approval tiers and are
+  deliberately **not** included.
+
+  The first attempt at this dropped `CanAccessGroups` from the create action
+  entirely, which removed the `group_scope != NONE` check with it — the module
+  boundary stopped being enforced on that action at all. A test pins that a
+  case manager still cannot draft a group.
+
 - **Four WLT roles, all with `case_scope: NONE`.** `WLT_FACILITATOR`,
   `WLT_WOREDA_OFFICER`, `WLT_REGION_OFFICER`, `WLT_FEDERAL_OFFICER`. That is how
   "a facilitator who can see a group roster must not thereby see those women's

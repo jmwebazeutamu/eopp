@@ -134,17 +134,33 @@ class UserViewSet(viewsets.ModelViewSet):
             account_status=AccountStatus.ACTIVE,
             is_active=True,
         )
-        kebele_id = request.query_params.get("kebele")
-        if kebele_id:
-            kebele = Location.objects.filter(pk=kebele_id).first()
+        kebele_key = request.query_params.get("kebele")
+        if kebele_key:
+            # By `code` first, because that is what the locations API emits and
+            # what every WLT client sends — a Location's integer pk is never
+            # exposed. This filtered on `pk` alone, so a code raised ValueError
+            # and the endpoint 500'd on every request the modal ever made. The
+            # modal caught it and rendered an empty list, so the fault read as
+            # "no facilitator covers this kebele" rather than as a crash.
+            kebele = Location.objects.filter(code=kebele_key).first()
+            if kebele is None and str(kebele_key).isdigit():
+                kebele = Location.objects.filter(pk=int(kebele_key)).first()
             if kebele is None:
                 return Response([])
+
             ancestor_ids = []
             node = kebele
             while node is not None:
                 ancestor_ids.append(node.pk)
                 node = node.parent
-            queryset = queryset.filter(wlt_scope_location_id__in=ancestor_ids)
+
+            # A facilitator with no `wlt_scope_location` is not scoped to
+            # nowhere — she is unscoped, which means everywhere. An inner match
+            # on explicit scope rows excluded exactly those accounts, so a
+            # nationally-scoped facilitator covered no kebele at all.
+            queryset = queryset.filter(
+                Q(wlt_scope_location_id__in=ancestor_ids) | Q(wlt_scope_location__isnull=True)
+            )
         return Response(AssignableUserSerializer(queryset.order_by("full_name"), many=True).data)
 
     @extend_schema(responses=CurrentUserSerializer)

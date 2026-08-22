@@ -355,6 +355,53 @@ class CanEnrolBeneficiaries(BasePermission):
         return user.can_write_groups() or user.wlt_approval_level is not None
 
 
+class CanDraftGroups(BasePermission):
+    """May start a group — which is not the same as running one.
+
+    Confirmed 2026-08-22: a woreda officer drafts groups. The two writes look
+    alike and are not:
+
+    * **Running** a group is recording what happened in the room — meetings,
+      attendance, the ledger. That stays `group_write`, the facilitator's
+      alone. An officer who could post a ledger entry could also settle a
+      discrepancy nobody witnessed.
+    * **Drafting** one is an administrative act at woreda level. The officer
+      holds the ELS extract and convenes the mobilisation, and a facilitator's
+      scope is the kebeles of groups she *already* runs — so gating drafting on
+      `group_write` left the first group in a new kebele creatable by nobody.
+
+    Named for the work rather than stretching §7's write column to cover it,
+    the same shape as `CanEnrolBeneficiaries` and `delivery_write`. It widens
+    nothing else: an officer still cannot add a member, open a meeting or post
+    to the ledger.
+
+    The serializer completes the rule — anybody who is not a facilitator must
+    name the facilitator who will run the group, so an officer's draft always
+    lands with somebody accountable for it.
+    """
+
+    message = "Your role does not start new savings groups."
+
+    #: Roles that mobilise rather than only approve. Region and federal officers
+    #: are approval tiers above the woreda and are deliberately not here; add
+    #: them only if the programme says they mobilise too.
+    DRAFTING_ROLES = frozenset({"WLT_WOREDA_OFFICER"})
+
+    def has_permission(self, request, view):
+        from .models import GroupScope
+
+        user = request.user
+        if not (user and user.is_authenticated and user.is_operational):
+            return False
+        # The module boundary still applies. A youth-side account has no group
+        # scope and cannot reach this whatever else is true of it.
+        if user.group_scope() == GroupScope.NONE:
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        return user.can_write_groups() or user.role in self.DRAFTING_ROLES
+
+
 class CanAccessGroups(BasePermission):
     """WLT group access per the handoff's §9 table."""
 

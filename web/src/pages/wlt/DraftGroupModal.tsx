@@ -50,6 +50,8 @@ export default function DraftGroupModal({
   const [kebeles, setKebeles] = useState<Location[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [facilitators, setFacilitators] = useState<Array<{ id: string; full_name: string }>>([]);
+  /** The lookup errored, as opposed to genuinely returning nobody. */
+  const [pickerFailed, setPickerFailed] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
   /** Draft from a meeting already recorded, or record the meeting now. */
   const [source, setSource] = useState<"existing" | "new">("existing");
@@ -98,6 +100,7 @@ export default function DraftGroupModal({
       return;
     }
     let cancelled = false;
+    setPickerFailed(false);
     void api.get<Array<{ id: string; full_name: string }>>("/users/wlt-facilitators/", {
       params: { kebele: facilitatorKebele },
     }).then((response) => {
@@ -107,9 +110,17 @@ export default function DraftGroupModal({
       if (!form.getFieldValue("facilitator") && currentIsFacilitator && response.data.some((row) => row.id === user.id)) {
         form.setFieldValue("facilitator", user.id);
       }
-    }).catch(() => { if (!cancelled) setFacilitators([]); });
+    }).catch((error) => {
+      // A failed lookup is not an empty one. This swallowed a 500 and rendered
+      // "no facilitator covers this kebele", so a crash read as a legitimate
+      // answer and the blocker survived three rounds of testing.
+      if (cancelled) return;
+      setFacilitators([]);
+      setPickerFailed(true);
+      message.error(errorMessage(error, t("wlt.facilitatorsLoadFailed")));
+    });
     return () => { cancelled = true; };
-  }, [facilitatorKebele, form, open, recordingRefusal, user]);
+  }, [facilitatorKebele, form, message, open, recordingRefusal, t, user]);
 
   function close(force = false) {
     if (!force && form.isFieldsTouched()) {
@@ -308,7 +319,13 @@ export default function DraftGroupModal({
               disabled={!facilitatorKebele}
               placeholder="Choose a facilitator"
               options={facilitators.map((facilitator) => ({ value: facilitator.id, label: facilitator.full_name }))}
-              notFoundContent={facilitatorKebele ? "No facilitator covers this kebele." : "Choose a kebele first."}
+              notFoundContent={
+                pickerFailed
+                  ? t("wlt.facilitatorsLoadFailed")
+                  : facilitatorKebele
+                    ? t("wlt.noFacilitatorCovers")
+                    : t("wlt.chooseKebeleFirst")
+              }
             />
           </Form.Item>
           <Form.Item

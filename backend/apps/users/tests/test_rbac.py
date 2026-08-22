@@ -383,3 +383,97 @@ def test_reading_a_programme_does_not_let_you_record_in_it():
 def test_wlt_roles_record_nothing_on_the_youth_side():
     for role in Role.wlt_roles():
         assert not make_user(role).can_record_delivery(), role
+
+
+# ---------------------------------------------------------------------------
+# The facilitator picker behind the draft-group form (defect P1)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestFacilitatorPicker:
+    """It answered every request with a 500, and the caller rendered that as
+    "no facilitator covers this kebele" — so the fault read as an answer.
+
+    Two independent faults: the lookup was on `pk` while every WLT client sends
+    a location `code`, and an unscoped facilitator matched no kebele at all.
+    """
+
+    URL = "/api/v1/users/wlt-facilitators/"
+
+    @pytest.fixture
+    def places(self, db):
+        from apps.locations.models import Location, LocationLevel
+
+        region = Location.objects.create(code="ET-XX", name="Region", level=LocationLevel.REGION)
+        zone = Location.objects.create(code="ET-XX-Z", name="Zone", level=LocationLevel.ZONE, parent=region)
+        woreda = Location.objects.create(code="ET-XX-Z-W", name="Woreda", level=LocationLevel.WOREDA, parent=zone)
+        other_woreda = Location.objects.create(
+            code="ET-XX-Z-W2", name="Woreda Two", level=LocationLevel.WOREDA, parent=zone
+        )
+        return {
+            "woreda": woreda,
+            "kebele": Location.objects.create(
+                code="ET-XX-Z-W-01", name="Kebele One", level=LocationLevel.KEBELE, parent=woreda
+            ),
+            "elsewhere": Location.objects.create(
+                code="ET-XX-Z-W2-01", name="Kebele Two", level=LocationLevel.KEBELE, parent=other_woreda
+            ),
+        }
+
+    def _facilitator(self, username, scope=None):
+        from apps.users.models import Role, User
+
+        return User.objects.create_user(
+            username, "pw-Test-12345", full_name=f"Fac {username}", role=Role.WLT_FACILITATOR, wlt_scope_location=scope
+        )
+
+    def test_a_kebele_code_resolves_rather_than_raising(self, as_user, places):
+        """The blocker itself. `filter(pk="ET-XX-Z-W-01")` raised ValueError on
+        an integer pk, so the endpoint 500'd on every call the form made."""
+        scoped = self._facilitator("fac-woreda", places["woreda"])
+
+        response = as_user(scoped).get(self.URL, {"kebele": places["kebele"].code})
+
+        assert response.status_code == 200
+        assert str(scoped.pk) in {str(row["id"]) for row in response.data}
+
+    def test_a_facilitator_scoped_to_a_woreda_covers_its_kebeles_only(self, as_user, places):
+        scoped = self._facilitator("fac-woreda", places["woreda"])
+
+        covered = as_user(scoped).get(self.URL, {"kebele": places["kebele"].code})
+        not_covered = as_user(scoped).get(self.URL, {"kebele": places["elsewhere"].code})
+
+        assert str(scoped.pk) in {str(row["id"]) for row in covered.data}
+        assert str(scoped.pk) not in {str(row["id"]) for row in not_covered.data}
+
+    def test_an_unscoped_facilitator_covers_every_kebele(self, as_user, places):
+        """No scope is not "nowhere", it is "everywhere". An inner match on
+        explicit scope rows excluded exactly the national accounts."""
+        national = self._facilitator("fac-national", None)
+
+        for kebele in (places["kebele"], places["elsewhere"]):
+            response = as_user(national).get(self.URL, {"kebele": kebele.code})
+            assert str(national.pk) in {str(row["id"]) for row in response.data}
+
+    def test_an_unknown_kebele_is_an_empty_list_not_an_error(self, as_user, places):
+        national = self._facilitator("fac-national", None)
+        response = as_user(national).get(self.URL, {"kebele": "ET-NOPE-01"})
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    def test_a_kebele_with_genuinely_nobody_returns_nobody(self, as_user, places):
+        """The message the form shows has to stay true when it is true."""
+        scoped = self._facilitator("fac-woreda", places["woreda"])
+
+        response = as_user(scoped).get(self.URL, {"kebele": places["elsewhere"].code})
+        assert response.data == []
+
+    def test_the_integer_pk_still_works(self, as_user, places):
+        """Kept as a fallback so anything already calling it by id is not broken."""
+        national = self._facilitator("fac-national", None)
+        response = as_user(national).get(self.URL, {"kebele": str(places["kebele"].pk)})
+
+        assert response.status_code == 200
+        assert str(national.pk) in {str(row["id"]) for row in response.data}
