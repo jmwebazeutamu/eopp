@@ -129,6 +129,14 @@ class BeneficiaryProfileSerializer(serializers.ModelSerializer):
 class GroupMembershipSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="person.full_name", read_only=True)
     exit_reason_display = serializers.CharField(source="get_exit_reason_display", read_only=True)
+    # Her WLT profile, so the roster can link to her record. The membership
+    # carries a *person* id and the beneficiary screen is keyed on the profile,
+    # so without this the roster had her name and no way to reach her.
+    #
+    # Nullable in the serializer rather than assumed: `add_member` requires a
+    # profile, but a row written before that rule — or by a data fix — would
+    # otherwise raise on the whole roster rather than on one name.
+    profile = serializers.CharField(source="person.wlt_profile.id", read_only=True, default=None)
 
     class Meta:
         model = GroupMembership
@@ -136,6 +144,7 @@ class GroupMembershipSerializer(serializers.ModelSerializer):
             "id",
             "group",
             "person",
+            "profile",
             "full_name",
             "joined_on",
             "exited_on",
@@ -490,6 +499,7 @@ class ServiceLinkageSerializer(serializers.ModelSerializer):
     next_approval_role = serializers.SerializerMethodField()
     next_action_role_display = serializers.SerializerMethodField()
     can_current_user_approve = serializers.SerializerMethodField()
+    predecessor_label = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceLinkage
@@ -499,6 +509,8 @@ class ServiceLinkageSerializer(serializers.ModelSerializer):
             "type_label",
             "provider",
             "provider_name",
+            "predecessor",
+            "predecessor_label",
             "subject_group",
             "subject_cla",
             "subject_federation",
@@ -520,7 +532,20 @@ class ServiceLinkageSerializer(serializers.ModelSerializer):
             "next_action_role_display",
             "can_current_user_approve",
         ]
-        read_only_fields = ["status", "subject_type", "block_reasons", "approved_on", "activated_on", "closed_on"]
+        read_only_fields = [
+            "status",
+            "subject_type",
+            "block_reasons",
+            "approved_on",
+            "activated_on",
+            "closed_on",
+            "predecessor",
+        ]
+
+    def get_predecessor_label(self, linkage):
+        if linkage.predecessor_id is None:
+            return None
+        return linkage.predecessor.linkage_type.label
 
     def get_subject_name(self, linkage):
         subject = linkage.subject
@@ -536,7 +561,12 @@ class ServiceLinkageSerializer(serializers.ModelSerializer):
         return approval.required_role if approval else None
 
     def get_next_action_role_display(self, linkage):
-        if linkage.status in {LinkageStatus.REJECTED, LinkageStatus.CLOSED, LinkageStatus.LAPSED, LinkageStatus.DEFAULTED}:
+        if linkage.status in {
+            LinkageStatus.REJECTED,
+            LinkageStatus.CLOSED,
+            LinkageStatus.LAPSED,
+            LinkageStatus.DEFAULTED,
+        }:
             return None
         role = self.get_next_approval_role(linkage)
         if not role:

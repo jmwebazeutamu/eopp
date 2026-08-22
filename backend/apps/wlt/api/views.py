@@ -12,9 +12,12 @@ runs the gate, checks the allocation ceiling and stamps the phase;
 read-only on every serializer here.
 """
 
+from decimal import Decimal
+from uuid import UUID
+
 from django.core.exceptions import ValidationError
-from django.db.models import Prefetch
-from django.http import HttpResponse
+from django.db.models import Exists, OuterRef, Prefetch
+from django.http import Http404, HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django_filters.rest_framework import CharFilter, FilterSet
@@ -32,6 +35,7 @@ from apps.locations.models import Location
 from apps.users.models import Role
 from apps.users.permissions import (
     CanAccessGroups,
+    CanDraftGroups,
     CanEnrolBeneficiaries,
     IsOperational,
     ScopedGroupQuerySetMixin,
@@ -42,11 +46,13 @@ from apps.wlt import reporting
 from apps.wlt import policy as wlt_policy
 from apps.wlt.models import (
     BeneficiaryProfile,
+    EntryType,
     ExitReason,
     Group,
     GroupMembership,
     GroupStatus,
     LinkageStatus,
+    LoanStatus,
     Meeting,
     MobilisationEvent,
     PhaseEvent,
@@ -145,8 +151,14 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
     ordering_fields = ["name", "activated_on", "status"]
 
     def get_permissions(self):
+        """Drafting is a wider permission than running a group.
+
+        `CanDraftGroups` rather than dropping `CanAccessGroups` for create: that
+        also removed the `group_scope != NONE` check, so the module boundary
+        stopped being enforced on this action at all.
+        """
         if self.action == "create":
-            return [IsOperational()]
+            return [IsOperational(), CanDraftGroups()]
         return super().get_permissions()
 
     def perform_create(self, serializer):
@@ -201,12 +213,25 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
         makes the card worth having.
         """
         group = self.get_object()
-        result = phase_service.readiness(group)
+
+        # `?gate_set=` shows an earlier phase gate against today's data. A group
+        # in Phase 2 asked for `p1_to_p2` gets the conditions it was promoted
+        # on, measured now — savings compliance and attendance are continuous,
+        # so a group can fall back below a gate it has already passed, and
+        # nothing on any screen used to show that. Anything not on the offered
+        # list is ignored rather than trusted: the parameter arrives from a URL.
+        offered = phase_service.available_gate_sets(group)
+        asked = request.query_params.get("gate_set")
+        gate_set = asked if any(row["name"] == asked for row in offered) else None
+
+        result = phase_service.readiness(group, gate_set=gate_set)
         figures = indicator_service.compute(group)
         return Response(
             {
                 "group": GroupSerializer(group).data,
                 "gate": GateResultSerializer(result).data if result else None,
+                "gate_sets": offered,
+                "gate_set": gate_set or next((row["name"] for row in offered if row["is_next"]), None),
                 "indicators": figures.as_snapshot(),
                 "risk_flags": RiskFlagSerializer(RiskFlag.objects.open().for_group(group), many=True).data,
                 # Stamped so a client that cached this offline can say how old
@@ -253,7 +278,13 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
             # order she joined. The roster is a dated range, so the exited rows
             # are part of it — an indicator computed against March needs the
             # woman who left in April.
-            roster = group.memberships.select_related("person").order_by("exited_on", "joined_on", "person__full_name")
+            # `person__wlt_profile` too: the roster links to each woman's
+            # record, and without it the serializer would fetch her profile one
+            # row at a time.
+            roster = (
+                group.memberships.select_related("person", "person__wlt_profile")
+                .order_by("exited_on", "joined_on", "person__full_name")
+            )
             return Response(GroupMembershipSerializer(roster, many=True).data)
         from apps.youth.models import Youth
 
@@ -299,10 +330,26 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
             raise _as_drf_error(exc)
         return Response(GroupMembershipSerializer(membership).data)
 
-    @action(detail=True, methods=["post"], url_path="officers")
+    @action(detail=True, methods=["get", "post"], url_path="officers")
     def officers(self, request, pk=None):
+        """Who holds office, and electing somebody to it.
+
+        A term is a dated range, like a membership: `elect_officer` closes the
+        sitting officer's term rather than editing the row, because "who was
+        treasurer on the date of that disbursement" is a question that gets
+        asked (A8). So the GET returns closed terms too — the current ones are
+        the rows with no `to_date`, and the screen filters for them.
+
+        The GET is new. Officers could be elected and never read back, so no
+        screen could show who the chair was; the roster listed twenty
+        indistinguishable names.
+        """
         group = self.get_object()
         from apps.youth.models import Youth
+
+        if request.method == "GET":
+            holders = group.office_holders.select_related("person").order_by("role", "-from_date")
+            return Response(OfficeHolderSerializer(holders, many=True).data)
 
         person = Youth.objects.filter(pk=request.data.get("person")).first()
         try:
@@ -358,6 +405,11 @@ class MeetingViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
     facilitator_field = "group__facilitator_id"
     filterset_fields = {"group": ["exact"], "status": ["exact"]}
     ordering_fields = ["meeting_no", "held_on"]
+    # Two meetings can be held on one date — a catch-up sits beside the regular
+    # one — and a date-only sort then puts 31 above 32 inside a descending list.
+    # `meeting_no` is the tiebreak everywhere meetings are listed or exported,
+    # so it is the viewset default rather than something each caller remembers.
+    ordering = ["-held_on", "-meeting_no"]
 
     def create(self, request, *args, **kwargs):
         group = Group.objects.filter(pk=request.data.get("group")).first()
@@ -408,6 +460,137 @@ class MeetingViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
         meeting = self.get_object()
         return Response({"expected_cash_etb": ledger_service.expected_cash(meeting)})
 
+    @action(detail=True, methods=["post"], url_path="loans")
+    def disburse(self, request, pk=None):
+        """Issue a loan from the group's own fund, at this meeting.
+
+        On the meeting rather than on the group because that is where the money
+        is: the cash leaves the box in the room, and `expected_cash` counts the
+        disbursement, so a loan given out and a till that still balances are the
+        same act. Disbursing outside a meeting would put the box out by the
+        principal with nothing to explain it.
+
+        Every refusal comes from the service — before the tenth savings meeting,
+        past the concurrent-loan cap, into the reserve buffer, or more cash than
+        the box holds — and its message is passed through, because "this group
+        has held 6 savings meetings, lending starts after 10" is the answer.
+        """
+        from apps.youth.models import Youth
+
+        meeting = self.get_object()
+        person = Youth.objects.filter(pk=request.data.get("person")).first()
+        if person is None:
+            raise DRFValidationError({"person": [_("Choose the borrower.")]})
+
+        try:
+            loan = ledger_service.disburse_loan(
+                meeting.group,
+                person=person,
+                principal_etb=request.data.get("principal_etb"),
+                purpose=request.data.get("purpose"),
+                purpose_note=request.data.get("purpose_note", ""),
+                due_on=request.data.get("due_on"),
+                meeting=meeting,
+                actor=request.user,
+            )
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        return Response(LoanSerializer(loan).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path=r"loans/(?P<loan_id>[^/.]+)/repay")
+    def repay(self, request, pk=None, loan_id=None):
+        """Money back, split into principal and charge.
+
+        Split because PAR30 is a statement about principal alone, and a
+        repayment recorded as one number cannot be split afterwards.
+
+        The loan is looked up *through* the meeting's group, so it inherits the
+        group's scoping rather than trusting an id from the URL.
+        """
+        from ..models import Loan
+
+        meeting = self.get_object()
+        loan = Loan.objects.filter(pk=loan_id, group=meeting.group).first()
+        if loan is None:
+            raise Http404
+
+        try:
+            ledger_service.record_repayment(
+                loan,
+                principal_etb=request.data.get("principal_etb") or 0,
+                charge_etb=request.data.get("charge_etb") or 0,
+                meeting=meeting,
+                actor=request.user,
+            )
+        except ValidationError as exc:
+            raise _as_drf_error(exc)
+        loan.refresh_from_db()
+        return Response(LoanSerializer(loan).data)
+
+    @action(detail=True, methods=["get"], url_path="register")
+    def register(self, request, pk=None):
+        """The paper register, as one read: who is on the roster, who turned up,
+        and who has already paid.
+
+        One call rather than four because this is the screen a facilitator opens
+        in a village on a bad connection, and because the alternative was worse
+        than slow: `record_savings` appends, and there is no update path, so a
+        screen that could not see what was already posted would double a
+        woman's contribution on a retry. Correcting that needs a reversal with a
+        reason. Showing what is recorded is what stops it.
+
+        The roster is the one in force **on the meeting date**, not today's:
+        membership is a dated range, and a woman who left last week was in the
+        group when this meeting was held.
+        """
+        meeting = self.get_object()
+        group = meeting.group
+
+        roster = (
+            group.memberships.filter(joined_on__lte=meeting.held_on)
+            .exclude(exited_on__lt=meeting.held_on)
+            .select_related("person")
+            .order_by("person__full_name")
+        )
+        attendance = {row.person_id: row.status for row in meeting.attendance.all()}
+        saved = {}
+        for entry in meeting.ledger_entries.filter(entry_type=EntryType.SAVINGS, person__isnull=False):
+            saved[entry.person_id] = saved.get(entry.person_id, Decimal("0")) + entry.amount_etb
+
+        bylaw = group.bylaw_on(meeting.held_on) or group.current_bylaw
+
+        return Response(
+            {
+                "meeting": MeetingSerializer(meeting).data,
+                "group_name": group.name,
+                "contribution_etb": str(bylaw.contribution_etb) if bylaw else None,
+                "expected_cash_etb": ledger_service.expected_cash(meeting),
+                # What the box holds right now, which is the ceiling on what can
+                # be lent out at this meeting. Shown so the refusal is not the
+                # first time a facilitator learns the money is not there.
+                "cash_balance_etb": ledger_service.cash_balance(group),
+                # Loans still owing, so a repayment can be recorded against one
+                # without a second call. Settled loans are not offered: there is
+                # nothing left to pay.
+                "loans": LoanSerializer(
+                    group.loans.filter(status=LoanStatus.DISBURSED).select_related("person").order_by("due_on"),
+                    many=True,
+                ).data,
+                "members": [
+                    {
+                        "person": str(membership.person_id),
+                        "full_name": membership.person.full_name,
+                        "attendance": attendance.get(membership.person_id),
+                        # None means nothing posted yet, which is different from
+                        # a recorded zero — a woman who saved nothing this week
+                        # is a compliance finding, not a blank row.
+                        "saved_etb": str(saved[membership.person_id]) if membership.person_id in saved else None,
+                    }
+                    for membership in roster
+                ],
+            }
+        )
+
     @action(detail=True, methods=["post"])
     def close(self, request, pk=None):
         meeting = self.get_object()
@@ -437,7 +620,9 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
     whose scope cannot reach it sees nothing, which is the fail-closed default.
     """
 
-    queryset = ServiceLinkage.objects.select_related("linkage_type", "provider", "subject_group").all()
+    queryset = ServiceLinkage.objects.select_related(
+        "linkage_type", "provider", "subject_group", "predecessor", "predecessor__linkage_type"
+    ).all()
     serializer_class = ServiceLinkageSerializer
     permission_classes = [IsOperational, CanAccessGroups]
     kebele_field = "subject_group__kebele"
@@ -481,7 +666,12 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
         if linkage_type is None or group is None:
             return Response([])
         providers = linkage_service.proposable_providers(linkage_type, group)
-        return Response([{"id": str(provider.pk), "name": provider.partner_name, "type": provider.partner_type} for provider in providers])
+        return Response(
+            [
+                {"id": str(provider.pk), "name": provider.partner_name, "type": provider.partner_type}
+                for provider in providers
+            ]
+        )
 
     def create(self, request, *args, **kwargs):
         subject, linkage_type, provider = self._resolve_proposal(request)
@@ -493,10 +683,20 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
                 actor=request.user,
                 value_etb=request.data.get("value_etb"),
                 terms=request.data.get("terms"),
+                predecessor=self._resolve_predecessor(request, subject),
             )
         except ValidationError as exc:
             raise _as_drf_error(exc)
         return Response(ServiceLinkageSerializer(linkage).data, status=status.HTTP_201_CREATED)
+
+    def _resolve_predecessor(self, request, subject):
+        predecessor_id = request.data.get("predecessor")
+        if not predecessor_id:
+            return None
+        predecessor = self.get_queryset().filter(pk=predecessor_id).first()
+        if predecessor is None:
+            raise DRFValidationError({"predecessor": [_('Unknown or inaccessible earlier linkage.')]})
+        return predecessor
 
     def _resolve_proposal(self, request):
         from apps.partners.models import Partner
@@ -778,6 +978,33 @@ class BeneficiaryProfileViewSet(viewsets.ModelViewSet):
         elif in_group == "true":
             queryset = queryset.exclude(pk__in=queryset.unassigned().values("pk"))
 
+        # `?group=<id>` — the women in one named group. `Exists` rather than a
+        # join for the reason `unassigned()` documents: a membership join
+        # multiplies the row, and a woman who left and rejoined would appear
+        # twice on the register.
+        #
+        # Her *open* membership only. A former member is not in the group now,
+        # and her closed row stays on the roster for the meeting denominators
+        # rather than for this list.
+        group_id = self.request.query_params.get("group")
+        if group_id:
+            # Validated here rather than caught later: a malformed UUID raises
+            # when the queryset is *evaluated*, which is inside pagination, so a
+            # try/except around `.filter()` would not see it and the register —
+            # reachable from a pasted URL — would 500.
+            try:
+                group_uuid = UUID(str(group_id))
+            except ValueError:
+                return queryset.none()
+
+            queryset = queryset.filter(
+                Exists(
+                    GroupMembership.objects.filter(
+                        person=OuterRef("person_id"), group_id=group_uuid, exited_on__isnull=True
+                    )
+                )
+            )
+
         return queryset
 
     def get_permissions(self):
@@ -1042,7 +1269,12 @@ class MobilisationEventViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
 
     queryset = MobilisationEvent.objects.select_related("kebele", "facilitator").all()
     serializer_class = MobilisationEventSerializer
-    permission_classes = [IsOperational, CanAccessGroups]
+    # `CanDraftGroups`, not `CanAccessGroups`: convening the community meeting
+    # and drafting the group from it are one act. Letting a woreda officer draft
+    # while refusing her the meeting it must be drafted from would leave her
+    # able to start a group only where a facilitator had already been — which
+    # is the bootstrap problem the widening exists to solve.
+    permission_classes = [IsOperational, CanDraftGroups]
     kebele_field = "kebele"
     facilitator_field = "facilitator_id"
     filterset_fields = {"endorsement_obtained": ["exact"], "kebele": ["exact"]}
@@ -1106,6 +1338,37 @@ class ReportViewSet(viewsets.ViewSet):
 
     permission_classes = [IsOperational, CanAccessGroups]
 
+    def _visible_woreda_ids(self, request):
+        """The woredas this account may read, by the same walk as the kebeles.
+
+        Separate from `_visible_kebele_ids` rather than derived from it: a
+        federation forms in a woreda, and an officer scoped to a woreda can see
+        it whether or not any of its kebeles holds a group yet.
+        """
+        woredas = Location.objects.active().filter(level="WOREDA")
+        scope = request.user.wlt_scope_location
+        if request.user.group_scope() == "ALL" or scope is None:
+            return list(woredas.values_list("pk", flat=True))
+        visible = []
+        for woreda in woredas.select_related("parent__parent"):
+            node = woreda
+            while node is not None:
+                if node.pk == scope.pk:
+                    visible.append(woreda.pk)
+                    break
+                node = node.parent
+        # A scope *below* woreda level — a facilitator on one kebele — still
+        # reads the woreda that contains it, because that is where a federation
+        # would form. Without this her screen is empty rather than informative.
+        if not visible and scope is not None:
+            node = scope
+            while node is not None:
+                if node.level == "WOREDA":
+                    visible.append(node.pk)
+                    break
+                node = node.parent
+        return visible
+
     def _visible_kebele_ids(self, request):
         kebeles = Location.objects.active().filter(level="KEBELE")
         scope = request.user.wlt_scope_location
@@ -1121,6 +1384,16 @@ class ReportViewSet(viewsets.ViewSet):
                 node = node.parent
         return visible
 
+    @action(detail=False, methods=["get"], url_path="federation-readiness")
+    def federation_readiness(self, request):
+        """Per woreda: active CLAs against the federation threshold.
+
+        Scoped like every other aggregate here — "eleven CLAs in Dessie Zuria"
+        told to somebody entitled to see one woreda is still a disclosure.
+        """
+        woreda_ids = self._visible_woreda_ids(request)
+        return Response({"rows": reporting.federation_readiness(woreda_ids)})
+
     @action(detail=False, methods=["get"], url_path="cla-readiness")
     def cla_readiness(self, request):
         """Per kebele: eligible groups, the threshold, how many more are needed.
@@ -1134,7 +1407,15 @@ class ReportViewSet(viewsets.ViewSet):
         present = {row["kebele_id"] for row in rows}
         for kebele in Location.objects.filter(pk__in=set(kebele_ids) - present):
             threshold = wlt_policy.resolve_int("gate.cla.min_groups", location=kebele, default=8)
-            rows.append({"kebele_id": kebele.pk, "kebele": kebele.name, "eligible_groups": 0, "threshold": threshold, "groups_short": threshold})
+            rows.append(
+                {
+                    "kebele_id": kebele.pk,
+                    "kebele": kebele.name,
+                    "eligible_groups": 0,
+                    "threshold": threshold,
+                    "groups_short": threshold,
+                }
+            )
         rows.sort(key=lambda row: (row["groups_short"], row["kebele"]))
         return Response({"rows": rows})
 
