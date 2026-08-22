@@ -33,3 +33,10 @@ mobile/.dart_tool/
 
 # Local verification screenshots (scripts/shoot.mjs)
 .shots/
+
+# A newer revision of the WLT handoff bundle, unpacked at the repo root. Ignored
+# rather than deleted: it carries a 33-step linkage workflow document, a
+# filterable matrix and seven policy parameters that docs/wlt_module_handoff/
+# does not have, so merging it into the committed copy is a spec decision
+# somebody has to make rather than a tidy-up.
+/wlt_module_handoff-2/
