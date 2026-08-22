@@ -161,6 +161,10 @@ export default function App() {
                 <Route path="/wlt/beneficiaries/:profileId" element={<JourneyPage />} />
                 <Route path="/wlt/groups" element={<GroupsPage />} />
                 <Route path="/wlt/groups/:groupId" element={<GroupReadinessPage />} />
+                {/* Tabs are routes: a link to the roster is a link to the
+                    roster, refreshing keeps you where you were, and back steps
+                    between sections rather than leaving the group. */}
+                <Route path="/wlt/groups/:groupId/:tab" element={<GroupReadinessPage />} />
                 {/* The weekly meeting: attendance, savings, and the cash count.
                     Its own route rather than a panel — it is worked through in a
                     room, in order, and it is the screen the offline client will
