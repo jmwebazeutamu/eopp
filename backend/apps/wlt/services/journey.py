@@ -26,17 +26,21 @@ Two things it deliberately does not do:
 from dataclasses import dataclass, field
 
 from django.utils.translation import gettext_lazy as _
+from django.db.models import Sum
 
 from apps.youth.models import PsnpStatus, Sex
 
+from apps.users.models import Role
 from ..models import (
     CLA,
     ChildType,
     GroupMembership,
+    EntryType,
     GroupStatus,
     LinkageStatus,
     Phase,
     ServiceLinkage,
+    LoanStatus,
     ServiceLinkageType,
     StructuralMembership,
     VerificationStatus,
@@ -242,6 +246,18 @@ def _grouped(profile):
     )
 
 
+def _next_approval_role(linkage):
+    if linkage.status != LinkageStatus.PENDING_APPROVAL:
+        return None
+    approval = linkage.approvals.filter(decision="").order_by("level").first()
+    if approval is None:
+        return None
+    try:
+        return str(Role(approval.required_role).label)
+    except ValueError:
+        return approval.required_role.replace("_", " ").title()
+
+
 def _linked(profile):
     """Service or structural linkage — the two ways a group reaches beyond itself.
 
@@ -339,6 +355,7 @@ def _linked(profile):
                     "provider_name": linkage.provider.partner_name if linkage.provider_id else None,
                     "opened_on": linkage.opened_on.isoformat() if linkage.opened_on else None,
                     "activated_on": linkage.activated_on.isoformat() if linkage.activated_on else None,
+                    "next_approval_role_display": _next_approval_role(linkage),
                     # Whether this one is still live, so the screen can lead with
                     # the ones somebody has to do something about rather than
                     # sorting a facilitator's attention by date.
@@ -377,6 +394,34 @@ def _phase_clears(current, minimum):
 # ---------------------------------------------------------------------------
 
 
+def _financials(profile):
+    """The member's passbook totals across every group she has belonged to."""
+    person = profile.person
+    savings = (
+        person.wlt_ledger_entries.filter(entry_type=EntryType.SAVINGS).aggregate(total=Sum("amount_etb"))["total"] or 0
+    )
+    loans = list(person.wlt_loans.filter(disbursed_on__isnull=False).prefetch_related("repayments"))
+    disbursed = sum((loan.principal_etb for loan in loans), 0)
+    principal_repaid = sum((loan.principal_repaid_etb for loan in loans), 0)
+    charges_repaid = sum(
+        (repayment.charge_etb for loan in loans for repayment in loan.repayments.all()),
+        0,
+    )
+    outstanding = sum(
+        (loan.outstanding_principal_etb for loan in loans if loan.status in LoanStatus.owing()),
+        0,
+    )
+    return {
+        "savings_etb": str(savings),
+        "loans_disbursed_etb": str(disbursed),
+        "repayments_etb": str(principal_repaid + charges_repaid),
+        "principal_repaid_etb": str(principal_repaid),
+        "charges_repaid_etb": str(charges_repaid),
+        "outstanding_principal_etb": str(outstanding),
+        "loans_disbursed_count": len(loans),
+    }
+
+
 def build(profile):
     """The four stages for one woman, in order.
 
@@ -393,5 +438,6 @@ def build(profile):
         "stages": [stage.as_dict() for stage in stages],
         "stages_done": len(stages) - len(outstanding),
         "stages_total": len(stages),
+        "financials": _financials(profile),
         "next_action": outstanding[0].as_dict() if outstanding else None,
     }

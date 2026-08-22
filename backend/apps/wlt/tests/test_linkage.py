@@ -59,12 +59,48 @@ def resolve(linkage, actor):
     return linkage_service.record_resolution(linkage, reference="MIN-2027-001", actor=actor)
 
 
+def test_a_group_cannot_have_two_unfinished_linkages_of_the_same_type(p2_group, bank, facilitator):
+    linkage_service.propose(linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator)
+
+    with pytest.raises(LinkageError, match="already has an unfinished"):
+        linkage_service.propose(linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator)
+
+    assert ServiceLinkage.objects.filter(subject_group=p2_group, linkage_type_id="savings_account").count() == 1
+
+
 def test_a_savings_account_screens_clean_for_a_p2_group(p2_group, bank, facilitator):
     linkage = linkage_service.propose(
         linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator
     )
     assert linkage.status == LinkageStatus.SCREENED
     assert linkage.block_reasons == []
+
+
+def test_onward_linkages_can_branch_and_overlap(p2_group, bank, facilitator):
+    first = linkage_service.propose(
+        linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator
+    )
+    first.closed_on = date.today() + timedelta(days=30)
+    first.save(update_fields=["closed_on"])
+
+    onward = linkage_service.propose(
+        linkage_type="market_offtake",
+        subject=p2_group,
+        provider=bank,
+        actor=facilitator,
+        predecessor=first,
+    )
+    parallel_onward = linkage_service.propose(
+        linkage_type="cooperative_membership",
+        subject=p2_group,
+        provider=bank,
+        actor=facilitator,
+        predecessor=first,
+    )
+
+    assert onward.predecessor == first
+    assert set(first.onward_linkages.all()) == {onward, parallel_onward}
+    assert onward.opened_on < first.closed_on
 
 
 def test_a_p1_group_is_blocked_and_told_exactly_what_it_needs(wlt_group, bank, facilitator):
@@ -324,9 +360,7 @@ def test_a_provider_is_only_proposable_where_it_operates(p2_group, make_partner,
     assert elsewhere.partner_name not in names
 
     with pytest.raises(LinkageError):
-        linkage_service.propose(
-            linkage_type="savings_account", subject=p2_group, provider=elsewhere, actor=facilitator
-        )
+        linkage_service.propose(linkage_type="savings_account", subject=p2_group, provider=elsewhere, actor=facilitator)
 
 
 def test_submission_requires_the_groups_recorded_resolution(p2_group, bank, facilitator):
@@ -384,9 +418,7 @@ def test_uncured_distress_defaults_after_the_policy_window(p2_group, bank, facil
         activated_on=date.today(),
     )
     linkage_service.mark_distressed(linkage, reason="Payment missed", actor=facilitator)
-    linkage.events.filter(to_status=LinkageStatus.DISTRESSED).update(
-        occurred_at=timezone.now() - timedelta(days=61)
-    )
+    linkage.events.filter(to_status=LinkageStatus.DISTRESSED).update(occurred_at=timezone.now() - timedelta(days=61))
 
     assert linkage_service.default_overdue_distress() == 1
     linkage.refresh_from_db()

@@ -126,6 +126,28 @@ export default function JourneyPage() {
           that group all right? The stages below explain how she got there. */}
       {grouped && <GroupCard stage={grouped} onNavigate={navigate} />}
 
+      <Card>
+        <CapsLabel>{t("wlt.memberFinances")}</CapsLabel>
+        <p className="t-meta" style={{ marginTop: 8 }}>{t("wlt.memberFinancesBody")}</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginTop: 16 }}>
+          <FinancialFigure label={t("wlt.individualSavings")} value={journey.financials.savings_etb} />
+          <FinancialFigure
+            label={t("wlt.loansReceived")}
+            value={journey.financials.loans_disbursed_etb}
+            note={t("wlt.loanCount", { count: journey.financials.loans_disbursed_count })}
+          />
+          <FinancialFigure
+            label={t("wlt.repaymentsMade")}
+            value={journey.financials.repayments_etb}
+            note={t("wlt.repaymentsBreakdown", {
+              principal: journey.financials.principal_repaid_etb,
+              charges: journey.financials.charges_repaid_etb,
+            })}
+          />
+          <FinancialFigure label={t("wlt.principalOutstanding")} value={journey.financials.outstanding_principal_etb} />
+        </div>
+      </Card>
+
       {journey.stages.map((stage) => (
         <StageCard key={stage.code} stage={stage} onNavigate={navigate} onAddToGroup={() => setAddToGroup(true)} />
       ))}
@@ -163,6 +185,18 @@ export default function JourneyPage() {
           />
         </label>
       </Modal>
+    </div>
+  );
+}
+
+function FinancialFigure({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div>
+      <div className="t-meta">{label}</div>
+      <div className="tabular" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+        {value} ETB
+      </div>
+      {note && <div className="t-meta" style={{ marginTop: 4 }}>{note}</div>}
     </div>
   );
 }
@@ -363,6 +397,7 @@ type JourneyLinkage = {
   status_display: string;
   provider_name: string | null;
   opened_on: string | null;
+  next_approval_role_display: string | null;
   activated_on: string | null;
   is_live: boolean;
   is_settled: boolean;
@@ -416,6 +451,11 @@ function LinkageDetail({ stage, onNavigate }: { stage: JourneyStage; onNavigate:
                         ]
                           .filter(Boolean)
                           .join(" · ")}
+                      </span>
+                    )}
+                    {linkage.next_approval_role_display && (
+                      <span className="t-meta" style={{ display: "block" }}>
+                        Awaiting {linkage.next_approval_role_display}
                       </span>
                     )}
                   </span>

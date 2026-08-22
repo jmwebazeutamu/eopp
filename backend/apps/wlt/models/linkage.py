@@ -212,6 +212,15 @@ class ServiceLinkage(BaseModel):
         verbose_name=_("provider"),
         help_text=_("The bank, RUSACCO, cooperative or buyer on the other side."),
     )
+    predecessor = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="onward_linkages",
+        verbose_name=_("onward from"),
+        help_text=_("The earlier linkage that led to this one. Multiple onward linkages may run simultaneously."),
+    )
 
     subject_group = models.ForeignKey(
         "wlt.Group",

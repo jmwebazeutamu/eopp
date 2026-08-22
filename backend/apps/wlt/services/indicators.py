@@ -80,6 +80,7 @@ class GroupIndicators:
     members_current: int = 0
     members_compliant: int = 0
     savings_compliance_pct: Decimal | None = None
+    savings_compliance_members: list = field(default_factory=list)
 
     fund_etb: Decimal = ZERO
     social_fund_etb: Decimal = ZERO
@@ -203,10 +204,30 @@ def compute(group, as_of=None, policy_set=None):
 
     member_threshold = policy_set.get_int("indicator.member_compliance_pct", 90)
     compliant = 0
+    memberships = {
+        membership.person_id: membership
+        for membership in group.memberships.filter(person_id__in=expected_by_member).select_related("person")
+    }
     for person_id, due in expected_by_member.items():
-        rate = _pct(met_by_member.get(person_id, 0), due)
-        if rate is not None and rate >= member_threshold:
+        met = met_by_member.get(person_id, 0)
+        rate = _pct(met, due)
+        is_compliant = rate is not None and rate >= member_threshold
+        if is_compliant:
             compliant += 1
+        membership = memberships.get(person_id)
+        result.savings_compliance_members.append(
+            {
+                "person_id": str(person_id),
+                "full_name": membership.person.full_name if membership else str(person_id),
+                "meetings_met": met,
+                "meetings_expected": due,
+                "compliance_pct": str(rate) if rate is not None else None,
+                "is_compliant": is_compliant,
+                "is_current": bool(membership and membership.exited_on is None),
+            }
+        )
+
+    result.savings_compliance_members.sort(key=lambda row: (row["is_compliant"], row["full_name"].casefold()))
 
     result.members_current = group.current_members.count()
     result.members_compliant = compliant

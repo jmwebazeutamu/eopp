@@ -123,7 +123,9 @@ def proposable_providers(linkage_type, subject):
 
 
 @transaction.atomic
-def propose(*, linkage_type, subject, provider=None, actor=None, value_etb=None, terms=None, on_date=None):
+def propose(
+    *, linkage_type, subject, provider=None, actor=None, value_etb=None, terms=None, predecessor=None, on_date=None
+):
     """Raise a linkage. Screening happens immediately after, not later.
 
     The subject-type restriction is checked here **and** is data on the type
@@ -139,6 +141,28 @@ def propose(*, linkage_type, subject, provider=None, actor=None, value_etb=None,
         raise LinkageError(
             _("A %(type)s cannot be raised against a %(subject)s.")
             % {"type": linkage_type.label, "subject": LinkageSubjectType(subject_type).label}
+        )
+
+    if predecessor is not None:
+        if predecessor.subject_type != subject_type or predecessor.subject.pk != subject.pk:
+            raise LinkageError({"predecessor": _("An onward linkage must follow a linkage for the same subject.")})
+        if predecessor.opened_on > on_date:
+            raise LinkageError({"predecessor": _("An onward linkage cannot precede its earlier linkage.")})
+
+    # One subject can have only one unfinished linkage of a given type. Locking
+    # the subject serialises two simultaneous proposals before this check.
+    type(subject).objects.select_for_update().get(pk=subject.pk)
+    subject_field = SUBJECT_FIELD[subject_type]
+    existing = ServiceLinkage.objects.filter(
+        linkage_type=linkage_type,
+        **{subject_field: subject},
+    ).exclude(status__in=LinkageStatus.terminal())
+    if existing.exists():
+        raise LinkageError(
+            {
+                "linkage_type": _("This subject already has an unfinished %(type)s linkage.")
+                % {"type": linkage_type.label}
+            }
         )
 
     if provider is None:
@@ -159,6 +183,7 @@ def propose(*, linkage_type, subject, provider=None, actor=None, value_etb=None,
     linkage = ServiceLinkage.objects.create(
         linkage_type=linkage_type,
         provider=provider,
+        predecessor=predecessor,
         status=LinkageStatus.PROPOSED,
         opened_on=on_date,
         value_etb=value_etb,
@@ -294,9 +319,7 @@ def submit_for_approval(linkage, *, actor=None, override_reason=""):
         raise LinkageError(_("Only a screened linkage can be submitted for approval."))
 
     if not (linkage.terms or {}).get("resolution_reference"):
-        raise LinkageError(
-            {"resolution_reference": _("Record the group's minute-book resolution before submission.")}
-        )
+        raise LinkageError({"resolution_reference": _("Record the group's minute-book resolution before submission.")})
 
     if not linkage.approvals.exists():
         # An empty chain means the facilitator alone decides — a plain service
@@ -560,7 +583,12 @@ def resolve_obligation(linkage, *, reference, resolution, actor=None, note="", t
         from_status=linkage.status,
         to_status=linkage.status,
         actor=actor,
-        reason=note or {"SETTLED": _("Obligation settled."), "WRITE_OFF": _("Obligation written off."), "TRANSFER": _("Obligation transferred.")}[resolution],
+        reason=note
+        or {
+            "SETTLED": _("Obligation settled."),
+            "WRITE_OFF": _("Obligation written off."),
+            "TRANSFER": _("Obligation transferred."),
+        }[resolution],
         gate_snapshot=snapshot,
     )
     current[str(reference)] = snapshot["obligation"]

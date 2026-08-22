@@ -1,8 +1,27 @@
 import { Tooltip } from "antd";
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type { Referral } from "../../api/types";
 import { REFERRAL_TONE } from "../../design/status";
+import {
+  TimelineAxis,
+  TimelineBarGlyph,
+  TimelineLaneLabel,
+  TimelineLegend,
+  TIMELINE_AXIS_HEIGHT,
+  TIMELINE_BAR_HEIGHT,
+  TIMELINE_MIN_BAR_PX,
+  TIMELINE_ROW_HEIGHT,
+  timelineX,
+  type TimelineTone,
+} from "../timeline/TimelinePrimitives";
 import {
   buildTimelineLayout,
   durationDays,
@@ -46,11 +65,11 @@ interface Props {
 
 const GUTTER = 74; // track-label column
 const RIGHT_PAD = 16;
-const AXIS_HEIGHT = 30;
-const ROW_HEIGHT = 30;
-const BAR_HEIGHT = 20;
+const AXIS_HEIGHT = TIMELINE_AXIS_HEIGHT;
+const ROW_HEIGHT = TIMELINE_ROW_HEIGHT;
+const BAR_HEIGHT = TIMELINE_BAR_HEIGHT;
 const TRACK_GAP = 10;
-const MIN_BAR_PX = 10;
+const MIN_BAR_PX = TIMELINE_MIN_BAR_PX;
 const MIN_CHART_PX = 560;
 /** Rough advance width of the 11px label face; good enough to decide fit. */
 const CHAR_PX = 5.9;
@@ -76,7 +95,9 @@ export default function ReferralStackTimeline({
     if (widthProp !== undefined) return;
     const node = containerRef.current;
     if (!node || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(([entry]) => setMeasured(entry.contentRect.width));
+    const observer = new ResizeObserver(([entry]) =>
+      setMeasured(entry.contentRect.width),
+    );
     observer.observe(node);
     return () => observer.disconnect();
   }, [widthProp]);
@@ -85,7 +106,10 @@ export default function ReferralStackTimeline({
     if (widthProp !== undefined) setMeasured(widthProp);
   }, [widthProp]);
 
-  const layout = useMemo(() => buildTimelineLayout(referrals, { today }), [referrals, today]);
+  const layout = useMemo(
+    () => buildTimelineLayout(referrals, { today }),
+    [referrals, today],
+  );
 
   const chartWidth = Math.max(measured - GUTTER - RIGHT_PAD, MIN_CHART_PX);
   const svgWidth = GUTTER + chartWidth + RIGHT_PAD;
@@ -104,9 +128,11 @@ export default function ReferralStackTimeline({
 
   if (layout.isEmpty) return null;
 
-  const x = (offset: number) => GUTTER + offset * chartWidth;
+  const x = (offset: number) => timelineX(GUTTER, chartWidth, offset);
   const barY = (bar: TimelineBar) =>
-    (geometry.trackTop.get(bar.track) ?? AXIS_HEIGHT) + bar.row * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2;
+    (geometry.trackTop.get(bar.track) ?? AXIS_HEIGHT) +
+    bar.row * ROW_HEIGHT +
+    (ROW_HEIGHT - BAR_HEIGHT) / 2;
 
   const bars = layout.tracks.flatMap((track) => track.bars);
   const barById = new Map(bars.map((bar) => [bar.referral.id, bar]));
@@ -124,12 +150,15 @@ export default function ReferralStackTimeline({
   const roomAfter = new Map<string, number>();
   layout.tracks.forEach((track) => {
     const rows = new Map<number, TimelineBar[]>();
-    track.bars.forEach((bar) => rows.set(bar.row, [...(rows.get(bar.row) ?? []), bar]));
+    track.bars.forEach((bar) =>
+      rows.set(bar.row, [...(rows.get(bar.row) ?? []), bar]),
+    );
     rows.forEach((rowBars) => {
       const sorted = [...rowBars].sort((a, b) => a.offset - b.offset);
       sorted.forEach((bar, index) => {
         const next = sorted[index + 1];
-        const barRight = x(bar.offset) + Math.max(bar.width * chartWidth, MIN_BAR_PX);
+        const barRight =
+          x(bar.offset) + Math.max(bar.width * chartWidth, MIN_BAR_PX);
         const limit = next ? x(next.offset) : rightEdge;
         roomAfter.set(bar.referral.id, limit - barRight);
       });
@@ -152,57 +181,39 @@ export default function ReferralStackTimeline({
           aria-label={`Referral timeline, ${bars.length} referrals`}
         >
           <defs>
-            <marker id={markerId} viewBox="0 0 8 8" refX={7} refY={4} markerWidth={6} markerHeight={6} orient="auto">
+            <marker
+              id={markerId}
+              viewBox="0 0 8 8"
+              refX={7}
+              refY={4}
+              markerWidth={6}
+              markerHeight={6}
+              orient="auto"
+            >
               <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--ink-400)" />
             </marker>
           </defs>
 
-          {/* Axis: a gridline per interval, a label per interval the width allows. */}
-          {layout.ticks.map((tick, index) => (
-            <g key={tick.date.toISOString()}>
-              <line
-                x1={x(tick.offset)}
-                y1={AXIS_HEIGHT - 8}
-                x2={x(tick.offset)}
-                y2={geometry.height}
-                stroke="var(--line-soft)"
-              />
-              {index % labelEvery === 0 && (
-                <text
-                  x={x(tick.offset)}
-                  y={AXIS_HEIGHT - 14}
-                  fontSize={10}
-                  fill="var(--ink-400)"
-                  textAnchor="middle"
-                  fontWeight={600}
-                >
-                  {tick.label}
-                </text>
-              )}
-            </g>
-          ))}
-          <line
-            x1={GUTTER}
-            y1={AXIS_HEIGHT - 8}
-            x2={GUTTER + chartWidth}
-            y2={AXIS_HEIGHT - 8}
-            stroke="var(--line)"
+          <TimelineAxis
+            ticks={layout.ticks}
+            x={x}
+            chartStart={GUTTER}
+            chartEnd={GUTTER + chartWidth}
+            height={geometry.height}
+            labelEvery={labelEvery}
           />
 
           {/* Track labels and their baselines. */}
           {layout.tracks.map((track) => {
             const top = geometry.trackTop.get(track.id) ?? 0;
             return (
-              <g key={track.id}>
-                <text x={0} y={top + ROW_HEIGHT / 2 + 3} className="t-caps" fontSize={10} fill="var(--ink-400)">
-                  {track.label.toUpperCase()}
-                </text>
-                {track.bars.length === 0 && (
-                  <text x={GUTTER + 4} y={top + ROW_HEIGHT / 2 + 4} fontSize={11} fill="var(--ink-400)">
-                    Never used
-                  </text>
-                )}
-              </g>
+              <TimelineLaneLabel
+                key={track.id}
+                label={track.label}
+                top={top}
+                gutter={GUTTER}
+                empty={track.bars.length === 0}
+              />
             );
           })}
 
@@ -235,7 +246,7 @@ export default function ReferralStackTimeline({
         </svg>
       </div>
 
-      <Legend />
+      <TimelineLegend items={REFERRAL_LEGEND} />
     </div>
   );
 }
@@ -275,7 +286,9 @@ function Bar({
   //  3. nowhere, leaving the tooltip to carry it. A label that overlaps the bar
   //     next to it is worse than no label at all.
   const insideChars = Math.floor((width - 14) / CHAR_PX);
-  const outsideChars = Math.floor((roomAfter - (bar.isOpenEnded ? 16 : 9)) / CHAR_PX);
+  const outsideChars = Math.floor(
+    (roomAfter - (bar.isOpenEnded ? 16 : 9)) / CHAR_PX,
+  );
   const placeInside = insideChars >= MIN_LABEL_CHARS;
   const shownLabel = placeInside
     ? truncate(label, insideChars)
@@ -313,38 +326,19 @@ function Bar({
           }
         }}
       >
-        <rect
-          x={left}
+        <TimelineBarGlyph
+          left={left}
           y={y}
           width={width}
-          height={BAR_HEIGHT}
-          rx={4}
-          fill={tone.bar}
-          stroke={selected ? "var(--ink-900)" : "transparent"}
-          strokeWidth={selected ? 2 : 0}
+          tone={{ fill: tone.bar, ink: tone.ink, mark: tone.mark }}
+          openEnded={bar.isOpenEnded}
+          selected={selected}
+          label={shownLabel}
+          labelX={
+            placeInside ? left + 7 : left + width + (bar.isOpenEnded ? 14 : 7)
+          }
+          labelFill={placeInside ? onDark(r.status) : tone.ink}
         />
-
-        {/* An open referral has no closing edge: it runs into an arrow rather
-            than being squared off at today, which would read as an outcome. */}
-        {bar.isOpenEnded && (
-          <path
-            d={`M ${left + width} ${y} l 7 ${BAR_HEIGHT / 2} l -7 ${BAR_HEIGHT / 2} z`}
-            fill={tone.bar}
-            opacity={0.7}
-          />
-        )}
-
-        {shownLabel && (
-          <text
-            x={placeInside ? left + 7 : left + width + (bar.isOpenEnded ? 14 : 7)}
-            y={y + BAR_HEIGHT / 2 + 4}
-            fontSize={11}
-            fontWeight={600}
-            fill={placeInside ? onDark(r.status) : tone.ink}
-          >
-            {shownLabel}
-          </text>
-        )}
       </g>
     </Tooltip>
   );
@@ -419,15 +413,26 @@ function onDark(status: Referral["status"]): string {
   // --cancelled-bar (2.98:1) — both unreadable, and the gold one breaks the
   // token file's own rule that --gold-500 is fill only, never behind text.
   // --ink-900 is 5.97:1 on gold and 5.90:1 on the cancelled grey.
-  return status === "PENDING_CONFIRMATION" || status === "CANCELLED" ? "var(--ink-900)" : "var(--on-dark)";
+  return status === "PENDING_CONFIRMATION" || status === "CANCELLED"
+    ? "var(--ink-900)"
+    : "var(--on-dark)";
 }
 
 function truncate(value: string, max: number): string {
   if (max <= 0) return "";
-  return value.length <= max ? value : `${value.slice(0, Math.max(1, max - 1))}…`;
+  return value.length <= max
+    ? value
+    : `${value.slice(0, Math.max(1, max - 1))}…`;
 }
 
-const LEGEND_ORDER = ["PENDING_CONFIRMATION", "ACTIVE", "COMPLETED", "FAILED", "REPLACED", "CANCELLED"] as const;
+const LEGEND_ORDER = [
+  "PENDING_CONFIRMATION",
+  "ACTIVE",
+  "COMPLETED",
+  "FAILED",
+  "REPLACED",
+  "CANCELLED",
+] as const;
 
 const LEGEND_LABEL: Record<(typeof LEGEND_ORDER)[number], string> = {
   PENDING_CONFIRMATION: "Pending confirmation",
@@ -438,23 +443,15 @@ const LEGEND_LABEL: Record<(typeof LEGEND_ORDER)[number], string> = {
   CANCELLED: "Cancelled",
 };
 
-function Legend() {
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginTop: 10 }}>
-      {LEGEND_ORDER.map((status) => {
-        const tone = REFERRAL_TONE[status];
-        return (
-          <span key={status} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-            <span
-              aria-hidden
-              style={{ width: 14, height: 10, borderRadius: 3, background: tone.bar, display: "inline-block" }}
-            />
-            <span style={{ color: tone.ink, fontWeight: 600 }}>
-              {tone.mark} {LEGEND_LABEL[status]}
-            </span>
-          </span>
-        );
-      })}
-    </div>
-  );
-}
+const REFERRAL_LEGEND = LEGEND_ORDER.map((status) => {
+  const tone = REFERRAL_TONE[status];
+  return {
+    key: status,
+    label: LEGEND_LABEL[status],
+    tone: {
+      fill: tone.bar,
+      ink: tone.ink,
+      mark: tone.mark,
+    } satisfies TimelineTone,
+  };
+});

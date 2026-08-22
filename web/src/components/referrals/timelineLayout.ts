@@ -1,6 +1,5 @@
-import { timeDay, timeMonday, timeMonth, type TimeInterval } from "d3-time";
-
 import type { Referral, ReferralStatusCode } from "../../api/types";
+import { buildTimelineScale } from "../timeline/TimelinePrimitives";
 
 /**
  * Layout arithmetic for the referral stack timeline (spec §6.4).
@@ -97,7 +96,10 @@ function startOfDay(date: Date): Date {
  * bar closes at `updated_at`, when the withdrawal was written. Falling back to
  * today would draw a referral cancelled months ago as though it still ran.
  */
-export function barEnd(referral: Referral, today: Date): { end: Date; isOpenEnded: boolean } {
+export function barEnd(
+  referral: Referral,
+  today: Date,
+): { end: Date; isOpenEnded: boolean } {
   if (OPEN_STATUSES.includes(referral.status)) {
     return { end: today, isOpenEnded: true };
   }
@@ -110,7 +112,8 @@ export function barEnd(referral: Referral, today: Date): { end: Date; isOpenEnde
 
 /** Initiation order, ties broken on id so the layout is stable across renders. */
 function byInitiation(a: Referral, b: Referral): number {
-  if (a.initiated_date !== b.initiated_date) return a.initiated_date < b.initiated_date ? -1 : 1;
+  if (a.initiated_date !== b.initiated_date)
+    return a.initiated_date < b.initiated_date ? -1 : 1;
   return a.id < b.id ? -1 : 1;
 }
 
@@ -141,13 +144,18 @@ interface Extent {
  * the picture is worse than a crowded lane, and the lane stacks it onto its own
  * row rather than hiding it.
  */
-export function packIntoSlots(extents: Extent[]): { slot1: Extent[]; slot2: Extent[]; overflow: Extent[] } {
+export function packIntoSlots(extents: Extent[]): {
+  slot1: Extent[];
+  slot2: Extent[];
+  overflow: Extent[];
+} {
   const slot1: Extent[] = [];
   const slot2: Extent[] = [];
   const overflow: Extent[] = [];
 
   extents.forEach((extent) => {
-    const freeIn = (slot: Extent[]) => !slot.length || slot[slot.length - 1].packEnd <= extent.start;
+    const freeIn = (slot: Extent[]) =>
+      !slot.length || slot[slot.length - 1].packEnd <= extent.start;
     if (freeIn(slot1)) slot1.push(extent);
     else if (freeIn(slot2)) slot2.push(extent);
     else {
@@ -168,7 +176,9 @@ export function packIntoSlots(extents: Extent[]): { slot1: Extent[]; slot2: Exte
  * Complementary Service referrals drawn on one row would silently cover one
  * another. Whichever started first keeps the top row.
  */
-export function assignRows(extents: Extent[]): { extent: Extent; row: number }[] {
+export function assignRows(
+  extents: Extent[],
+): { extent: Extent; row: number }[] {
   const rowEnds: Date[] = [];
 
   return extents.map((extent) => {
@@ -196,23 +206,28 @@ export function chooseTickKind(spanDays: number): TickKind {
   return "quarter";
 }
 
-const INTERVALS: Record<TickKind, TimeInterval> = {
-  day: timeDay,
-  // Monday-aligned, so weekly ticks land on a day people plan around.
-  week: timeMonday,
-  month: timeMonth,
-  // `every` returns null only for a non-positive step, which 3 is not.
-  quarter: timeMonth.every(3) as TimeInterval,
-};
-
 // en-GB rather than the runtime locale: the axis should not reformat itself on
 // a machine set to another locale, and tests would drift with it.
-const DAY_MONTH = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+const DAY_MONTH = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+});
 const MONTH = new Intl.DateTimeFormat("en-GB", { month: "short" });
-const MONTH_YEAR = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" });
-const FULL_DATE = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const MONTH_YEAR = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  year: "numeric",
+});
+const FULL_DATE = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
-export function formatTick(date: Date, kind: TickKind, isFirst: boolean): string {
+export function formatTick(
+  date: Date,
+  kind: TickKind,
+  isFirst: boolean,
+): string {
   switch (kind) {
     case "day":
     case "week":
@@ -220,7 +235,9 @@ export function formatTick(date: Date, kind: TickKind, isFirst: boolean): string
     case "month":
       // The year is worth repeating only where it changes, or on the first tick
       // so the axis is never undated.
-      return date.getMonth() === 0 || isFirst ? MONTH_YEAR.format(date) : MONTH.format(date);
+      return date.getMonth() === 0 || isFirst
+        ? MONTH_YEAR.format(date)
+        : MONTH.format(date);
     case "quarter":
       return MONTH_YEAR.format(date);
   }
@@ -231,7 +248,10 @@ export interface LayoutOptions {
   today?: Date;
 }
 
-export function buildTimelineLayout(referrals: Referral[], options: LayoutOptions = {}): TimelineLayout {
+export function buildTimelineLayout(
+  referrals: Referral[],
+  options: LayoutOptions = {},
+): TimelineLayout {
   const today = startOfDay(options.today ?? new Date());
   if (!referrals.length) {
     return {
@@ -245,45 +265,42 @@ export function buildTimelineLayout(referrals: Referral[], options: LayoutOption
     };
   }
 
-  const extents: Extent[] = [...referrals].sort(byInitiation).map((referral) => {
-    const { end, isOpenEnded } = barEnd(referral, today);
-    const start = parseDateOnly(referral.initiated_date);
-    // A bar never runs backwards, whatever the recorded dates say — both are
-    // hand-entered and an outcome can land before the initiation date.
-    const safeEnd = end < start ? start : end;
-    return {
-      referral,
-      start,
-      end: safeEnd,
-      isOpenEnded,
-      packEnd: safeEnd > start ? safeEnd : new Date(start.getTime() + MS_PER_DAY),
-    };
-  });
+  const extents: Extent[] = [...referrals]
+    .sort(byInitiation)
+    .map((referral) => {
+      const { end, isOpenEnded } = barEnd(referral, today);
+      const start = parseDateOnly(referral.initiated_date);
+      // A bar never runs backwards, whatever the recorded dates say — both are
+      // hand-entered and an outcome can land before the initiation date.
+      const safeEnd = end < start ? start : end;
+      return {
+        referral,
+        start,
+        end: safeEnd,
+        isOpenEnded,
+        packEnd:
+          safeEnd > start ? safeEnd : new Date(start.getTime() + MS_PER_DAY),
+      };
+    });
 
   // Earliest initiation to the later of today and the last outcome: an open
   // referral has to reach the right-hand edge, and a case closed months ago
   // should not stretch the axis to today for no reason.
   const first = new Date(Math.min(...extents.map((e) => e.start.getTime())));
   const lastEnd = new Date(Math.max(...extents.map((e) => e.end.getTime())));
-  const rawStart = first;
-  const rawEnd = new Date(Math.max(lastEnd.getTime(), today.getTime()));
-
-  // A day of breathing room at each end, more on a long case, so the first bar
-  // does not start flush against the axis. Whole-month padding would be worse:
-  // it makes a five-day case occupy a twentieth of the width.
-  const rawSpan = Math.max(rawEnd.getTime() - rawStart.getTime(), MS_PER_DAY);
-  const pad = Math.max(MS_PER_DAY, rawSpan * 0.04);
-  const domainStart = new Date(rawStart.getTime() - pad);
-  const domainEnd = new Date(rawEnd.getTime() + pad);
-  const span = domainEnd.getTime() - domainStart.getTime();
-
-  const position = (date: Date) => (date.getTime() - domainStart.getTime()) / span;
+  const scale = buildTimelineScale([first, lastEnd], today);
+  const [domainStart, domainEnd] = scale.domain;
+  const position = scale.position;
 
   const exempt = extents.filter((e) => !e.referral.counts_toward_parallel_cap);
   const counting = extents.filter((e) => e.referral.counts_toward_parallel_cap);
   const { slot1, slot2 } = packIntoSlots(counting);
 
-  const buildTrack = (id: TrackId, label: string, members: Extent[]): TimelineTrack => {
+  const buildTrack = (
+    id: TrackId,
+    label: string,
+    members: Extent[],
+  ): TimelineTrack => {
     const placed = assignRows(members);
     const bars = placed.map(({ extent, row }) => {
       const offset = position(extent.start);
@@ -300,7 +317,12 @@ export function buildTimelineLayout(referrals: Referral[], options: LayoutOption
         width: Math.max(position(extent.end) - offset, 0),
       };
     });
-    return { id, label, bars, rowCount: Math.max(1, ...placed.map((p) => p.row + 1)) };
+    return {
+      id,
+      label,
+      bars,
+      rowCount: Math.max(1, ...placed.map((p) => p.row + 1)),
+    };
   };
 
   const tracks: TimelineTrack[] = [
@@ -314,21 +336,21 @@ export function buildTimelineLayout(referrals: Referral[], options: LayoutOption
     .filter((r) => r.parent_referral && present.has(r.parent_referral))
     // Only Onward and Replacement carry a parent (§5.2); a Manual referral with
     // one is a data fault, and there is no honest label for that link.
-    .filter((r) => r.referral_trigger === "ONWARD" || r.referral_trigger === "REPLACEMENT")
+    .filter(
+      (r) =>
+        r.referral_trigger === "ONWARD" || r.referral_trigger === "REPLACEMENT",
+    )
     .map((r) => ({
       fromId: r.parent_referral!,
       toId: r.id,
-      kind: r.referral_trigger === "ONWARD" ? ("onward" as const) : ("replacement" as const),
+      kind:
+        r.referral_trigger === "ONWARD"
+          ? ("onward" as const)
+          : ("replacement" as const),
     }));
 
-  const spanDays = span / MS_PER_DAY;
-  const tickKind = chooseTickKind(spanDays);
-  const ticks: TimelineTick[] = INTERVALS[tickKind]
-    .range(domainStart, domainEnd)
-    .map((date, index) => ({ date, offset: position(date), label: formatTick(date, tickKind, index === 0) }));
-
-  const startYear = domainStart.getFullYear();
-  const endYear = domainEnd.getFullYear();
+  const tickKind = scale.tickKind;
+  const ticks: TimelineTick[] = scale.ticks;
 
   return {
     tracks,
@@ -336,7 +358,7 @@ export function buildTimelineLayout(referrals: Referral[], options: LayoutOption
     ticks,
     tickKind,
     domain: [domainStart, domainEnd],
-    yearLabel: startYear === endYear ? String(startYear) : `${startYear}–${endYear}`,
+    yearLabel: scale.yearLabel,
     isEmpty: false,
   };
 }
@@ -344,10 +366,15 @@ export function buildTimelineLayout(referrals: Referral[], options: LayoutOption
 /** The period sentence for a bar's label and tooltip. */
 export function periodLabel(bar: TimelineBar): string {
   const from = FULL_DATE.format(bar.start);
-  return bar.isOpenEnded ? `${from} – ongoing` : `${from} – ${FULL_DATE.format(bar.end)}`;
+  return bar.isOpenEnded
+    ? `${from} – ongoing`
+    : `${from} – ${FULL_DATE.format(bar.end)}`;
 }
 
 /** How many days a bar covers, for the tooltip's "ran for N days". */
 export function durationDays(bar: TimelineBar): number {
-  return Math.max(1, Math.round((bar.end.getTime() - bar.start.getTime()) / MS_PER_DAY) + 1);
+  return Math.max(
+    1,
+    Math.round((bar.end.getTime() - bar.start.getTime()) / MS_PER_DAY) + 1,
+  );
 }

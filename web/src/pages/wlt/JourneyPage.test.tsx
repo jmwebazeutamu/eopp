@@ -43,6 +43,15 @@ function mount(overrides: Partial<Journey> = {}, role: "WLT_FACILITATOR" | "WLT_
     person: "p1",
     profile: "b1",
     full_name: "Almaz Tesfaye",
+    financials: {
+      savings_etb: "240.00",
+      loans_disbursed_etb: "100.00",
+      repayments_etb: "45.00",
+      principal_repaid_etb: "40.00",
+      charges_repaid_etb: "5.00",
+      outstanding_principal_etb: "60.00",
+      loans_disbursed_count: 1,
+    },
     stages: [
       stage("REGISTERED", "done"),
       stage("VERIFIED", "done"),
