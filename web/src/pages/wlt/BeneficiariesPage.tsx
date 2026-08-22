@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { api, errorMessage } from "../../api/client";
-import type { Paginated, Summary, WltBeneficiary } from "../../api/types";
+import type { Paginated, Summary, WltBeneficiary, WltGroup } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import ListPage from "../../components/ListPage";
 import Paginator from "../../components/Paginator";
@@ -43,6 +43,8 @@ export default function BeneficiariesPage() {
   const route = params.get("enrolment_route") ?? "";
   const eligibility = params.get("is_programme_eligible") ?? "";
   const inGroup = params.get("in_group") ?? "";
+  const groupFilter = params.get("group") ?? "";
+  const [groups, setGroups] = useState<WltGroup[]>([]);
   const page = Math.max(1, Number(params.get("page") ?? 1));
   const pageSize = 25;
 
@@ -65,6 +67,7 @@ export default function BeneficiariesPage() {
             enrolment_route: route || undefined,
             is_programme_eligible: eligibility || undefined,
             in_group: inGroup || undefined,
+            group: groupFilter || undefined,
           },
         }),
         api.get<Summary>("/wlt/profiles/summary/", {
@@ -73,6 +76,7 @@ export default function BeneficiariesPage() {
             enrolment_route: route || undefined,
             is_programme_eligible: eligibility || undefined,
             in_group: inGroup || undefined,
+            group: groupFilter || undefined,
           },
         }),
       ]);
@@ -90,6 +94,27 @@ export default function BeneficiariesPage() {
     void load();
   }, [load]);
 
+  // Loaded once and separately from the register: the option list is the groups
+  // this account can see, and it does not change when a filter does. Scoped
+  // server-side, so it cannot offer a roster the register would then refuse.
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .get<Paginated<WltGroup> | WltGroup[]>("/wlt/groups/", { params: { page_size: 200, ordering: "name" } })
+      .then((response) => {
+        if (cancelled) return;
+        setGroups(Array.isArray(response.data) ? response.data : response.data.results);
+      })
+      .catch(() => {
+        // A filter that cannot list groups still filters by the other two
+        // options, so this degrades rather than blocking the screen.
+        if (!cancelled) setGroups([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function setVerification(next: string) {
     const updated = new URLSearchParams(params);
     if (next) updated.set("verification_status", next);
@@ -106,12 +131,31 @@ export default function BeneficiariesPage() {
     setParams(updated, { replace: true });
   }
 
+  /**
+   * The group control writes one of two parameters.
+   *
+   * "" clears both, "true"/"false" narrow by whether she is seated at all, and
+   * anything else is a group id. They are separate parameters on the server —
+   * `in_group` is a yes/no over the whole scope, `group` is one roster — so
+   * setting either has to clear the other or the two would compound.
+   */
+  function setGroupFilter(value: string) {
+    const updated = new URLSearchParams(params);
+    updated.delete("in_group");
+    updated.delete("group");
+    if (value === "true" || value === "false") updated.set("in_group", value);
+    else if (value) updated.set("group", value);
+    updated.delete("page");
+    setParams(updated, { replace: true });
+  }
+
   function clearFilters() {
     const updated = new URLSearchParams(params);
     updated.delete("verification_status");
     updated.delete("enrolment_route");
     updated.delete("is_programme_eligible");
     updated.delete("in_group");
+    updated.delete("group");
     updated.delete("page");
     setParams(updated, { replace: true });
   }
@@ -182,15 +226,28 @@ export default function BeneficiariesPage() {
                   <option value="false">{t("wlt.notEligible")}</option>
                 </select>
               </label>
-              <label style={{ minWidth: 190 }}>
+              {/* One control, not two. "Is she in a group" and "which group"
+                  are the same question at different resolutions, and two
+                  selects both labelled Group would be a puzzle. The aggregate
+                  answers sit above the named ones. */}
+              <label style={{ minWidth: 230 }}>
                 <span className="t-caps">{t("wlt.col.group")}</span>
-                <select className="input" value={inGroup} onChange={(event) => setFilter("in_group", event.target.value)}>
+                <select className="input" value={groupFilter || inGroup} onChange={(event) => setGroupFilter(event.target.value)}>
                   <option value="">{t("filters.all")}</option>
                   <option value="false">{t("wlt.notInAGroupFilter")}</option>
                   <option value="true">{t("wlt.inAGroupFilter")}</option>
+                  {groups.length > 0 && (
+                    <optgroup label={t("wlt.filterByNamedGroup")}>
+                      {groups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </label>
-              {(verification || route || eligibility || inGroup) && (
+              {(verification || route || eligibility || inGroup || groupFilter) && (
                 <Button onClick={clearFilters}>{t("filters.clear")}</Button>
               )}
             </div>

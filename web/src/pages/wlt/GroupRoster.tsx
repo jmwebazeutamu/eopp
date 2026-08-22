@@ -9,6 +9,8 @@ import type {
   WltExitReason,
   WltGroup,
   WltGroupMembership,
+  WltOfficeHolder,
+  WltOfficeRole,
 } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { Button, CapsLabel, Card } from "../../components/ui";
@@ -52,17 +54,24 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [exiting, setExiting] = useState<WltGroupMembership | null>(null);
+  const [officers, setOfficers] = useState<WltOfficeHolder[]>([]);
+  const [editing, setEditing] = useState(false);
   const [registering, setRegistering] = useState(false);
 
   // The tab gate is not the security boundary — `CanAccessGroups` refuses the
   // write regardless. This only stops offering a button that would 403.
   const canWrite = Boolean(user?.access.group_write);
+  const onOpenMember = (profileId: string) => navigate(`/wlt/beneficiaries/${profileId}`);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get<WltGroupMembership[]>(`/wlt/groups/${group.id}/members/`);
-      setRoster(response.data);
+      const [members, holders] = await Promise.all([
+        api.get<WltGroupMembership[]>(`/wlt/groups/${group.id}/members/`),
+        api.get<WltOfficeHolder[]>(`/wlt/groups/${group.id}/officers/`),
+      ]);
+      setRoster(members.data);
+      setOfficers(holders.data);
     } catch (error) {
       message.error(errorMessage(error, t("wlt.rosterLoadFailed")));
     } finally {
@@ -119,14 +128,12 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
               <tbody>
                 {current.map((membership) => (
                   <tr key={membership.id}>
-                    <td style={{ fontWeight: 600 }}>{membership.full_name}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      <MemberName membership={membership} onOpen={onOpenMember} />
+                    </td>
                     <td className="t-meta">{t("wlt.joinedOn", { date: membership.joined_on })}</td>
                     <td style={{ textAlign: "right" }}>
-                      {canWrite && (
-                        <Button size="sm" onClick={() => setExiting(membership)}>
-                          {t("wlt.exitMember")}
-                        </Button>
-                      )}
+                      <OfficeTag role={officeOf(officers, membership.person)} />
                     </td>
                   </tr>
                 ))}
@@ -153,14 +160,12 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
                 }}
               >
                 <span>
-                  <strong>{membership.full_name}</strong>
+                  <strong>
+                    <MemberName membership={membership} onOpen={onOpenMember} />
+                  </strong>
                   <span className="t-meta"> · {t("wlt.joinedOn", { date: membership.joined_on })}</span>
                 </span>
-                {canWrite && (
-                  <Button size="sm" onClick={() => setExiting(membership)}>
-                    {t("wlt.exitMember")}
-                  </Button>
-                )}
+                <OfficeTag role={officeOf(officers, membership.person)} />
               </li>
             ))}
           </ul>
@@ -173,6 +178,11 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
             {t("wlt.addMember")}
           </Button>
           <Button onClick={() => setRegistering(true)}>Register and add</Button>
+          {/* One entry point rather than a button on every row. Removing a
+              woman and electing an officer are the same kind of act — changing
+              who is in the group and what they do in it — and twenty exit
+              buttons made the roster read as a list of things to undo. */}
+          <Button onClick={() => setEditing(true)}>{t("wlt.editMembers")}</Button>
         </div>
       )}
 
@@ -192,6 +202,16 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
           </ul>
         </div>
       )}
+
+      <EditMembersModal
+        group={group}
+        open={editing}
+        members={current}
+        officers={officers}
+        onClose={() => setEditing(false)}
+        onExit={(membership) => setExiting(membership)}
+        onChanged={load}
+      />
 
       <AddMemberModal
         group={group}
@@ -230,6 +250,162 @@ export default function GroupRoster({ group, onChanged }: { group: WltGroup; onC
  * server applies the same three filters the service does — eligible, verified,
  * not currently in a group — so what is listed is what will be accepted.
  */
+/** The three offices, in the order the handbook lists them. */
+const OFFICES: WltOfficeRole[] = ["CHAIR", "SECRETARY", "TREASURER"];
+
+/** Which office this woman currently holds, if any. */
+function officeOf(officers: WltOfficeHolder[], personId: string): WltOfficeRole | null {
+  const held = officers.find((row) => row.person === personId && row.to_date === null);
+  return held ? held.role : null;
+}
+
+/**
+ * The officer tag beside a name.
+ *
+ * Green fill with ink text, not a status colour: an office is a fact about a
+ * member, not a state she is in, and giving it a status tone would compete
+ * with the group's own chip at the top of the screen.
+ */
+function OfficeTag({ role }: { role: WltOfficeRole | null }) {
+  const { t } = useLang();
+  if (!role) return null;
+  return <span className="officer-tag">{t(`wlt.office${role}`)}</span>;
+}
+
+/**
+ * Editing who is in the group and what they do in it.
+ *
+ * Replaces a "record that she left" button on every roster row. Twenty exit
+ * buttons made the roster read as a list of things to undo, and the roster is
+ * mostly read rather than edited — the names, and now the offices, are what a
+ * facilitator checks against the paper register.
+ *
+ * The exit still runs through `ExitMemberModal`, unchanged: the reason is
+ * mandatory, and a woman with an outstanding loan is refused. This screen only
+ * moves where it is launched from.
+ */
+function EditMembersModal({
+  group,
+  open,
+  members,
+  officers,
+  onClose,
+  onExit,
+  onChanged,
+}: {
+  group: WltGroup;
+  open: boolean;
+  members: WltGroupMembership[];
+  officers: WltOfficeHolder[];
+  onClose: () => void;
+  onExit: (membership: WltGroupMembership) => void;
+  onChanged: () => void;
+}) {
+  const { message } = App.useApp();
+  const { t } = useLang();
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const vacant = OFFICES.filter((role) => !officers.some((row) => row.role === role && row.to_date === null));
+
+  async function elect(membership: WltGroupMembership, role: WltOfficeRole) {
+    setSaving(membership.id);
+    try {
+      await api.post(`/wlt/groups/${group.id}/officers/`, { person: membership.person, role });
+      message.success(t("wlt.electDone", { name: membership.full_name, office: t(`wlt.office${role}`) }));
+      onChanged();
+    } catch (error) {
+      message.error(errorMessage(error, t("wlt.electFailed")));
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      title={t("wlt.editMembersTitle")}
+      onCancel={onClose}
+      onOk={onClose}
+      okText={t("wlt.done")}
+      cancelButtonProps={{ style: { display: "none" } }}
+      width={620}
+      destroyOnHidden
+    >
+      <p className="t-meta">{t("wlt.editMembersHelp")}</p>
+      {vacant.length > 0 && (
+        <p className="t-meta">
+          {t("wlt.vacantOffices", { offices: vacant.map((role) => t(`wlt.office${role}`)).join(", ") })}
+        </p>
+      )}
+
+      <table className="roster-table">
+        <tbody>
+          {members.map((membership) => {
+            const role = officeOf(officers, membership.person);
+            return (
+              <tr key={membership.id}>
+                <td style={{ fontWeight: 600 }}>{membership.full_name}</td>
+                <td>
+                  {/* A select rather than three buttons: the three offices are
+                      mutually exclusive for one woman, and "no office" has to
+                      be visible as her current state. Clearing it is not
+                      offered — an office is vacated by electing somebody else,
+                      which is what closes the sitting term. */}
+                  <Select
+                    size="small"
+                    style={{ width: 150 }}
+                    value={role ?? ""}
+                    loading={saving === membership.id}
+                    onChange={(next) => void elect(membership, next as WltOfficeRole)}
+                    options={[
+                      { value: "", label: t("wlt.officeNone"), disabled: true },
+                      ...OFFICES.map((office) => ({ value: office, label: t(`wlt.office${office}`) })),
+                    ]}
+                  />
+                </td>
+                <td style={{ textAlign: "right" }}>
+                  <Button size="sm" onClick={() => onExit(membership)}>
+                    {t("wlt.exitMember")}
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </Modal>
+  );
+}
+
+/**
+ * A member's name, which opens her record.
+ *
+ * A link only when there is somewhere to go. A membership written before
+ * `add_member` required a profile carries none, and a name that looks like a
+ * link and does nothing is worse than plain text — so those stay plain.
+ */
+function MemberName({
+  membership,
+  onOpen,
+}: {
+  membership: WltGroupMembership;
+  onOpen: (profileId: string) => void;
+}) {
+  if (!membership.profile) return <>{membership.full_name}</>;
+  return (
+    <button
+      type="button"
+      className="row-link"
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen(membership.profile as string);
+      }}
+    >
+      {membership.full_name}
+    </button>
+  );
+}
+
 function AddMemberModal({
   group,
   open,

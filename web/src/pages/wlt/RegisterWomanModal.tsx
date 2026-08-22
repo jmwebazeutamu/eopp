@@ -1,9 +1,10 @@
 import { Alert, App, Checkbox, DatePicker, Form, Input, Modal, Select } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { api, errorMessage, formErrors } from "../../api/client";
 import type { Location } from "../../api/types";
 import { useLang } from "../../i18n/LanguageContext";
+import { kebelesIn, placeOf, regionsIn, woredasIn } from "./locationCascade";
 
 /**
  * The exception route — decision D5's "a facilitator standing in front of a
@@ -39,9 +40,18 @@ export default function RegisterWomanModal({
   const { message } = App.useApp();
   const { t } = useLang();
   const [form] = Form.useForm();
-  const [kebeles, setKebeles] = useState<Location[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
+
+  // Watched rather than held in state: antd's form is the single source of
+  // truth for what is chosen, and a parallel copy would drift from it on reset.
+  const selectedRegion = Form.useWatch("region", form) as string | undefined;
+  const selectedWoreda = Form.useWatch("woreda", form) as string | undefined;
+
+  const regions = useMemo(() => regionsIn(locations), [locations]);
+  const woredas = useMemo(() => woredasIn(locations, selectedRegion ?? ""), [locations, selectedRegion]);
+  const kebeles = useMemo(() => kebelesIn(locations, selectedWoreda ?? ""), [locations, selectedWoreda]);
 
   function close(force = false) {
     if (!force && form.isFieldsTouched()) {
@@ -58,12 +68,18 @@ export default function RegisterWomanModal({
     void (async () => {
       try {
         const response = await api.get<Location[]>("/locations/");
-        if (!cancelled) {
-          setKebeles(response.data.filter((row) => row.level === "KEBELE"));
-          if (initialKebele) form.setFieldValue("kebele", initialKebele);
+        if (cancelled) return;
+        setLocations(response.data);
+        // Opened with a kebele already in mind — from the group screen, say.
+        // The region and woreda are derived from it rather than passed in:
+        // three values supplied separately can disagree with each other.
+        if (initialKebele) {
+          const place = placeOf(response.data, initialKebele);
+          if (place) form.setFieldsValue(place);
+          else form.setFieldValue("kebele", initialKebele);
         }
       } catch {
-        if (!cancelled) setKebeles([]);
+        if (!cancelled) setLocations([]);
       }
     })();
     return () => {
@@ -75,6 +91,11 @@ export default function RegisterWomanModal({
     setSubmitting(true);
     try {
       const payload: Record<string, unknown> = { ...values };
+      // Region and woreda are picker state, never sent. The server derives the
+      // whole chain from the kebele, and a hand-passed woreda that disagreed
+      // with its kebele would scope her to one place and report her in another.
+      delete payload.region;
+      delete payload.woreda;
       payload.has_device = Boolean(String(values.phone_number || "").trim());
       // antd hands back dayjs objects; the API wants plain dates.
       for (const field of ["date_of_birth", "consent_date", "els_completed_on", "els_grant_received_on"]) {
@@ -119,6 +140,41 @@ export default function RegisterWomanModal({
           <DatePicker onOpenChange={setPopupOpen} style={{ width: "100%" }} placement="bottomLeft" needConfirm={false} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
         </Form.Item>
         <Form.Item
+          name="region"
+          label={t("wlt.region")}
+          rules={[{ required: true, message: t("wlt.regionRequired") }]}
+        >
+          <Select
+            onOpenChange={setPopupOpen}
+            showSearch
+            optionFilterProp="label"
+            placeholder={t("wlt.chooseRegion")}
+            /* Clearing the level above clears everything under it. A kebele
+               left over from another region would be submitted silently, and
+               the server derives the whole place from the kebele — so the
+               woman would be registered somewhere nobody chose. */
+            onChange={() => form.setFieldsValue({ woreda: undefined, kebele: undefined })}
+            options={regions.map((region) => ({ value: region.code, label: region.name }))}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="woreda"
+          label={t("wlt.woreda")}
+          rules={[{ required: true, message: t("wlt.woredaRequired") }]}
+        >
+          <Select
+            onOpenChange={setPopupOpen}
+            showSearch
+            optionFilterProp="label"
+            disabled={!selectedRegion}
+            placeholder={selectedRegion ? t("wlt.chooseWoreda") : t("wlt.chooseRegionFirst")}
+            onChange={() => form.setFieldsValue({ kebele: undefined })}
+            options={woredas.map((woreda) => ({ value: woreda.code, label: woreda.name }))}
+          />
+        </Form.Item>
+
+        <Form.Item
           name="kebele"
           label={t("wlt.kebele")}
           extra={t("wlt.kebeleHelp")}
@@ -128,6 +184,8 @@ export default function RegisterWomanModal({
             onOpenChange={setPopupOpen}
             showSearch
             optionFilterProp="label"
+            disabled={!selectedWoreda}
+            placeholder={selectedWoreda ? t("wlt.chooseKebele") : t("wlt.chooseWoredaFirst")}
             options={kebeles.map((kebele) => ({ value: kebele.code, label: kebele.name }))}
           />
         </Form.Item>

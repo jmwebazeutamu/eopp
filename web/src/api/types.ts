@@ -25,7 +25,8 @@ export type Role =
   | "WLT_REGION_OFFICER"
   | "WLT_FEDERAL_OFFICER";
 
-export type CaseStatus = "ACTIVE" | "STALLED" | "REFERRAL_PENDING" | "PLACED" | "EXITED";
+export type CaseStatus =
+  "ACTIVE" | "STALLED" | "REFERRAL_PENDING" | "PLACED" | "EXITED";
 
 /** The §7 access row the API resolves for the current user. */
 export interface AccessMatrix {
@@ -110,7 +111,8 @@ export interface CaseDetail extends Omit<CaseListRow, "youth"> {
   updated_at: string;
 }
 
-export type CaseActionType = "NEXT_ACTION" | "FEEDBACK" | "FOLLOW_UP" | "STATUS_NOTE";
+export type CaseActionType =
+  "NEXT_ACTION" | "FEEDBACK" | "FOLLOW_UP" | "STATUS_NOTE";
 export type CaseActionStatus = "OPEN" | "DONE" | "SUPERSEDED";
 
 export interface CaseAction {
@@ -149,7 +151,8 @@ export interface Location {
   is_active: boolean;
 }
 
-export type Pathway = "WAGE_EMPLOYMENT" | "SELF_EMPLOYMENT" | "APPRENTICESHIP" | "TRAINING";
+export type Pathway =
+  "WAGE_EMPLOYMENT" | "SELF_EMPLOYMENT" | "APPRENTICESHIP" | "TRAINING";
 
 export type PartnerTypeCode =
   | "TVET_INSTITUTION"
@@ -240,7 +243,10 @@ export const PATHWAY_OPTIONS: { value: Pathway; label: string }[] = [
 
 /** Spec §7's ten roles, in the order the spec lists them. */
 export const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: "OUTREACH_WORKER", label: "Outreach worker / community facilitator" },
+  {
+    value: "OUTREACH_WORKER",
+    label: "Outreach worker / community facilitator",
+  },
   { value: "CASE_MANAGER", label: "Youth case manager" },
   { value: "TRAINER", label: "Trainer / training officer" },
   { value: "EMPLOYER_LIAISON", label: "Employer liaison staff" },
@@ -253,7 +259,11 @@ export const ROLE_OPTIONS: { value: Role; label: string }[] = [
 ];
 
 /** Roles that ScopedQuerySetMixin resolves through woreda_assignment. */
-export const WOREDA_SCOPED_ROLES: Role[] = ["OUTREACH_WORKER", "CASE_MANAGER", "SUPERVISOR"];
+export const WOREDA_SCOPED_ROLES: Role[] = [
+  "OUTREACH_WORKER",
+  "CASE_MANAGER",
+  "SUPERVISOR",
+];
 
 // --- Sprint 3: referral engine (spec §4.6, §5, §6) -------------------------
 export type ReferralStatusCode =
@@ -399,7 +409,10 @@ export interface AlertSummary {
  * the summary view can label them as not-yet-generated rather than showing a
  * bare zero that reads as "none outstanding".
  */
-export const ALERT_TYPES_PENDING_ENTITIES: AlertTypeCode[] = ["FOLLOW_UP_DUE", "RETENTION_CHECK_DUE"];
+export const ALERT_TYPES_PENDING_ENTITIES: AlertTypeCode[] = [
+  "FOLLOW_UP_DUE",
+  "RETENTION_CHECK_DUE",
+];
 
 // --- Full youth record (spec §4.1) -----------------------------------------
 
@@ -462,7 +475,8 @@ export interface YouthImportReport {
  * a reason rather than as a zero. The discriminated union makes the screen state
  * that case explicitly — there is no way to read `.value` off an absent figure.
  */
-export type Maybe<T> = ({ available: true } & T) | { available: false; reason: string };
+export type Maybe<T> =
+  ({ available: true } & T) | { available: false; reason: string };
 
 /** How much weight a figure's denominator can carry. See apps/dashboard/rules.py. */
 export type Band = "report" | "provisional" | "suppressed";
@@ -580,7 +594,11 @@ export interface ProgrammeDashboard {
   funnel: FunnelStage[];
   confirmation_lag: { standard_days: number; partners: PartnerLag[] };
   woredas: WoredaRow[];
-  alerts: { open_total: number; by_type: { type: string; count: number }[]; stalled_cases: number };
+  alerts: {
+    open_total: number;
+    by_type: { type: string; count: number }[];
+    stalled_cases: number;
+  };
 }
 
 /** Name and woredas only — what an assignment picker needs (§7). */
@@ -598,17 +616,21 @@ export const CASE_STATUS_OPTIONS: { value: CaseStatus; label: string }[] = [
   { value: "EXITED", label: "Exited" },
 ];
 
-export const PARTNER_TYPE_OPTIONS: { value: PartnerTypeCode; label: string }[] = [
-  { value: "TVET_INSTITUTION", label: "TVET Institution" },
-  { value: "EMPLOYER", label: "Employer" },
-  { value: "ENTERPRISE_DEVELOPMENT_AGENCY", label: "Enterprise Development Agency" },
-  { value: "SAVINGS_GROUP", label: "Savings Group" },
-  { value: "HEALTH_SERVICE", label: "Health Service" },
-  { value: "PSYCHOSOCIAL_SERVICE", label: "Psychosocial Service" },
-  { value: "LEGAL_AID", label: "Legal Aid" },
-  { value: "FINANCE_INSTITUTION", label: "Finance Institution" },
-  { value: "OTHER", label: "Other" },
-];
+export const PARTNER_TYPE_OPTIONS: { value: PartnerTypeCode; label: string }[] =
+  [
+    { value: "TVET_INSTITUTION", label: "TVET Institution" },
+    { value: "EMPLOYER", label: "Employer" },
+    {
+      value: "ENTERPRISE_DEVELOPMENT_AGENCY",
+      label: "Enterprise Development Agency",
+    },
+    { value: "SAVINGS_GROUP", label: "Savings Group" },
+    { value: "HEALTH_SERVICE", label: "Health Service" },
+    { value: "PSYCHOSOCIAL_SERVICE", label: "Psychosocial Service" },
+    { value: "LEGAL_AID", label: "Legal Aid" },
+    { value: "FINANCE_INSTITUTION", label: "Finance Institution" },
+    { value: "OTHER", label: "Other" },
+  ];
 
 export const MOU_STATUS_OPTIONS: { value: MouStatus; label: string }[] = [
   { value: "NONE", label: "No MOU" },
@@ -652,7 +674,8 @@ export interface Summary {
 // ---------------------------------------------------------------------------
 
 /** A card whose source entity does not exist yet. Never rendered as a zero. */
-export type Maybe2<T> = ({ available: true } & T) | { available: false; reason: string };
+export type Maybe2<T> =
+  ({ available: true } & T) | { available: false; reason: string };
 
 export interface MyWorkAlert {
   id: string;
@@ -684,10 +707,21 @@ export interface MyWork {
   active: { referrals: number; youth: number };
   woredas: string[];
   generated_at: string;
-  at_risk: { case: string; youth_name: string; reason: string; badge: string }[];
+  at_risk: {
+    case: string;
+    youth_name: string;
+    reason: string;
+    badge: string;
+  }[];
   at_risk_count: number;
   uninstrumented_risk: string[];
-  caseload_by_status: { status: string; label: string; n: number; oldest_days: number; slug: string }[];
+  caseload_by_status: {
+    status: string;
+    label: string;
+    n: number;
+    oldest_days: number;
+    slug: string;
+  }[];
   week: { opened: number; closed: number };
   /** Verified is a subset of recorded. Showing one without the other overstated it. */
   outcomes_verified: { verified: number; recorded: number };
@@ -762,7 +796,12 @@ export interface PartnerPerformanceRow {
 export interface OutcomeMatrix {
   categories: { code: string; label: string }[];
   outcomes: { code: string; label: string }[];
-  cells: { category: string; outcome: string; n_referrals: number; n_youth: number }[];
+  cells: {
+    category: string;
+    outcome: string;
+    n_referrals: number;
+    n_youth: number;
+  }[];
   not_recorded: number;
   /** "category:outcome" pairs §5.3 permits. A forbidden cell is not an empty one. */
   permitted: string[];
@@ -776,8 +815,15 @@ export interface OutcomeMatrix {
 export interface ProgrammeTier extends ProgrammeDashboard {
   as_of: string;
   outcome_matrix: OutcomeMatrix;
-  partner_performance: { overall_rate: Rate; partners: PartnerPerformanceRow[] };
-  parallel_load: { cases_with_parallel: number; breaches_cap: number; cases_total: number };
+  partner_performance: {
+    overall_rate: Rate;
+    partners: PartnerPerformanceRow[];
+  };
+  parallel_load: {
+    cases_with_parallel: number;
+    breaches_cap: number;
+    cases_total: number;
+  };
   data_completeness: CompletenessRow[];
   cohort_retention: { available: false; reason: string };
   disposition_90_day: { available: false; reason: string };
@@ -807,7 +853,12 @@ export interface DonorDashboard {
   scope_label: string;
   indicators: Indicator[];
   cumulative: {
-    series: { month: string; placed: number; cumulative: number; unit: string }[];
+    series: {
+      month: string;
+      placed: number;
+      cumulative: number;
+      unit: string;
+    }[];
     /** Placements older than the window, carried in rather than dropped. */
     opening_balance: number;
     unit: string;
@@ -823,7 +874,15 @@ export interface DonorDashboard {
 // ---------------------------------------------------------------------------
 
 export type WltGroupStatus =
-  "DRAFT" | "CONSTITUTED" | "ACTIVE" | "AT_RISK" | "DORMANT" | "SPLIT" | "MERGED" | "DISSOLVED" | "ABANDONED";
+  | "DRAFT"
+  | "CONSTITUTED"
+  | "ACTIVE"
+  | "AT_RISK"
+  | "DORMANT"
+  | "SPLIT"
+  | "MERGED"
+  | "DISSOLVED"
+  | "ABANDONED";
 
 export type WltPhase = "P1" | "P2" | "P3" | "P4" | "";
 
@@ -887,7 +946,14 @@ export interface WltMobilisationEvent {
 
 /** Why a woman left a group — `wlt.ExitReason`. */
 export type WltExitReason =
-  "MOVED" | "MARRIED_OUT" | "DIED" | "WITHDREW" | "EXPELLED" | "PSNP_EXIT" | "GROUP_SPLIT" | "";
+  | "MOVED"
+  | "MARRIED_OUT"
+  | "DIED"
+  | "WITHDREW"
+  | "EXPELLED"
+  | "PSNP_EXIT"
+  | "GROUP_SPLIT"
+  | "";
 
 /**
  * One membership: a dated range, never a flag.
@@ -897,9 +963,119 @@ export type WltExitReason =
  * indicator computes against the roster as it stood on a given date, and a
  * boolean drifts from the dates within a month.
  */
+/** Why she borrowed — `wlt.LoanPurpose`. */
+export type WltLoanPurpose =
+  "IGA" | "EMERGENCY" | "HOUSEHOLD" | "EDUCATION" | "OTHER";
+
+export type WltLoanStatus =
+  | "REQUESTED"
+  | "APPROVED"
+  | "DISBURSED"
+  | "REPAID"
+  | "WRITTEN_OFF"
+  | "CANCELLED";
+
+export interface WltLoan {
+  id: string;
+  group: string;
+  person: string;
+  borrower_name: string;
+  cycle_batch: string | null;
+  principal_etb: string;
+  charge_basis: string;
+  charge_rate: string;
+  purpose: WltLoanPurpose;
+  purpose_note: string;
+  disbursed_on: string | null;
+  due_on: string;
+  status: WltLoanStatus;
+  /** What is still owed. PAR30 is a statement about principal alone. */
+  outstanding_principal_etb: string;
+  written_off_on: string | null;
+}
+
+export type WltMeetingStatus = "OPEN" | "CLOSED" | "CANCELLED";
+
+/** How she was marked at a meeting — `wlt.AttendanceStatus`. */
+export type WltAttendanceStatus =
+  "PRESENT" | "LATE" | "ABSENT" | "ABSENT_EXCUSED";
+
+export interface WltMeeting {
+  id: string;
+  group: string;
+  meeting_no: number;
+  scheduled_for: string | null;
+  held_on: string;
+  opening_cash_etb: string;
+  closing_cash_etb: string | null;
+  counted_cash_etb: string | null;
+  social_time_minutes: number | null;
+  social_topic: string;
+  status: WltMeetingStatus;
+  closed_at: string | null;
+  device_id: string;
+  synced_at: string | null;
+}
+
+/**
+ * `GET /wlt/meetings/{id}/register/` — the paper register as one read.
+ *
+ * One call because this is opened in a village on a bad connection, and because
+ * the ledger appends with no update path: a screen that could not see what was
+ * already posted would double a woman's contribution on a retry.
+ *
+ * `saved_etb` is null when nothing has been posted for her, which is a
+ * different thing from a recorded zero — a woman who saved nothing is a
+ * compliance finding, one not yet asked is a blank row.
+ */
+export interface WltMeetingRegister {
+  meeting: WltMeeting;
+  group_name: string;
+  contribution_etb: string | null;
+  expected_cash_etb: string;
+  /** What the box holds now — the ceiling on what can be lent at this meeting. */
+  cash_balance_etb: string;
+  /** Loans still owing. Settled ones are not offered: nothing left to pay. */
+  loans: WltLoan[];
+  members: Array<{
+    person: string;
+    full_name: string;
+    attendance: WltAttendanceStatus | null;
+    saved_etb: string | null;
+  }>;
+}
+
+/** Chair, secretary or treasurer — `wlt.OfficeRole`. */
+export type WltOfficeRole = "CHAIR" | "SECRETARY" | "TREASURER";
+
+/**
+ * A term of office, which is a dated range like a membership.
+ *
+ * `elect_officer` closes the sitting officer's term rather than editing the
+ * row, because "who was treasurer on the date of that disbursement" is a
+ * question that gets asked. So closed terms come back too — the current
+ * holders are the rows with no `to_date`.
+ */
+export interface WltOfficeHolder {
+  id: string;
+  group: string;
+  person: string;
+  full_name: string;
+  role: WltOfficeRole;
+  from_date: string;
+  to_date: string | null;
+}
+
 export interface WltGroupMembership {
   id: string;
   group: string;
+  /**
+   * Her WLT profile, so a name on the roster can link to her record.
+   *
+   * The membership carries a person id and the beneficiary screen is keyed on
+   * the profile. Null only for a row written before `add_member` required one.
+   */
+  profile: string | null;
   person: string;
   full_name: string;
   joined_on: string;
@@ -980,6 +1156,15 @@ export interface Journey {
   person: string;
   profile: string;
   full_name: string;
+  financials: {
+    savings_etb: string;
+    loans_disbursed_etb: string;
+    repayments_etb: string;
+    principal_repaid_etb: string;
+    charges_repaid_etb: string;
+    outstanding_principal_etb: string;
+    loans_disbursed_count: number;
+  };
   stages: JourneyStage[];
   stages_done: number;
   stages_total: number;
@@ -1029,7 +1214,12 @@ export interface WltBeneficiary {
 /** What `POST /wlt/profiles/import/` reports back. Not all-or-nothing, by design. */
 export interface WltImportReport {
   batch: string;
-  outcomes: { linked: number; queued: number; created: number; skipped: number };
+  outcomes: {
+    linked: number;
+    queued: number;
+    created: number;
+    skipped: number;
+  };
   errors: { row: number; error: string }[];
   /** Rows whose cells could not be read at all — never imported, named by sheet row. */
   unreadable: { row: number; errors: Record<string, string[]> }[];
@@ -1071,10 +1261,34 @@ export interface WltRiskFlag {
   cleared_on: string | null;
 }
 
+export interface WltMemberSavingsCompliance {
+  person_id: string;
+  full_name: string;
+  meetings_met: number;
+  meetings_expected: number;
+  compliance_pct: string | null;
+  is_compliant: boolean;
+  is_current: boolean;
+}
+
 export interface WltReadiness {
   group: WltGroup;
   gate: GateResult | null;
-  indicators: Record<string, string | number | boolean | null | string[]>;
+  /**
+   * The phase gates worth showing for this group: everything up to its next.
+   *
+   * A promoted group can fall back below the discipline it was promoted on —
+   * savings compliance and attendance are continuous — so an earlier gate is
+   * a live question, not history. Nothing beyond the next one is offered: its
+   * conditions would be measured against a phase the group has not entered.
+   */
+  gate_sets: Array<{ name: string; label: string; is_next: boolean }>;
+  /** Which of them `gate` was computed for. */
+  gate_set: string | null;
+  indicators: Record<
+    string,
+    string | number | boolean | null | string[] | WltMemberSavingsCompliance[]
+  >;
   risk_flags: WltRiskFlag[];
   computed_at: string;
 }
@@ -1085,6 +1299,8 @@ export interface ServiceLinkage {
   type_label: string;
   provider: string | null;
   provider_name: string | null;
+  predecessor: string | null;
+  predecessor_label: string | null;
   subject_group: string | null;
   subject_cla: string | null;
   subject_federation: string | null;
@@ -1104,6 +1320,15 @@ export interface ServiceLinkage {
   next_approval_role: string | null;
   next_action_role_display: string | null;
   can_current_user_approve: boolean;
+}
+
+export interface FederationReadinessRow {
+  woreda_id: string;
+  woreda: string;
+  active_clas: number;
+  mature_clas: number;
+  threshold: number;
+  clas_short: number;
 }
 
 export interface ServiceLinkageType {
@@ -1139,7 +1364,10 @@ export interface LinkageEvent {
   actor: string | null;
   actor_name: string | null;
   reason: string;
-  gate_snapshot: { obligation?: LinkageObligationEvidence; conditions?: GateCondition[] } | null;
+  gate_snapshot: {
+    obligation?: LinkageObligationEvidence;
+    conditions?: GateCondition[];
+  } | null;
 }
 
 export interface ClaReadinessRow {
@@ -1156,7 +1384,8 @@ export interface ClaReadinessRow {
 
 export type TrainingType = "LIFE_SKILLS" | "TVET";
 
-export type TrainingCompletionStatus = "ENROLLED" | "COMPLETED" | "DROPPED_OUT" | "FAILED_ASSESSMENT";
+export type TrainingCompletionStatus =
+  "ENROLLED" | "COMPLETED" | "DROPPED_OUT" | "FAILED_ASSESSMENT";
 
 export interface TrainingEnrolment {
   id: string;
@@ -1193,7 +1422,8 @@ export interface TrainingEnrolment {
 
 export type PlacementTypeCode = "JOB" | "APPRENTICESHIP";
 
-export type RetentionStatusCode = "PENDING" | "RETAINED" | "EXITED" | "UNREACHABLE";
+export type RetentionStatusCode =
+  "PENDING" | "RETAINED" | "EXITED" | "UNREACHABLE";
 
 export interface RetentionCheck {
   id: string;
@@ -1241,9 +1471,15 @@ export interface Placement {
 // ---------------------------------------------------------------------------
 
 export type BusinessPlanStatus =
-  "NOT_STARTED" | "DRAFTED" | "UNDER_REVIEW" | "REVISION_REQUESTED" | "APPROVED" | "REJECTED";
+  | "NOT_STARTED"
+  | "DRAFTED"
+  | "UNDER_REVIEW"
+  | "REVISION_REQUESTED"
+  | "APPROVED"
+  | "REJECTED";
 
-export type MilestoneStatusCode = "PENDING" | "ACHIEVED" | "MISSED" | "CANCELLED";
+export type MilestoneStatusCode =
+  "PENDING" | "ACHIEVED" | "MISSED" | "CANCELLED";
 
 export interface EnterpriseMilestone {
   id: string;
@@ -1288,7 +1524,8 @@ export interface Enterprise {
   notes: string;
 }
 
-export type ContactOutcomeCode = "REACHED_ENGAGED" | "REACHED_NOT_ENGAGED" | "NO_RESPONSE" | "UNREACHABLE";
+export type ContactOutcomeCode =
+  "REACHED_ENGAGED" | "REACHED_NOT_ENGAGED" | "NO_RESPONSE" | "UNREACHABLE";
 
 export interface FollowUp {
   id: string;

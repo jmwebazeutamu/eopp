@@ -52,6 +52,7 @@ function membership(overrides: Partial<WltGroupMembership> = {}): WltGroupMember
     id: "m1",
     group: "g1",
     person: "p1",
+    profile: "b1",
     full_name: "Chaltu Bekele",
     joined_on: "2025-12-20",
     exited_on: null,
@@ -64,16 +65,29 @@ function membership(overrides: Partial<WltGroupMembership> = {}): WltGroupMember
 
 function mount(
   roster: WltGroupMembership[],
-  { canWrite = true, pool }: { canWrite?: boolean; pool?: { results: unknown[]; waiting_elsewhere: number; registered_here?: number; already_grouped_here?: number } } = {},
+  {
+    canWrite = true,
+    pool,
+    officers = [],
+  }: {
+    canWrite?: boolean;
+    pool?: { results: unknown[]; waiting_elsewhere: number; registered_here?: number; already_grouped_here?: number };
+    officers?: unknown[];
+  } = {},
 ) {
   // Two endpoints behind one mock: the roster and the candidate pool. Routing
   // by URL rather than by call order, because the modal fetches on open and the
   // order depends on what the test clicks.
-  get.mockImplementation((url: string) =>
-    String(url).includes("candidates")
-      ? Promise.resolve({ data: { kebele: { code: "k1", name: "Dembela" }, ...(pool ?? { results: [], waiting_elsewhere: 0 }) } })
-      : Promise.resolve({ data: roster }),
-  );
+  get.mockImplementation((url: string) => {
+    const path = String(url);
+    if (path.includes("candidates")) {
+      return Promise.resolve({
+        data: { kebele: { code: "k1", name: "Dembela" }, ...(pool ?? { results: [], waiting_elsewhere: 0 }) },
+      });
+    }
+    if (path.includes("officers")) return Promise.resolve({ data: officers });
+    return Promise.resolve({ data: roster });
+  });
   const user = testUser("WLT_FACILITATOR", {
     access: {
       case_scope: "NONE",
@@ -170,7 +184,60 @@ describe("GroupRoster", () => {
     mount([membership()]);
 
     expect(await screen.findByRole("button", { name: /Add a member/i })).toBeInTheDocument();
-    expect(within(laptopRoster()).getByRole("button", { name: /Record that she left/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Edit members and officers/i })).toBeInTheDocument();
+  });
+
+  it("opens her record from her name on the roster", async () => {
+    mount([membership()]);
+    await screen.findAllByText("Chaltu Bekele");
+
+    // A button, not text: the roster had her name and no way to reach her.
+    const name = within(laptopRoster()).getByRole("button", { name: "Chaltu Bekele" });
+    expect(name).toBeInTheDocument();
+  });
+
+  it("leaves a name plain when there is no record to open", async () => {
+    // A membership written before `add_member` required a profile. A name that
+    // looks like a link and does nothing is worse than plain text.
+    mount([membership({ profile: null })]);
+    await screen.findAllByText("Chaltu Bekele");
+
+    expect(within(laptopRoster()).queryByRole("button", { name: "Chaltu Bekele" })).toBeNull();
+    expect(within(laptopRoster()).getByText("Chaltu Bekele")).toBeInTheDocument();
+  });
+
+  it("keeps the exit behind the edit modal rather than on every row", async () => {
+    // Twenty exit buttons made the roster read as a list of things to undo.
+    mount([membership()]);
+    await screen.findAllByText("Chaltu Bekele");
+
+    expect(within(laptopRoster()).queryByRole("button", { name: /Record that she left/i })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: /Edit members and officers/i }));
+    expect(await screen.findByRole("button", { name: /Record that she left/i })).toBeInTheDocument();
+  });
+
+  it("tags the chair on the roster without a second lookup", async () => {
+    mount([membership()], {
+      officers: [
+        { id: "o1", group: "g1", person: "p1", full_name: "Chaltu Bekele", role: "CHAIR", from_date: "2026-01-01", to_date: null },
+      ],
+    });
+
+    await screen.findAllByText("Chaltu Bekele");
+    expect(within(laptopRoster()).getByText("Chair")).toBeInTheDocument();
+  });
+
+  it("does not tag a term that has ended", async () => {
+    // A term is a dated range: she was chair, and is not now.
+    mount([membership()], {
+      officers: [
+        { id: "o1", group: "g1", person: "p1", full_name: "Chaltu Bekele", role: "CHAIR", from_date: "2026-01-01", to_date: "2026-06-01" },
+      ],
+    });
+
+    await screen.findAllByText("Chaltu Bekele");
+    expect(within(laptopRoster()).queryByText("Chair")).toBeNull();
   });
 
   it("refuses to record an exit with no reason", async () => {
@@ -179,6 +246,7 @@ describe("GroupRoster", () => {
     mount([membership()]);
     const person = userEvent.setup();
 
+    await person.click(await screen.findByRole("button", { name: /Edit members and officers/i }));
     await person.click((await screen.findAllByRole("button", { name: /Record that she left/i }))[0]);
     await person.click(await screen.findByRole("button", { name: /Record the exit/i }));
 
@@ -215,6 +283,7 @@ describe("GroupRoster", () => {
     mount([membership()]);
     const person = userEvent.setup();
 
+    await person.click(await screen.findByRole("button", { name: /Edit members and officers/i }));
     await person.click((await screen.findAllByRole("button", { name: /Record that she left/i }))[0]);
 
     expect(await screen.findByText(/stays on the record with the date she left/i)).toBeInTheDocument();

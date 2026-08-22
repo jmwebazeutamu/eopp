@@ -672,6 +672,7 @@ export const STRINGS = {
   "nav.wltGroups": "SHGs",
   "nav.wltLinkages": "Linkages",
   "nav.wltCla": "CLA readiness",
+  "nav.wltFederation": "Federation readiness",
   "wlt.groupsTitle": "Self Help Groups",
   "wlt.groupsSubtitle": "{count} groups",
   "wlt.groupsSearch": "Search by group name",
@@ -703,8 +704,37 @@ export const STRINGS = {
   "wlt.meetingsHeld": "Meetings held",
   "wlt.attendance": "Attendance",
   "wlt.savingsCompliance": "Savings compliance",
+  "wlt.memberSavingsCompliance": "Member savings compliance",
+  "wlt.memberSavingsComplianceBody":
+    "Based on each member's saving record across the latest closed meetings. Members below 90% need follow-up.",
+  "wlt.memberName": "Member",
+  "wlt.savingsMeetingsMet": "Saved in",
+  "wlt.savingsMeetingsExpected": "Expected",
+  "wlt.complianceRate": "Compliance",
+  "wlt.complianceStatus": "Status",
+  "wlt.compliant": "Compliant",
+  "wlt.notCompliant": "Not compliant",
+  "wlt.formerMember": "Former member",
+  "wlt.noSavingsComplianceMembers": "No members can be assessed until a meeting is closed.",
   "wlt.lastMeeting": "Last meeting",
   "wlt.lending": "Lending",
+  // The loans panel on the group screen. Lending is written at a meeting; this
+  // is where anyone looking for "the loan screen" actually looks.
+  "wlt.loans": "Loans",
+  "wlt.loansCount": "{count} outstanding",
+  "wlt.lendAtMeeting": "Go to the open meeting",
+  "wlt.lendNeedsMeeting":
+    "Lending is recorded at a meeting, because the cash leaves the box in the room. Open a meeting to give out a loan or record a repayment.",
+  "wlt.loansLoadFailed": "The loans could not be loaded.",
+  "wlt.settledLoans": "Settled",
+  "wlt.settledLoansBody":
+    "Kept because completed loan cycles is a condition for the next phase — a group that has repaid four loans is not the same as one that has never lent.",
+  "wlt.loanStatusREQUESTED": "Requested",
+  "wlt.loanStatusAPPROVED": "Approved",
+  "wlt.loanStatusDISBURSED": "Disbursed",
+  "wlt.loanStatusREPAID": "Repaid",
+  "wlt.loanStatusWRITTEN_OFF": "Written off",
+  "wlt.loanStatusCANCELLED": "Cancelled",
   "wlt.outstanding": "Outstanding principal",
   "wlt.completedCycles": "Completed loan cycles",
   "wlt.atRisk": "At risk",
@@ -719,6 +749,18 @@ export const STRINGS = {
   "wlt.noLinkagesBody": "A savings account can be proposed once a group reaches Phase 2.",
   "wlt.noProvider": "No provider named",
   "wlt.stillNeeded": "Still needed",
+  // Federation readiness — the CLA screen one level up. Same shape on purpose.
+  "wlt.federationTitle": "Federation readiness",
+  "wlt.federationSubtitle": "How close each woreda is to forming a federation of its Cluster Level Associations.",
+  "wlt.federationLoadFailed": "Could not load federation readiness.",
+  "wlt.federationEmpty": "No woredas in your scope yet.",
+  "wlt.federationReadyNow": "Ready now",
+  "wlt.federationReadyBody": "{count} woreda(s) have enough Cluster Level Associations to form a federation.",
+  "wlt.federationCanForm": "Enough Cluster Level Associations to form a federation.",
+  "wlt.federationShort": "{count} more Cluster Level Association(s) needed.",
+  "wlt.federationMature": "{count} operating long enough",
+  "wlt.federationNotYet":
+    "No woreda is close yet, which is the expected reading at this stage. A federation needs more groups in a single woreda than the largest regional allocation holds, so this screen reports the arithmetic rather than a target for this year.",
   "wlt.claTitle": "CLA readiness",
   "wlt.claSubtitle": "How close each kebele is to forming a Cluster Level Association.",
   "wlt.claLoadFailed": "Could not load CLA readiness.",
@@ -822,6 +864,124 @@ export const STRINGS = {
   // dashed: no group is a definite answer, and it is the answer a facilitator
   // seating a new group is looking for.
   "wlt.col.group": "Group",
+  // Editing a group's people. The per-member exit button became one entry
+  // point, because removing a woman and electing an officer are the same kind
+  // of act — changing who is in the group and what they do in it.
+  "wlt.editMembers": "Edit members and officers",
+  // Looking back at a gate the group has already passed. Savings compliance
+  // and attendance are continuous, so a promoted group can fall back below the
+  // discipline it was promoted on.
+  "wlt.gateSetLabel": "Which phase gate to show",
+  "wlt.gateSetNext": "next",
+  "wlt.gateSetPastHelp":
+    "A gate this group has already passed, measured against today's figures. It shows whether the group still holds that discipline — not whether it has been promoted.",
+  // The facilitator picker on the draft-group form. A failed lookup and an
+  // empty one must not read alike: the first is a fault, the second is an
+  // instruction to assign somebody.
+  "wlt.facilitatorsLoadFailed": "The facilitator list could not be loaded. This is a fault, not an empty list.",
+  "wlt.noFacilitatorCovers":
+    "No facilitator covers this kebele. Assign one a WLT scope that includes it, or leave her scope empty for every kebele.",
+  "wlt.chooseKebeleFirst": "Choose a kebele first.",
+  // The weekly meeting — the operational act of the module, and the only way
+  // any figure on the readiness card changes.
+  "notFound.title": "Page not found",
+  "notFound.subtitle": "This address does not match a screen in the platform.",
+  "notFound.body":
+    "If you were sent here by a link, the record may have been closed or may belong to a woreda outside your scope. Records you cannot see are not confirmed to exist, so this page cannot tell the two apart.",
+  "notFound.home": "Go to my home screen",
+  // Lending. It happens at a meeting because that is where the money is: the
+  // cash leaves the box in the room and the till has to balance around it.
+  "wlt.inTheBox": "In the box now",
+  "wlt.disburse": "Give out a loan",
+  "wlt.disburseTitle": "Give out a loan",
+  "wlt.borrower": "Who is borrowing",
+  "wlt.borrowerRequired": "Choose the borrower.",
+  "wlt.principal": "Principal",
+  "wlt.principalRequired": "Enter the amount.",
+  "wlt.loanPurpose": "Purpose",
+  "wlt.loanPurposeRequired": "Say what the loan is for.",
+  "wlt.purposeIGA": "Income generating activity",
+  "wlt.purposeEMERGENCY": "Emergency",
+  "wlt.purposeHOUSEHOLD": "Household",
+  "wlt.purposeEDUCATION": "Education",
+  "wlt.purposeOTHER": "Other",
+  "wlt.purposeNote": "Note (optional)",
+  "wlt.dueOn": "Due on",
+  "wlt.dueOnRequired": "Say when it is due.",
+  "wlt.disburseOk": "Give out the loan",
+  "wlt.disburseDone": "{amount} ETB lent to {name}.",
+  "wlt.disburseFailed": "The loan could not be given out.",
+  "wlt.noLoans": "No loans outstanding.",
+  "wlt.noLoansBody":
+    "Lending starts once the group has held enough savings meetings and its bylaws say how the service charge is calculated.",
+  "wlt.loanDue": "due {date}",
+  "wlt.repay": "Record a repayment",
+  "wlt.repayTitle": "Repayment from {name}",
+  "wlt.repayHelp":
+    "Principal and service charge are recorded separately. Portfolio at risk counts principal alone, and a repayment entered as one number cannot be split afterwards.",
+  "wlt.repayPrincipal": "Principal repaid",
+  "wlt.repayCharge": "Service charge paid",
+  "wlt.repayOk": "Record the repayment",
+  "wlt.repayDone": "Repayment recorded.",
+  "wlt.repayFailed": "The repayment could not be recorded.",
+  "wlt.repaySomething": "A repayment has to be for something — enter principal, charge, or both.",
+  "wlt.meetingsTitle": "Meetings",
+  "wlt.meetingCount": "{count} recorded",
+  "wlt.showAllMeetings": "Show all {count}",
+  "wlt.openMeeting": "Open a meeting",
+  "wlt.resumeMeeting": "Open meeting · {date}",
+  "wlt.staleOpenMeeting":
+    "This meeting was held on {date}. Everything recorded goes onto it, dated to it, and against the roster as it stood then. Close it before starting today's.",
+  "wlt.noBorrowers":
+    "Nobody was on the roster on {date}, so there is nobody to lend to at this meeting. The register shows the group as it stood on the meeting date.",
+  "wlt.meetingNo": "Meeting {no}",
+  "wlt.meetingHeld": "Held {date}",
+  "wlt.meetingOpen": "Open",
+  "wlt.meetingClosed": "Closed",
+  "wlt.noMeetings": "No meetings recorded yet.",
+  "wlt.noMeetingsBody":
+    "Savings, attendance and the cash count all happen at a meeting. Until one is closed, the readiness figures have nothing to read.",
+  "wlt.attendanceLabel": "Attendance",
+  "wlt.attPRESENT": "Present",
+  "wlt.attLATE": "Late",
+  "wlt.attABSENT": "Absent",
+  "wlt.attABSENT_EXCUSED": "Excused",
+  "wlt.savingsLabel": "Savings",
+  "wlt.recordSaving": "Record {amount} ETB",
+  "wlt.savedAlready": "{amount} ETB recorded",
+  "wlt.savingsPostedOnce":
+    "Recorded. The ledger has no update path, so a correction is a reversal with a reason rather than an edit.",
+  "wlt.expectedCash": "Expected in the box",
+  "wlt.countedCash": "Counted in the box",
+  "wlt.closeMeeting": "Close the meeting",
+  "wlt.socialTopic": "Discussion topic (optional)",
+  "wlt.closeMeetingHelp":
+    "Count the box and enter what is in it. The meeting closes only if the two agree — a difference is the earliest sign of a problem the indicators will not show for weeks.",
+  "wlt.meetingClosedOn": "Closed {date}, counted {amount} ETB",
+  "wlt.meetingLoadFailed": "The meeting could not be loaded.",
+  "wlt.meetingOpenFailed": "The meeting could not be opened.",
+  "wlt.savingFailed": "That contribution could not be recorded.",
+  "wlt.attendanceFailed": "Attendance could not be recorded.",
+  "wlt.closeFailed": "The meeting could not be closed.",
+  "wlt.meetingOpened": "Meeting {no} is open.",
+  "wlt.meetingWasClosed": "Meeting closed and the till balanced.",
+  "wlt.backToGroup": "Back to the group",
+  "wlt.presentCount": "{present} of {total} present",
+  "wlt.savedCount": "{count} of {total} recorded",
+  "wlt.editMembersTitle": "Members and officers",
+  "wlt.editMembersHelp":
+    "Elect a chair, a secretary and a treasurer, or record that a member has left. A term of office is a dated range, so electing somebody closes the sitting officer's term rather than overwriting it.",
+  "wlt.office": "Office",
+  "wlt.officeNone": "No office",
+  "wlt.officeCHAIR": "Chair",
+  "wlt.officeSECRETARY": "Secretary",
+  "wlt.officeTREASURER": "Treasurer",
+  "wlt.officerSince": "since {date}",
+  "wlt.electFailed": "That office could not be assigned.",
+  "wlt.electDone": "{name} is now {office}.",
+  "wlt.officersLoadFailed": "The office holders could not be loaded.",
+  "wlt.vacantOffices": "Not yet elected: {offices}",
+  "wlt.done": "Done",
   // Her profile's group card and linkage list. A woman's profile is where the
   // register lands, so it answers "which group, how is it doing, what has that
   // group been linked to" without sending anyone to a second screen.
@@ -838,6 +998,7 @@ export const STRINGS = {
   "wlt.notInAGroupYet": "She is not in a savings group yet.",
   "wlt.notInAGroup": "Not in a group",
   "wlt.inAGroupFilter": "In a group",
+  "wlt.filterByNamedGroup": "In a particular group",
   "wlt.notInAGroupFilter": "Waiting for a group",
   "wlt.draftGroup": "Draft group",
   "wlt.draftGroupTitle": "Start a new Self Help Group",
@@ -880,6 +1041,16 @@ export const STRINGS = {
   "wlt.fullName": "Full name",
   "wlt.dateOfBirth": "Date of birth",
   "wlt.kebeleHelp": "Region, zone and woreda follow from the kebele.",
+  // The place cascade on the registration form. Only the kebele is submitted —
+  // the rest is how you find it.
+  "wlt.region": "Region",
+  "wlt.woreda": "Woreda",
+  "wlt.regionRequired": "Choose a region.",
+  "wlt.woredaRequired": "Choose a woreda.",
+  "wlt.chooseRegion": "Choose a region",
+  "wlt.chooseWoreda": "Choose a woreda",
+  "wlt.chooseRegionFirst": "Choose a region first",
+  "wlt.chooseWoredaFirst": "Choose a woreda first",
   "wlt.phone": "Phone",
   "wlt.clientId": "PSNP client ID",
   "wlt.elsCompleted": "ELS package completed",
@@ -906,6 +1077,14 @@ export const STRINGS = {
   "wlt.importUnreadable": "{count} row(s) could not be read and were not imported",
   "wlt.importRowError": "Row {row}: {error}",
 
+  "wlt.memberFinances": "Savings and loans",
+  "wlt.memberFinancesBody": "Her recorded totals across every savings group she has belonged to.",
+  "wlt.individualSavings": "Savings",
+  "wlt.loansReceived": "Loans received",
+  "wlt.loanCount": "{count} loan(s)",
+  "wlt.repaymentsMade": "Repayments",
+  "wlt.repaymentsBreakdown": "{principal} principal · {charges} service charges",
+  "wlt.principalOutstanding": "Principal outstanding",
   "wlt.journeyTitle": "Her path through the programme",
   "wlt.journeyLoadFailed": "Could not load her journey.",
   "wlt.journeyProgress": "{done} of {total} stages",
