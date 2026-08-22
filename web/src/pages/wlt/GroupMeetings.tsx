@@ -7,6 +7,7 @@ import type { Paginated, WltGroup, WltMeeting } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { Button, CapsLabel, Card } from "../../components/ui";
 import { useLang } from "../../i18n/LanguageContext";
+import FundTrend from "./FundTrend";
 
 /**
  * The group's meetings, and the way into recording one.
@@ -42,7 +43,7 @@ function todayLocal(): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-export default function GroupMeetings({ group }: { group: WltGroup }) {
+export default function GroupMeetings({ group, compact = false }: { group: WltGroup; compact?: boolean }) {
   const { message } = App.useApp();
   const { t } = useLang();
   const navigate = useNavigate();
@@ -51,11 +52,17 @@ export default function GroupMeetings({ group }: { group: WltGroup }) {
   const [meetings, setMeetings] = useState<WltMeeting[]>([]);
   const [total, setTotal] = useState(0);
   const [showAll, setShowAll] = useState(false);
+  /** "", "CLOSED" or "OPEN". Local, not a route: it narrows a list inside one
+   *  tab rather than naming a place worth linking to. */
+  const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState(false);
 
-  /** How many to show before "show all". The money trail has to be reachable. */
-  const PAGE = 12;
+  /** How many to show before "show all". The money trail has to be reachable.
+   *  On Overview it is five and there is no "show all" — the whole list is one
+   *  tab away, and a second full list on the summary tab is the scroll the
+   *  redesign removed. */
+  const PAGE = compact ? 5 : 12;
 
   const canWrite = Boolean(user?.access.group_write);
 
@@ -67,8 +74,12 @@ export default function GroupMeetings({ group }: { group: WltGroup }) {
       const response = await api.get<Paginated<WltMeeting> | WltMeeting[]>("/wlt/meetings/", {
         params: {
           group: group.id,
-          page_size: showAll ? 500 : PAGE,
+          // The chart needs the last twelve closed meetings, so a filtered or
+          // short list would draw a different picture from the table beneath
+          // it. It reads its own window from the unfiltered fetch.
+          page_size: showAll ? 500 : Math.max(PAGE, 12),
           ordering: "-held_on,-meeting_no",
+          status: status || undefined,
         },
       });
       const rows = Array.isArray(response.data) ? response.data : response.data.results;
@@ -79,7 +90,7 @@ export default function GroupMeetings({ group }: { group: WltGroup }) {
     } finally {
       setLoading(false);
     }
-  }, [group.id, message, showAll, t]);
+  }, [compact, group.id, message, showAll, status, t]);
 
   useEffect(() => {
     void load();
@@ -104,7 +115,7 @@ export default function GroupMeetings({ group }: { group: WltGroup }) {
     <Card className="card--tight">
       <div style={{ display: "flex", gap: 12, alignItems: "baseline", justifyContent: "space-between" }}>
         <span style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-          <CapsLabel>{t("wlt.meetingsTitle")}</CapsLabel>
+          <CapsLabel>{compact ? t("wlt.recentMeetings") : t("wlt.meetingsTitle")}</CapsLabel>
           {/* The true total, not the number of rows drawn. This listed twelve
               of thirty-two with nothing saying so, which put meetings 1 to 20
               out of reach and made the money trail unauditable. */}
@@ -141,6 +152,29 @@ export default function GroupMeetings({ group }: { group: WltGroup }) {
         </>
       )}
 
+      {!compact && meetings.length > 0 && (
+        <>
+          <FundTrend meetings={meetings} />
+          <div className="pill-row" role="group" aria-label={t("wlt.meetingFilterLabel")} style={{ margin: "12px 0" }}>
+            {[
+              { value: "", label: t("filters.all") },
+              { value: "CLOSED", label: t("wlt.meetingClosed") },
+              { value: "OPEN", label: t("wlt.meetingOpen") },
+            ].map((filter) => (
+              <button
+                key={filter.value || "all"}
+                type="button"
+                className="pill-filter"
+                data-active={filter.value === status ? "true" : undefined}
+                onClick={() => setStatus(filter.value)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {meetings.length > 0 && (
         <>
         <table className="roster-table">
@@ -165,7 +199,14 @@ export default function GroupMeetings({ group }: { group: WltGroup }) {
             ))}
           </tbody>
         </table>
-        {!showAll && total > meetings.length && (
+        {compact && total > meetings.length && (
+          <div style={{ marginTop: 8 }}>
+            <Button size="sm" onClick={() => navigate(`/wlt/groups/${group.id}/meetings`)}>
+              {t("wlt.seeAllMeetings")}
+            </Button>
+          </div>
+        )}
+        {!compact && !showAll && total > meetings.length && (
           <div style={{ marginTop: 8 }}>
             <Button size="sm" onClick={() => setShowAll(true)}>
               {t("wlt.showAllMeetings", { count: total })}
