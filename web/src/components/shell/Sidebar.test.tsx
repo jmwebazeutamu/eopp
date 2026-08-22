@@ -54,10 +54,14 @@ describe("Sidebar", () => {
 
     expect(screen.getByRole("button", { name: "Cases" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Work" }));
+    await user.click(
+      screen.getByRole("button", { name: "PSNP Beneficiary Referrals" }),
+    );
 
     expect(screen.queryByRole("button", { name: "Cases" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Directory" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Directory" }),
+    ).toBeInTheDocument();
   });
 
   it("reopens the active section when navigation moves into it", () => {
@@ -101,27 +105,18 @@ describe("Sidebar", () => {
       </MemoryRouter>,
     );
 
-    return userEvent.setup().click(screen.getByRole("button", { name: "Directory" })).then(() => {
-      expect(screen.queryByRole("button", { name: "Partners" })).toBeNull();
+    return userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Directory" }))
+      .then(() => {
+        expect(screen.queryByRole("button", { name: "Partners" })).toBeNull();
 
-      rerender(
-        <MemoryRouter>
-          <LanguageProvider>
-            <div style={{ height: 600 }}>
-              <Sidebar
-                user={testUser("SYSTEM_ADMIN", {
-                  access: {
-                    case_scope: "ALL",
-                    case_write: true,
-                    referral_scope: "ALL",
-                    referral_write: true,
-                    group_scope: "ALL",
-                    group_write: true,
-                    delivery_write: true,
-                  },
-                })}
-                sections={buildNav(
-                  testUser("SYSTEM_ADMIN", {
+        rerender(
+          <MemoryRouter>
+            <LanguageProvider>
+              <div style={{ height: 600 }}>
+                <Sidebar
+                  user={testUser("SYSTEM_ADMIN", {
                     access: {
                       case_scope: "ALL",
                       case_write: true,
@@ -131,20 +126,34 @@ describe("Sidebar", () => {
                       group_write: true,
                       delivery_write: true,
                     },
-                  }),
-                  { openAlerts: 0 },
-                )}
-                pathname="/partners"
-                collapsed={false}
-                onToggleCollapse={vi.fn()}
-                footer={<div>Footer</div>}
-              />
-            </div>
-          </LanguageProvider>
-        </MemoryRouter>,
-      );
+                  })}
+                  sections={buildNav(
+                    testUser("SYSTEM_ADMIN", {
+                      access: {
+                        case_scope: "ALL",
+                        case_write: true,
+                        referral_scope: "ALL",
+                        referral_write: true,
+                        group_scope: "ALL",
+                        group_write: true,
+                        delivery_write: true,
+                      },
+                    }),
+                    { openAlerts: 0 },
+                  )}
+                  pathname="/partners"
+                  collapsed={false}
+                  onToggleCollapse={vi.fn()}
+                  footer={<div>Footer</div>}
+                />
+              </div>
+            </LanguageProvider>
+          </MemoryRouter>,
+        );
 
-      expect(screen.getByRole("button", { name: "Partners" })).toBeInTheDocument();
-    });
+        expect(
+          screen.getByRole("button", { name: "Partners" }),
+        ).toBeInTheDocument();
+      });
   });
 });
