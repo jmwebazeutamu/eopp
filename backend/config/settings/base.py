@@ -411,6 +411,23 @@ RETENTION_CHECK_DUE_DAYS = config("RETENTION_CHECK_DUE_DAYS", default=30, cast=i
 # fortnight: a complaints channel that answers in three weeks is slow but real,
 # and one that has not answered in six is not a channel.
 GRIEVANCE_RESPONSE_DAYS = config("GRIEVANCE_RESPONSE_DAYS", default=21, cast=int)
+# TODO(open-question): the federal GRM answers in 10 *working* days at kebele and
+# at woreda, and this platform has counted 21 *calendar* days since Sprint 6.
+# They are not the same standard. `clock.py` now counts working days, so 21 is
+# a month of them — deliberately left as it was rather than quietly retightened
+# to a number nobody has agreed. Which deadline binds this project is the
+# review's open question 4.
+GRIEVANCE_SERIOUS_RESPONSE_DAYS = config("GRIEVANCE_SERIOUS_RESPONSE_DAYS", default=10, cast=int)
+# Severity overrides the default at any tier: what makes a complaint critical
+# does not wait for a committee's usual rhythm.
+GRIEVANCE_CRITICAL_RESPONSE_DAYS = config("GRIEVANCE_CRITICAL_RESPONSE_DAYS", default=3, cast=int)
+# Not an answer — the promise that an answer is coming. The step most often
+# skipped, because nothing in the record used to ask for it.
+GRIEVANCE_ACKNOWLEDGEMENT_DAYS = config("GRIEVANCE_ACKNOWLEDGEMENT_DAYS", default=3, cast=int)
+# Calendar days, not working days: this is time the complainant has to think,
+# and counting it in working days would quietly lengthen it over every holiday.
+# TODO(open-question): 15 is the review's figure; nobody has agreed it here.
+GRIEVANCE_APPEAL_WINDOW_DAYS = config("GRIEVANCE_APPEAL_WINDOW_DAYS", default=15, cast=int)
 
 # CM-4's fourth at-risk condition (§5): how many failed contact attempts before
 # a youth counts as unreachable. The spec says "4+", which is where this comes
