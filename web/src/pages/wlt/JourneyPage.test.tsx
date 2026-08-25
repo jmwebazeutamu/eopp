@@ -38,11 +38,47 @@ function condition(code: string, label: string, met: boolean, actual: string, th
   return { code, label, met, actual, threshold, unit: "", unmeasurable: false };
 }
 
+const baseIdentity: Journey["identity"] = {
+  full_name: "Almaz Tesfaye",
+  sex: "FEMALE",
+  sex_display: "Female",
+  age: 34,
+  date_of_birth: "1992-03-04",
+  national_id: "AMH-DSW-01-0247",
+  psnp_client_id: "03-11-0928-4",
+  phone_number: "+251911452207",
+  region: "Amhara",
+  zone: "South Wollo",
+  woreda: "Dessie Zuria",
+  kebele: "Dessie White 01",
+  settlement_type: "",
+  settlement_type_display: "",
+  registered_on: "2025-07-16",
+  psnp_status: "ENROLLED",
+  psnp_status_display: "Enrolled",
+  enrolment_route_display: "Added by a facilitator",
+  verification_status: "VERIFIED",
+  verification_status_display: "Verified",
+  missing: [],
+};
+
 function mount(overrides: Partial<Journey> = {}, role: "WLT_FACILITATOR" | "WLT_WOREDA_OFFICER" | "SYSTEM_ADMIN" = "WLT_FACILITATOR") {
   const journey: Journey = {
     person: "p1",
     profile: "b1",
     full_name: "Almaz Tesfaye",
+    identity: baseIdentity,
+    household: {
+      household_head: true,
+      household_id: "",
+      education_level: "PRIMARY",
+      education_level_display: "Primary",
+      disability_status: "",
+      disability_status_display: "",
+      psnp_client_category: "",
+      psnp_client_category_display: "",
+      primary_iga: "Petty trade",
+    },
     financials: {
       savings_etb: "240.00",
       loans_disbursed_etb: "100.00",
@@ -100,14 +136,20 @@ describe("JourneyPage", () => {
         ),
         stage("LINKED", "blocked"),
       ],
+      // Sent by the API whenever a stage is outstanding, and what the list
+      // opens on. A fixture without it is a payload the server never produces.
+      next_action: stage("GROUPED", "blocked"),
     });
 
     expect(await screen.findByText("ELS grant received")).toBeInTheDocument();
+    // Scoped to the pathway: "Yes" is also a household answer now, and an
+    // unscoped query would pass on the wrong card.
+    const pathway = screen.getByRole("list", { name: "Complete programme sequence" });
     // The unmet row names what it needs; the met one just states its value.
     // "Yes (need Yes)" says nothing and wraps the rows that do need reading.
-    expect(screen.getAllByText("(need Yes)", { exact: false })).toHaveLength(1);
-    expect(screen.getByText("No")).toBeInTheDocument();
-    expect(screen.getByText("Yes")).toBeInTheDocument();
+    expect(within(pathway).getAllByText("(need Yes)", { exact: false })).toHaveLength(1);
+    expect(within(pathway).getByText("No")).toBeInTheDocument();
+    expect(within(pathway).getByText("Yes")).toBeInTheDocument();
   });
 
   it("says a pending woman is waiting on a decision, not blocked", async () => {
@@ -130,7 +172,7 @@ describe("JourneyPage", () => {
 
   it("offers the ready woman a direct route into a group in her kebele", async () => {
     const readyStages = [stage("REGISTERED", "done"), stage("VERIFIED", "done"), stage("GROUPED", "ready", [], { kebele: "k1", kebele_name: "Bishoftu 01" })];
-    mount({ stages: readyStages });
+    mount({ stages: readyStages, next_action: readyStages[2] });
     get.mockImplementation((url: string) => String(url).includes("/groups/") ? Promise.resolve({ data: { results: [{ id: "g1", name: "Adey SHG", status_display: "Draft", members_current: 1 }] } }) : Promise.resolve({ data: { person: "p1", profile: "b1", full_name: "Almaz Tesfaye", stages: readyStages, stages_done: 2, stages_total: 4, next_action: null } }));
     fireEvent.click(await screen.findByRole("button", { name: "Add her to a group" }));
     expect(await screen.findByText("Groups in Bishoftu 01")).toBeInTheDocument();
@@ -163,6 +205,61 @@ describe("JourneyPage", () => {
     mount({ stages_done: 4, next_action: null });
 
     expect(await screen.findByText(/registered, verified, in a group and linked/)).toBeInTheDocument();
+  });
+
+  it("answers 'have I got the right woman' before any programme status", async () => {
+    // The screen this replaces put her name in a page header and went straight
+    // to gate conditions: no ID, no age, no place anywhere on it.
+    mount();
+
+    expect(await screen.findByRole("heading", { name: "Almaz Tesfaye" })).toBeInTheDocument();
+    expect(screen.getByText("AMH-DSW-01-0247")).toBeInTheDocument();
+    expect(screen.getByText("03-11-0928-4")).toBeInTheDocument();
+    expect(screen.getByText("Dessie White 01")).toBeInTheDocument();
+  });
+
+  it("masks her phone number", async () => {
+    // Every other phone in this application is masked and the registry has no
+    // reveal at all. A profile page must not be the one screen that prints it.
+    mount();
+
+    await screen.findByRole("heading", { name: "Almaz Tesfaye" });
+    expect(screen.queryByText("+251911452207")).not.toBeInTheDocument();
+    expect(screen.getByText(/•/)).toBeInTheDocument();
+  });
+
+  it("counts the blank header fields rather than drawing silent dashes", async () => {
+    // The register holds partial records by design, so this is not an error —
+    // it is work somebody has to do, and a row of dashes does not say so.
+    mount({
+      identity: {
+        ...baseIdentity,
+        phone_number: "",
+        national_id: "",
+        missing: ["national_id", "phone_number"],
+      },
+    });
+
+    expect(await screen.findByText("2 detail(s) missing")).toBeInTheDocument();
+  });
+
+  it("draws the four stages once, not twice", async () => {
+    // The page used to carry a summary sequence *and* a card per stage, so the
+    // ten gate conditions rendered in full, twice, on one 2,000px column.
+    mount({ next_action: stage("LINKED", "blocked") });
+
+    await screen.findByRole("heading", { name: "Almaz Tesfaye" });
+    expect(screen.getAllByRole("list", { name: "Complete programme sequence" })).toHaveLength(1);
+    expect(screen.getAllByText("GROUPED")).toHaveLength(1);
+  });
+
+  it("does not report a household size, because no such field exists", async () => {
+    mount();
+
+    await screen.findByRole("heading", { name: "Almaz Tesfaye" });
+    // An absent count renders as a zero somebody would go on to report.
+    expect(screen.getByText(/not fields this system holds/)).toBeInTheDocument();
+    expect(screen.getByText("Head of household")).toBeInTheDocument();
   });
 
   it("names her group and how it is doing, not just its name", async () => {

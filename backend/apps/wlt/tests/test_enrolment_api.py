@@ -331,13 +331,16 @@ def test_the_journey_walks_registered_verified_grouped_linked(as_user, facilitat
     assert stages["VERIFIED"]["state"] == "done"
     assert stages["GROUPED"]["state"] == "done"
     assert stages["GROUPED"]["detail"]["group_name"] == wlt_group.name
+    # Two places on every figure, including the empty ones. `sum(..., 0)`
+    # returns the integer zero, so a woman with no loans used to read "0"
+    # beside a savings figure of "240.00" — the same row, two formats.
     assert payload["financials"] == {
         "savings_etb": "240.00",
-        "loans_disbursed_etb": "0",
-        "repayments_etb": "0",
-        "principal_repaid_etb": "0",
-        "charges_repaid_etb": "0",
-        "outstanding_principal_etb": "0",
+        "loans_disbursed_etb": "0.00",
+        "repayments_etb": "0.00",
+        "principal_repaid_etb": "0.00",
+        "charges_repaid_etb": "0.00",
+        "outstanding_principal_etb": "0.00",
         "loans_disbursed_count": 0,
     }
 

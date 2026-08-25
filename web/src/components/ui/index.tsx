@@ -161,9 +161,12 @@ export function Card({
   );
 }
 
-export function CapsLabel({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+export function CapsLabel({ children, style, id }: { children: ReactNode; style?: CSSProperties; id?: string }) {
+  // `id` so a card can be `aria-labelledby` its own caps label rather than
+  // repeating the heading in an `aria-label` that then drifts from what is on
+  // screen.
   return (
-    <div className="t-caps" style={style}>
+    <div className="t-caps" style={style} id={id}>
       {children}
     </div>
   );
@@ -283,6 +286,26 @@ export function LogoMark({ size = 30 }: { size?: number }) {
  * can confirm they are looking at the right person without exposing the number
  * to whoever is standing behind them.
  */
+/**
+ * A decimal string with thousands separators, never parsed to a number.
+ *
+ * The API sends money as a decimal *string* and it stays one all the way to
+ * the screen. `Number("10000.00")` is lossless here, but the habit is not:
+ * a float cannot hold 0.10 exactly, and this is a savings ledger that twenty
+ * women sign a paper register against. So this groups digits by string
+ * surgery and never touches the fractional part.
+ *
+ * Anything that is not a plain decimal comes back untouched rather than as
+ * `NaN` — a figure the server declined to compute must not render as a word.
+ */
+export function formatMoney(value: string): string {
+  if (!/^-?\d+(\.\d+)?$/.test(value)) return value;
+  const negative = value.startsWith("-");
+  const [whole, fraction] = (negative ? value.slice(1) : value).split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${negative ? "-" : ""}${grouped}${fraction ? `.${fraction}` : ""}`;
+}
+
 export function maskPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 6) return "•• •• •• ••";

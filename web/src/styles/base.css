@@ -496,7 +496,8 @@ p {
    readiness card and the follow-up work; the side column carries the figures
    that are read *about* them rather than acted on. Collapses to one column at
    the 900px breakpoint like every other multi-column grid here. */
-.group-overview {
+.group-overview,
+.record-overview {
   display: grid;
   grid-template-columns: 1fr 344px;
   gap: var(--s5);
@@ -509,7 +510,8 @@ p {
   }
 }
 
-.group-overview > .stack {
+.group-overview > .stack,
+.record-overview > .stack {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
@@ -1328,5 +1330,306 @@ button.row-link {
   /* Fixed widths cannot hold four columns of prose on a phone. */
   .table--fixed {
     table-layout: auto;
+  }
+}
+
+
+/* ---------------------------------------------------------------------------
+   The beneficiary record: identity header, pathway list, money well.
+
+   `.record-overview` shares the group record's two-column shell above — one
+   definition, so the two record pages cannot drift into different column
+   widths.
+   --------------------------------------------------------------------------- */
+
+.record-identity__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s4);
+}
+
+/* Initials, not a photograph. Nothing in the schema stores one, and a broken
+   <img> renders its alt text as though it were content — the fault this page
+   already shipped once with "SHG logo". */
+.record-identity__avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: var(--r-control);
+  background: var(--green-100);
+  border: 1px solid var(--green-border);
+  color: var(--green-ink);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.record-identity__body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Larger than `.t-title` on purpose: she is the page's subject, not a section
+   heading. Wraps rather than truncating — a name is never a candidate for an
+   ellipsis, and Amharic names run longer than the Latin ones this was sized on. */
+.record-identity__name {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.record-identity__ids {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink-400);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.record-identity__id-label {
+  color: var(--ink-400);
+}
+
+.record-identity__sep {
+  color: var(--closed-border);
+  padding-right: 8px;
+}
+
+/* Five above the 900px breakpoint, two below it. Not `auto-fit`: the facts are
+   a fixed set in a fixed order, and letting them reflow puts Kebele under Age
+   at one width and beside it at another. */
+.record-facts {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px 20px;
+  margin: var(--s3) 0 0;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+
+.record-facts dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .record-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Stacked below the structural breakpoint: the line wraps there, and a
+   leading "/" at the start of each new row reads as a broken glyph rather
+   than as a separator between two identifiers. */
+@media (max-width: 780px) {
+  .record-identity__ids {
+    display: block;
+  }
+
+  .record-identity__ids > span {
+    display: block;
+  }
+
+  .record-identity__sep {
+    display: none;
+  }
+
+  .record-identity__head {
+    gap: var(--s3);
+  }
+
+  .record-identity__avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+  }
+
+  .record-identity__name {
+    font-size: 22px;
+  }
+}
+
+/* ---- the pathway list ---- */
+
+.pathway__lead {
+  margin: var(--s2) 0 0;
+}
+
+.pathway {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pathway__stage + .pathway__stage {
+  border-top: 1px solid var(--line-soft);
+}
+
+/* The row is the disclosure control, so it is a button: it reaches the
+   keyboard, it announces its own expanded state, and it is one target rather
+   than a chevron somebody has to hit. 48px is the touch minimum and applies at
+   every width, not only on a phone — these are gloved hands in daylight. */
+.pathway__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pathway__row:hover .pathway__label {
+  text-decoration: underline;
+}
+
+.pathway__row:focus-visible {
+  outline: 2px solid var(--green-500);
+  outline-offset: 2px;
+  border-radius: var(--r-control);
+}
+
+.pathway__mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 24px;
+  border: 1px solid;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.pathway__label {
+  font-weight: 600;
+  min-width: 0;
+}
+
+.pathway__summary {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.pathway__chevron {
+  flex: none;
+  color: var(--ink-400);
+  transition: transform 120ms ease;
+}
+
+.pathway__chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pathway__chevron {
+    transition: none;
+  }
+}
+
+/* Indented under its own row, so an open stage reads as belonging to the row
+   above it rather than as the next stage's preamble. */
+.pathway__detail {
+  padding: 0 0 var(--s3) 36px;
+}
+
+@media (max-width: 780px) {
+  .pathway__detail {
+    padding-left: 0;
+  }
+}
+
+/* ---- the savings figure ---- */
+
+/* The one number the programme is about, on its own ground. The four figures
+   it replaces were the same 22px as each other, so "she has saved 1,040" and
+   "she owes 60" carried identical weight. */
+.money-well {
+  margin-top: var(--s3);
+  padding: 12px 14px;
+  border-radius: var(--r-control);
+  background: var(--green-100);
+  border: 1px solid var(--green-border);
+  color: var(--green-ink);
+}
+
+.money-well__figure {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+}
+
+.money-outstanding {
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+
+.money-well__unit {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+
+/* One column below 900px, and the cards interleave rather than running the
+   left column dry before the right one starts.
+ 
+   Stacked as written, the savings figure landed *below* the group and its
+   linkages — third from last on a phone, which is where a facilitator does most
+   of her reading. `display: contents` dissolves the two column wrappers so all
+   five cards become children of one flex column, and `order` then puts money
+   directly under the pathway.
+ 
+   The orders are ascending within each wrapper as well, so they change nothing
+   at desktop width, where the wrappers are still flex columns of their own. */
+@media (max-width: 900px) {
+  .record-overview {
+    display: flex;
+    flex-direction: column;
+    /* 16px between cards, not the 24px section gap the two-column grid uses. */
+    gap: var(--s4);
+    /* The grid rule sets `align-items: start` so a short right column does not
+       stretch to the left one's height. In a *column* flex box that same value
+       means "shrink to content width", which left the money and group cards
+       narrower than the two cards above them. */
+    align-items: stretch;
+  }
+
+  .record-overview > .stack {
+    display: contents;
+  }
+
+  .record-overview > .stack:first-child > :nth-child(1) {
+    order: 1;
+  }
+
+  .record-overview > .stack:last-child > :nth-child(1) {
+    order: 2;
+  }
+
+  .record-overview > .stack:first-child > :nth-child(2) {
+    order: 3;
+  }
+
+  .record-overview > .stack:first-child > :nth-child(3) {
+    order: 4;
+  }
+
+  .record-overview > .stack:last-child > :nth-child(2) {
+    order: 5;
   }
 }

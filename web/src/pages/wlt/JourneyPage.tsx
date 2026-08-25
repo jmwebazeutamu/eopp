@@ -3,12 +3,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { api, errorMessage } from "../../api/client";
-import type { Journey, JourneyStage, JourneyStageState, LinkageStatus, Paginated, WltGroup, WltGroupStatus } from "../../api/types";
+import type { BeneficiaryHousehold, Journey, JourneyStage, LinkageStatus, Paginated, WltGroup, WltGroupStatus } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
-import { Button, CapsLabel, Card, PageHeader } from "../../components/ui";
-import { LINKAGE_TONE, STAGE_TONE, WLT_GROUP_TONE } from "../../design/wltStatus";
+import { Button, CapsLabel, Card, formatMoney } from "../../components/ui";
+import { LINKAGE_TONE, WLT_GROUP_TONE } from "../../design/wltStatus";
 import { useLang } from "../../i18n/LanguageContext";
+import BeneficiaryIdentityCard from "./BeneficiaryIdentity";
 import DraftGroupModal from "./DraftGroupModal";
+import PathwayStages from "./PathwayStages";
 
 /**
  * One woman's path: registered → verified → in a group → linked.
@@ -61,9 +63,8 @@ export default function JourneyPage() {
   if (loading && !journey) return <div className="page t-meta">{t("common.loading")}</div>;
   if (!journey) return null;
 
-  const next = journey.next_action;
-  const verification = journey.stages.find((stage) => stage.code === "VERIFIED");
   const grouped = journey.stages.find((stage) => stage.code === "GROUPED");
+  const linked = journey.stages.find((stage) => stage.code === "LINKED");
   const canVerify = ["WLT_WOREDA_OFFICER", "WLT_REGION_OFFICER", "WLT_FEDERAL_OFFICER", "SYSTEM_ADMIN"].includes(
     user?.role ?? "",
   );
@@ -93,64 +94,70 @@ export default function JourneyPage() {
 
   return (
     <div className="page stack">
-      <PageHeader
-        title={journey.full_name}
-        subtitle={
-          <span>
-            {t("wlt.journeyTitle")} ·{" "}
-            {t("wlt.journeyProgress", { done: journey.stages_done, total: journey.stages_total })}
-          </span>
-        }
-      />
+      {/* Two crumbs, not three. The design puts the kebele between the registry
+          and her name; there is no kebele route to land on, and a crumb that
+          goes nowhere is worse than one fewer. */}
+      <nav className="t-meta" aria-label={t("wlt.backToRegistry")}>
+        <button type="button" className="row-link" onClick={() => navigate("/wlt/beneficiaries")}>
+          {t("wlt.backToRegistry")}
+        </button>
+        <span aria-hidden> › </span>
+        <span>{journey.full_name}</span>
+      </nav>
 
-      <Card>
-        <CapsLabel>{t("wlt.journeyTitle")}</CapsLabel>
-        <p style={{ margin: "8px 0 16px" }}>
-          {next ? t("wlt.journeyNext", { stage: next.label }) : t("wlt.journeyComplete")}
-        </p>
-        <JourneySequence stages={journey.stages} />
-        {canVerify && verification?.state === "waiting" && (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-            <Button variant="primary" onClick={() => setVerificationDecision(true)}>
-              {t("wlt.verifyRegistration")}
-            </Button>
-            <Button variant="destructive-soft" onClick={() => setVerificationDecision(false)}>
-              {t("wlt.refuseRegistration")}
-            </Button>
-          </div>
-        )}
-      </Card>
+      <BeneficiaryIdentityCard identity={journey.identity} />
 
-      {/* Above the stage list, because it is the answer to the question the
-          register sends a facilitator here with: which group is she in, and is
-          that group all right? The stages below explain how she got there. */}
-      {grouped && <GroupCard stage={grouped} onNavigate={navigate} />}
+      {/* Her story on the left, her numbers on the right. The single column it
+          replaces ran to about 2,000px, which put "open a meeting" and the
+          money she has saved below two screenfuls of gate conditions. */}
+      <div className="record-overview">
+        <div className="stack">
+          <PathwayStages
+            stages={journey.stages}
+            done={journey.stages_done}
+            total={journey.stages_total}
+            nextAction={journey.next_action}
+          >
+            {(stage) => (
+              <>
+                {stage.code === "VERIFIED" && stage.state === "waiting" && (
+                  <div style={{ marginTop: 12 }}>
+                    <p className="t-meta">{t("wlt.awaitingVerification")}</p>
+                    {canVerify && (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <Button variant="primary" onClick={() => setVerificationDecision(true)}>
+                          {t("wlt.verifyRegistration")}
+                        </Button>
+                        <Button variant="destructive-soft" onClick={() => setVerificationDecision(false)}>
+                          {t("wlt.refuseRegistration")}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-      <Card>
-        <CapsLabel>{t("wlt.memberFinances")}</CapsLabel>
-        <p className="t-meta" style={{ marginTop: 8 }}>{t("wlt.memberFinancesBody")}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginTop: 16 }}>
-          <FinancialFigure label={t("wlt.individualSavings")} value={journey.financials.savings_etb} />
-          <FinancialFigure
-            label={t("wlt.loansReceived")}
-            value={journey.financials.loans_disbursed_etb}
-            note={t("wlt.loanCount", { count: journey.financials.loans_disbursed_count })}
-          />
-          <FinancialFigure
-            label={t("wlt.repaymentsMade")}
-            value={journey.financials.repayments_etb}
-            note={t("wlt.repaymentsBreakdown", {
-              principal: journey.financials.principal_repaid_etb,
-              charges: journey.financials.charges_repaid_etb,
-            })}
-          />
-          <FinancialFigure label={t("wlt.principalOutstanding")} value={journey.financials.outstanding_principal_etb} />
+                {stage.code === "GROUPED" && stage.state === "ready" && (
+                  <div style={{ marginTop: 12 }}>
+                    <p className="t-meta">{t("wlt.addToGroupHelp")}</p>
+                    <Button variant="primary" onClick={() => setAddToGroup(true)}>
+                      {t("wlt.addHerToAGroup")}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </PathwayStages>
+
+          {grouped && <GroupCard stage={grouped} onNavigate={navigate} />}
+
+          {linked && <LinkagesCard stage={linked} onNavigate={navigate} />}
         </div>
-      </Card>
 
-      {journey.stages.map((stage) => (
-        <StageCard key={stage.code} stage={stage} onNavigate={navigate} onAddToGroup={() => setAddToGroup(true)} />
-      ))}
+        <div className="stack">
+          <MoneyCard financials={journey.financials} />
+          <HouseholdCard household={journey.household} />
+        </div>
+      </div>
 
       <AddToGroupModal
         open={addToGroup}
@@ -189,58 +196,8 @@ export default function JourneyPage() {
   );
 }
 
-function FinancialFigure({ label, value, note }: { label: string; value: string; note?: string }) {
-  return (
-    <div>
-      <div className="t-meta">{label}</div>
-      <div className="tabular" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-        {value} ETB
-      </div>
-      {note && <div className="t-meta" style={{ marginTop: 4 }}>{note}</div>}
-    </div>
-  );
-}
 
-function JourneySequence({ stages }: { stages: JourneyStage[] }) {
-  const { t } = useLang();
-  return (
-    <ol aria-label={t("wlt.journeySequence")} style={{ listStyle: "none", margin: 0, padding: 0 }}>
-      {stages.map((stage, index) => {
-        const tone = STAGE_TONE[stage.state];
-        return (
-          <li key={stage.code} style={{ display: "grid", gridTemplateColumns: "28px 1fr", gap: 10, minHeight: 54 }}>
-            <div aria-hidden style={{ position: "relative" }}>
-              <span style={{ display: "grid", placeItems: "center", width: 24, height: 24, borderRadius: 24, color: tone.fg, background: tone.bg, border: `1px solid ${tone.bd}`, fontWeight: 700 }}>
-                {stage.state === "done" ? "✓" : tone.mark}
-              </span>
-              {index < stages.length - 1 && <span style={{ position: "absolute", top: 25, bottom: 0, left: 11, borderLeft: "2px solid var(--border)" }} />}
-            </div>
-            <div style={{ paddingBottom: 14 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap" }}>
-                <strong>{stage.label}</strong>
-                <span style={{ color: tone.fg, fontSize: 12, fontWeight: 700 }}>{t(STATE_LABEL[stage.state])}</span>
-              </div>
-              {stage.conditions.length > 0 && (
-                <div className="t-meta">
-                  {stage.conditions.filter((condition) => condition.met).length} of {stage.conditions.length} checks complete
-                </div>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
 
-/** Written out rather than derived from the state name: a template-literal key
- *  cannot be checked against the string table, which is the whole point of it. */
-const STATE_LABEL = {
-  done: "wlt.stateDone",
-  ready: "wlt.stateReady",
-  waiting: "wlt.stateWaiting",
-  blocked: "wlt.stateBlocked",
-} as const satisfies Record<JourneyStageState, string>;
 
 /**
  * Her group, on her own page.
@@ -253,6 +210,128 @@ const STATE_LABEL = {
  * Drawn from the GROUPED stage's detail rather than a second fetch: the journey
  * is computed on request, so this cannot disagree with the stage beneath it.
  */
+/**
+ * What she has saved, and what she still owes.
+ *
+ * The savings total leads on a green ground because it is the number the whole
+ * programme is about; everything else is a supporting figure at the size of a
+ * supporting figure. Before this they were four identical 22px numbers in a
+ * row, so "she has saved 1,040" and "she owes 60" carried the same weight.
+ *
+ * **Outstanding is terracotta, and disappears at zero.** It is the only figure
+ * here that is work rather than a record, and a woman who has repaid in full
+ * should not have a coloured row telling her so.
+ *
+ * Money arrives from the API as a decimal *string* and is never parsed. A float
+ * cannot hold 0.10 exactly, and this is a savings ledger that women sign a
+ * paper register against.
+ */
+function MoneyCard({ financials }: { financials: Journey["financials"] }) {
+  const { t } = useLang();
+  const outstanding = financials.outstanding_principal_etb;
+  const owes = Number(outstanding) > 0;
+
+  return (
+    <section className="card" aria-labelledby="money-title">
+      <CapsLabel id="money-title">{t("wlt.moneyTitle")}</CapsLabel>
+
+      <div className="money-well">
+        <div className="t-meta">{t("wlt.totalSavings")}</div>
+        <div className="tabular money-well__figure">
+          {formatMoney(financials.savings_etb)} <span className="money-well__unit">ETB</span>
+        </div>
+      </div>
+
+      <div className="grid-pairs" style={{ marginTop: 12 }}>
+        <div>
+          <div className="t-meta">{t("wlt.loansReceived")}</div>
+          <div className="tabular t-metric-sm">{formatMoney(financials.loans_disbursed_etb)}</div>
+          <div className="t-meta">{t("wlt.loanCount", { count: financials.loans_disbursed_count })}</div>
+        </div>
+        <div>
+          <div className="t-meta">{t("wlt.repaymentsMade")}</div>
+          <div className="tabular t-metric-sm">{formatMoney(financials.repayments_etb)}</div>
+          <div className="t-meta">
+            {t("wlt.repaymentsBreakdown", {
+              principal: formatMoney(financials.principal_repaid_etb),
+              charges: formatMoney(financials.charges_repaid_etb),
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* A bordered block, not `.card__rule` — that class *is* the 1px divider
+          (height: 1px, negative side margins), so wrapping a row in it put the
+          figure outside the card and over the panel below. */}
+      {owes && (
+        <div className="money-outstanding">
+          <div className="t-meta">{t("wlt.principalOutstanding")}</div>
+          <div className="tabular t-metric-sm" style={{ color: "var(--terra-700)" }}>
+            {formatMoney(outstanding)}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Her household, with only the columns that exist.
+ *
+ * The design asks for household size, dependants and marital status. None of
+ * the three is a field on `Youth` or on the profile — `household_id` is the
+ * PSNP household *identifier*, not a count — so they are absent rather than
+ * rendered as a zero somebody would report. Adding them is a migration, an
+ * intake-form field and an ELS extract column, which is a programme decision.
+ *
+ * What is left is real: head of household, education, disability, PSNP caseload
+ * category and her main activity. On a record that carries none of them the
+ * card says so in a sentence rather than drawing five empty rows.
+ */
+function HouseholdCard({ household }: { household: BeneficiaryHousehold }) {
+  const { t } = useLang();
+  const rows: Array<[string, string | null]> = [
+    [t("wlt.householdHead"), household.household_head === null ? null : t(household.household_head ? "common.yes" : "common.no")],
+    [t("wlt.educationLabel"), household.education_level_display || null],
+    [t("wlt.disabilityLabel"), household.disability_status_display || null],
+    [t("wlt.psnpCategoryLabel"), household.psnp_client_category_display || null],
+    [t("wlt.primaryIgaLabel"), household.primary_iga || null],
+    [t("wlt.householdId"), household.household_id || null],
+  ];
+  const known = rows.filter(([, value]) => value !== null);
+
+  return (
+    <section className="card" aria-labelledby="household-title">
+      <CapsLabel id="household-title">{t("wlt.householdTitle")}</CapsLabel>
+      {known.length === 0 ? (
+        <p className="t-meta" style={{ margin: "8px 0 0" }}>{t("wlt.householdEmpty")}</p>
+      ) : (
+        <ul className="stack" style={{ listStyle: "none", margin: "8px 0 0", padding: 0, gap: 4 }}>
+          {known.map(([label, value]) => (
+            <li key={label} className="indicator-row">
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="t-meta" style={{ margin: "12px 0 0" }}>{t("wlt.householdNotHeld")}</p>
+    </section>
+  );
+}
+
+/** The linkage panel, lifted out of the LINKED stage card that no longer exists. */
+function LinkagesCard({ stage, onNavigate }: { stage: JourneyStage; onNavigate: (to: string) => void }) {
+  const { t } = useLang();
+  if (!stage.detail.group) return null;
+  return (
+    <section className="card" aria-labelledby="linkages-title">
+      <CapsLabel id="linkages-title">{t("wlt.groupLinkages")}</CapsLabel>
+      <LinkageDetail stage={stage} onNavigate={onNavigate} />
+    </section>
+  );
+}
+
 function GroupCard({ stage, onNavigate }: { stage: JourneyStage; onNavigate: (to: string) => void }) {
   const { t } = useLang();
   const detail = stage.detail as Record<string, unknown>;
@@ -320,64 +399,6 @@ function GroupCard({ stage, onNavigate }: { stage: JourneyStage; onNavigate: (to
   );
 }
 
-function StageCard({ stage, onNavigate, onAddToGroup }: { stage: JourneyStage; onNavigate: (to: string) => void; onAddToGroup: () => void }) {
-  const { t } = useLang();
-  const tone = STAGE_TONE[stage.state];
-
-  return (
-    <Card>
-      <div style={{ display: "flex", gap: 12, alignItems: "baseline", justifyContent: "space-between" }}>
-        <CapsLabel>{stage.label}</CapsLabel>
-        <span className="chip" style={{ color: tone.fg, background: tone.bg, borderColor: tone.bd }}>
-          <span className="chip__mark" aria-hidden>
-            {tone.mark}
-          </span>
-          {t(STATE_LABEL[stage.state])}
-        </span>
-      </div>
-
-      <ul className="stack" style={{ listStyle: "none", padding: 0, margin: "12px 0 0" }}>
-        {stage.conditions.map((condition) => {
-          const conditionTone = condition.met ? STAGE_TONE.done : STAGE_TONE.blocked;
-          return (
-            <li
-              key={condition.code}
-              style={{ display: "flex", gap: 12, alignItems: "baseline", justifyContent: "space-between" }}
-            >
-              <span style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                <span aria-hidden style={{ color: conditionTone.fg }}>
-                  {conditionTone.mark}
-                </span>
-                <span>{condition.label}</span>
-              </span>
-              {/* The rule this screen shares with the readiness card — what she
-                  has, then what she needs — but the threshold is shown only
-                  where it is still wanted. Most conditions here are yes/no, and
-                  "Yes (need Yes)" is noise on a satisfied row: it says nothing,
-                  and at 360px it wraps the rows that *do* need reading. */}
-              <span style={{ whiteSpace: "nowrap" }}>
-                <strong style={{ color: conditionTone.fg }}>{condition.actual ?? "—"}</strong>
-                {!condition.met && <span className="t-meta"> (need {condition.threshold})</span>}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-
-      {stage.code === "VERIFIED" && stage.state === "waiting" && (
-        <p className="t-meta" style={{ marginTop: 12 }}>
-          {t("wlt.awaitingVerification")}
-        </p>
-      )}
-
-      {stage.code === "GROUPED" && stage.state === "ready" && (
-        <div style={{ marginTop: 12 }}><p className="t-meta">{t("wlt.addToGroupHelp")}</p><Button variant="primary" onClick={onAddToGroup}>Add her to a group</Button></div>
-      )}
-
-      {stage.code === "LINKED" && <LinkageDetail stage={stage} onNavigate={onNavigate} />}
-    </Card>
-  );
-}
 
 function AddToGroupModal({ open, person, stage, onClose, onDone }: { open: boolean; person: string; stage?: JourneyStage; onClose: () => void; onDone: () => void }) {
   const { message } = App.useApp(); const [form] = Form.useForm<{ group: string }>();
@@ -426,9 +447,12 @@ function LinkageDetail({ stage, onNavigate }: { stage: JourneyStage; onNavigate:
 
   return (
     <div className="stack" style={{ marginTop: 12 }}>
+      {/* No sub-heading on this list: the card above already says "Her group's
+          linkages", and it is not only the open ones — closed and
+          awaiting-approval rows sit here too, live first. Labelling it "Open"
+          put a Closed chip under a heading that denied it. */}
       {ordered.length > 0 && (
         <div>
-          <CapsLabel>{t("wlt.groupLinkages")}</CapsLabel>
           <ul className="stack" style={{ listStyle: "none", margin: "6px 0 0", padding: 0, gap: 6 }}>
             {ordered.map((linkage) => {
               const tone = LINKAGE_TONE[linkage.status];

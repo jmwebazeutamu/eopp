@@ -1152,10 +1152,52 @@ export interface JourneyStage {
   detail: Record<string, unknown>;
 }
 
+/** Who she is — `wlt.services.journey._identity`. Everything here exists in the schema. */
+export interface BeneficiaryIdentity {
+  full_name: string;
+  sex: string;
+  sex_display: string;
+  /** Whole years on the server's today, or null when no date of birth is recorded. */
+  age: number | null;
+  date_of_birth: string | null;
+  national_id: string;
+  psnp_client_id: string;
+  phone_number: string;
+  region: string;
+  zone: string;
+  woreda: string;
+  kebele: string;
+  settlement_type: string;
+  settlement_type_display: string;
+  registered_on: string | null;
+  psnp_status: string;
+  psnp_status_display: string;
+  enrolment_route_display: string;
+  verification_status: WltVerificationStatus;
+  verification_status_display: string;
+  /** Header fields the record does not hold. The server owns the list. */
+  missing: string[];
+}
+
+/** The household facts the schema holds. Household size, dependants and marital status are not among them. */
+export interface BeneficiaryHousehold {
+  household_head: boolean | null;
+  household_id: string;
+  education_level: string;
+  education_level_display: string;
+  disability_status: string;
+  disability_status_display: string;
+  psnp_client_category: string;
+  psnp_client_category_display: string;
+  primary_iga: string;
+}
+
 export interface Journey {
   person: string;
   profile: string;
   full_name: string;
+  identity: BeneficiaryIdentity;
+  household: BeneficiaryHousehold;
   financials: {
     savings_etb: string;
     loans_disbursed_etb: string;
@@ -1566,6 +1608,26 @@ export interface Grievance {
   woreda: string;
   complaint_type: string;
   complaint_type_display: string;
+  /** Stable prefix of the row's own id — what a restricted row is called on screen. */
+  short_reference: string;
+  /** Safeguarding. True on the record regardless of who is reading it. */
+  is_restricted: boolean;
+  /**
+   * True when *this reader* is getting the redacted shape rather than the
+   * record. Not the same as `is_restricted`: a named focal point reading her own
+   * woreda's disclosure sees `is_restricted` true and `restricted` false, and
+   * the screen has to tell them apart.
+   *
+   * When it is true the server omits `summary`, `complainant_name` and the rest
+   * — they are typed optional for that reason.
+   */
+  restricted: boolean;
+  subject_type: "NONE" | "CASE" | "YOUTH" | "GROUP";
+  subject_label: string;
+  subject_youth: string | null;
+  person_name: string | null;
+  subject_group: string | null;
+  group_name: string | null;
   raised_by: string;
   raised_by_display: string;
   complainant_name: string;

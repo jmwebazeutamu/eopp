@@ -24,7 +24,9 @@ Two things it deliberately does not do:
 """
 
 from dataclasses import dataclass, field
+from decimal import Decimal
 
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Sum
 
@@ -394,6 +396,20 @@ def _phase_clears(current, minimum):
 # ---------------------------------------------------------------------------
 
 
+def _money(amount):
+    """Two decimal places, always, as a string.
+
+    `sum(..., 0)` returns the integer `0` when a woman has no loans, so an
+    empty ledger rendered "0" beside a savings figure of "640.00" — the same
+    row, formatted two different ways, on the same card.
+
+    A string rather than a float all the way to the screen. Money here is a
+    savings ledger that twenty women sign a paper register against, and a
+    float cannot hold 0.10.
+    """
+    return str(Decimal(amount).quantize(Decimal("0.01")))
+
+
 def _financials(profile):
     """The member's passbook totals across every group she has belonged to."""
     person = profile.person
@@ -412,13 +428,108 @@ def _financials(profile):
         0,
     )
     return {
-        "savings_etb": str(savings),
-        "loans_disbursed_etb": str(disbursed),
-        "repayments_etb": str(principal_repaid + charges_repaid),
-        "principal_repaid_etb": str(principal_repaid),
-        "charges_repaid_etb": str(charges_repaid),
-        "outstanding_principal_etb": str(outstanding),
+        "savings_etb": _money(savings),
+        "loans_disbursed_etb": _money(disbursed),
+        "repayments_etb": _money(principal_repaid + charges_repaid),
+        "principal_repaid_etb": _money(principal_repaid),
+        "charges_repaid_etb": _money(charges_repaid),
+        "outstanding_principal_etb": _money(outstanding),
         "loans_disbursed_count": len(loans),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Who she is
+# ---------------------------------------------------------------------------
+
+#: The header fields a complete record carries. A blank one is not an error —
+#: the register holds partial records by design, and the ELS extract does not
+#: carry every column — but it *is* work somebody has to do, so the screen
+#: counts them rather than drawing five silent dashes.
+HEADER_FIELDS = ("national_id", "psnp_client_id", "date_of_birth", "phone_number", "woreda", "kebele")
+
+
+def _age_on(born, today):
+    """Whole years, counting the birthday itself.
+
+    Written out rather than `(today - born).days // 365`: that drifts a day per
+    leap year and puts a woman in the wrong single-year age band roughly one
+    year in four, which is exactly the cut a PSNP report is disaggregated on.
+    """
+    if born is None:
+        return None
+    return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+
+
+def _identity(profile):
+    """The answer to "have I got the right woman", before any programme status.
+
+    The screen named her and went straight to gate conditions, so a development
+    agent standing in a kebele had no way to confirm the record in front of her
+    was the person in front of her. Everything here already exists on `Youth` or
+    on the profile — nothing is derived from a field the schema does not hold.
+
+    Place comes from the *profile's* PSNP kebele where there is one, not from
+    the person's free-text columns. Those are what the registration form typed;
+    the FK is what the module scopes and reports on, and when they disagree the
+    scoped one is the one that decides what she is counted in.
+    """
+    person = profile.person
+    kebele = profile.psnp_kebele
+    woreda = profile.psnp_woreda
+
+    values = {
+        "national_id": person.national_or_kebele_id or "",
+        "psnp_client_id": profile.psnp_client_id or "",
+        "date_of_birth": person.date_of_birth.isoformat() if person.date_of_birth else None,
+        "phone_number": person.phone_number or "",
+        "woreda": (woreda.name if woreda is not None else person.woreda) or "",
+        "kebele": (kebele.name if kebele is not None else person.kebele) or "",
+    }
+
+    return {
+        **values,
+        "full_name": person.full_name,
+        "sex": person.sex,
+        "sex_display": str(person.get_sex_display()),
+        "age": _age_on(person.date_of_birth, timezone.localdate()),
+        "region": person.region or "",
+        "zone": person.zone or "",
+        "settlement_type": person.settlement_type or "",
+        "settlement_type_display": str(person.get_settlement_type_display() or ""),
+        "registered_on": person.registration_date.isoformat() if person.registration_date else None,
+        "psnp_status": person.psnp_status,
+        "psnp_status_display": str(person.get_psnp_status_display()),
+        "enrolment_route_display": str(profile.get_enrolment_route_display()),
+        "verification_status": profile.verification_status,
+        "verification_status_display": str(profile.get_verification_status_display()),
+        # Named, not merely counted. A chip saying "3 details missing" that
+        # cannot say *which* three sends somebody hunting through the record.
+        "missing": [name for name in HEADER_FIELDS if not values[name]],
+    }
+
+
+def _household(profile):
+    """The three household facts the schema actually holds.
+
+    The design this implements also asks for household size, dependants and
+    marital status. None of the three exists on `Youth` or on the profile —
+    `household_id` is the PSNP *household identifier*, not a count — so they are
+    absent here rather than rendered as zero or as an invented column. Adding
+    them is a migration, an intake-form field and an ELS extract column, and it
+    is a programme decision rather than a screen one.
+    """
+    person = profile.person
+    return {
+        "household_head": profile.household_head,
+        "household_id": person.household_id or "",
+        "education_level": person.education_level or "",
+        "education_level_display": str(person.get_education_level_display() or ""),
+        "disability_status": person.disability_status or "",
+        "disability_status_display": str(person.get_disability_status_display() or ""),
+        "psnp_client_category": person.psnp_client_category or "",
+        "psnp_client_category_display": str(person.get_psnp_client_category_display() or ""),
+        "primary_iga": profile.primary_iga or "",
     }
 
 
@@ -435,6 +546,8 @@ def build(profile):
         "person": str(profile.person_id),
         "profile": str(profile.pk),
         "full_name": profile.person.full_name,
+        "identity": _identity(profile),
+        "household": _household(profile),
         "stages": [stage.as_dict() for stage in stages],
         "stages_done": len(stages) - len(outstanding),
         "stages_total": len(stages),

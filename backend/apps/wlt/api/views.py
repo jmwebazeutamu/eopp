@@ -966,7 +966,7 @@ class PhaseEventViewSet(
 class BeneficiaryProfileViewSet(viewsets.ModelViewSet):
     """The WLT registry extension, and the exception-route verification queue."""
 
-    queryset = BeneficiaryProfile.objects.select_related("person", "psnp_kebele").all()
+    queryset = BeneficiaryProfile.objects.select_related("person", "psnp_kebele", "psnp_woreda").all()
     serializer_class = BeneficiaryProfileSerializer
     permission_classes = [IsOperational, CanAccessGroups]
     # Enrolment is not group_write — see `CanEnrolBeneficiaries` for why the
