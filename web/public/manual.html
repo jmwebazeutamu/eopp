@@ -110,9 +110,10 @@ footer { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 16px;
     <li><a href="#partners">9. Partners</a></li>
     <li><a href="#users">10. User accounts</a></li>
     <li><a href="#wlt">11. Savings groups (WLT)</a></li>
-    <li><a href="#profile">12. Your profile</a></li>
-    <li><a href="#numbers">13. Reading the numbers</a></li>
-    <li><a href="#trouble">14. If something looks wrong</a></li>
+    <li><a href="#grievances">12. Grievances and appeals</a></li>
+    <li><a href="#profile">13. Your profile</a></li>
+    <li><a href="#numbers">14. Reading the numbers</a></li>
+    <li><a href="#trouble">15. If something looks wrong</a></li>
   </ol>
 </nav>
 
@@ -561,8 +562,79 @@ footer { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 16px;
   </ul>
 </section>
 
+<section id="grievances">
+  <h2>12. Grievances and appeals</h2>
+  <p class="lede">A complaints channel that only accepts complaints from people already on file is not a complaints channel. Anyone can raise one here &mdash; a young person, a savings group, an employer, a trainer, or somebody the programme has never registered.</p>
+
+  <p>Both programmes use the same screen. You will find <strong>Grievances</strong> in the rail if you can see either case records or savings groups, and what you see in it is scoped the same way everything else is: by your caseload or woreda on the youth side, by the groups you run or the geography you cover on the WLT side. Reading a complaint about a savings group does not give a facilitator a young person&rsquo;s case file, and it does not work the other way either.</p>
+
+  <div class="warn">
+    <p><strong>One kind of complaint does not follow this procedure.</strong> Safeguarding, harassment and abuse go straight to the named focal point for that woreda. They never travel up the appeals chain, and programme staff do not investigate them.</p>
+    <p>Choosing that category changes the form in front of you: the case picker and the complainant&rsquo;s name disappear, and anything already typed is cleared. Record only what the person chose to tell you. Do not name anyone they accused.</p>
+    <p>In every list the record shows a reference, a date, a woreda and how long it has been open &mdash; and the word <strong>Restricted</strong>. Nothing else. It is redacted rather than hidden, so the office can show that a disclosure was received without anyone reading what it said. <strong>Opening one is logged with your name and the time.</strong> The system administrator cannot read it either.</p>
+  </div>
+
+  <h3>12.1 The six steps</h3>
+  <p>Every other complaint takes the same six steps, in this order. The order is not a suggestion: the system refuses a move the procedure does not allow, and tells you which condition is missing rather than failing quietly.</p>
+
+  <ol class="steps">
+    <li><strong>Take the complaint.</strong> Record what happened in the complainant&rsquo;s own words, the category, and how serious it is. Anyone at a desk may do this &mdash; taking a complaint is not the same as deciding one, so the permission is wider than for the rest of the procedure. The status becomes <span class="chip c-wait">Received</span>.</li>
+    <li><strong>Tell them it arrived</strong> and give them the reference. Record <em>how</em> you told them: in person, by phone, at a kebele meeting, through a third party. The status becomes <span class="chip c-active">Acknowledged</span>.</li>
+    <li><strong>Work it.</strong> Check the records, speak to the people involved, and write a note as you go. The status becomes <span class="chip c-active">Under review</span>.</li>
+    <li><strong>Decide.</strong> Record the outcome &mdash; upheld, partly upheld, not upheld, referred, withdrawn &mdash; and the reason, in plain language. The status becomes <span class="chip c-wait">Decided</span>.</li>
+    <li><strong>Tell them the answer</strong> and record how, and whether they accepted it. Only now does the status become <span class="chip c-done">Closed</span>.</li>
+    <li><strong>They may appeal</strong> within the appeal window. The status becomes <span class="chip c-stall">Appealed</span> and a new case opens one tier up.</li>
+  </ol>
+
+  <div class="note">
+    <p><strong>Deciding is not closing, and that is the change most likely to surprise you.</strong> A decision the complainant has not heard is not a finished file. The gap between reaching an answer and delivering it is exactly what a supervision mission asks about, and it used to be invisible because one action did both.</p>
+  </div>
+
+  <div class="tip">
+    <p><strong>Severity is your judgement, not the category&rsquo;s.</strong> A payment complaint from a household that has eaten nothing for three days and one about a late transport stipend are the same category and are not the same urgency. Only the person taking the complaint can tell them apart, and the deadline follows what you choose.</p>
+  </div>
+
+  <h3>12.2 What the system will refuse</h3>
+  <p>These are not warnings you can click past. The move is rejected and the reason is shown on screen.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>If you try to</th><th>You will be told</th></tr></thead>
+    <tbody>
+      <tr><td>Work a complaint before acknowledging it</td><td>Record how the complainant was told it arrived first</td></tr>
+      <tr><td>Record an outcome with no reason</td><td>Say why, in words the complainant will hear read back</td></tr>
+      <tr><td>Close a file without recording feedback</td><td>Say how the complainant was told the outcome</td></tr>
+      <tr><td>Pause without a reason and a date to chase</td><td>A pause with no end is a case nobody comes back to</td></tr>
+      <tr><td>Appeal after the window has closed</td><td>The appeal window closed on this decision</td></tr>
+      <tr><td>Open a restricted record you are not named for</td><td>Refused, and the attempt is recorded</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>12.3 Two ways out of the middle</h3>
+  <p><strong>Waiting on the complainant</strong> is the only pause there is, and it stops the clock. It needs a reason and a date to chase. When you resume, the deadline moves forward by however long the wait lasted, so the programme is not charged for time it spent waiting on somebody else. Any other kind of pause would be a hiding place &mdash; a case whose clock does not run and which nobody is answering for.</p>
+  <p><strong>Referred out</strong> is for when a court, an agency or a safeguarding service now owns the matter. Name the body and their reference. The clock stops, and the case is recorded rather than worked: the platform does not pretend to be handling something it is not.</p>
+
+  <h3>12.4 The appeals ladder</h3>
+  <p>Redress is a chain, not a helpdesk. The <strong>Kebele Appeals Committee</strong> answers first. A complainant who disagrees appeals to the <strong>Woreda Appeals Committee</strong>. Beyond that, a case can be recorded as escalated to the regional or federal office, but it is not worked in this system &mdash; there is no point putting a queue in front of people who do not use it.</p>
+  <p>An appeal creates a <strong>new case one tier up</strong>, with a fresh clock and its own file. The complainant&rsquo;s statement travels to it; the decision below does not. An appeal is heard on what the complainant said, not on what the last committee concluded about it. Both records keep their own history, which is the only way the programme can later say how often the woreda disagreed with the kebele.</p>
+  <p>Because parent and appeal share the same statement, the queue shows a <strong>Tier</strong> column. Without it the two rows would look identical.</p>
+
+  <h3>12.5 Reading the queue</h3>
+  <p>The first row of the screen is the job list, not a summary: how many are <strong>late</strong>, how many are <strong>due this week</strong>, how many are <strong>awaiting acknowledgement</strong>, how many are <strong>restricted</strong>. A count is only coloured when there is something in it to do.</p>
+  <p>The <strong>Due</strong> column shows time remaining, not age &mdash; &ldquo;Due in 2 day(s)&rdquo;, &ldquo;3 day(s) late&rdquo;, &ldquo;Due today&rdquo;. A closed case stops counting; it used to keep going, so a file finished a month ago read as though nobody had touched it. Late cases sort to the top, most overdue first.</p>
+
+  <div class="note">
+    <p><strong>Deadlines are counted in working days, and the numbers are on the screen rather than in this manual.</strong> Sunday is the only rest day, because offices here work Saturday mornings and excluding Saturday would flatter every figure. Ethiopian public holidays are skipped &mdash; a deadline that landed on Meskel and was then marked late would destroy trust in the figure faster than having no figure at all. The lengths themselves are set for the programme and can change, so read them where they are shown, not here.</p>
+  </div>
+
+  <h3>12.6 The case file</h3>
+  <p>Opening a complaint gives you a page, not a pop-up, so it can be sent to a colleague as a link and printed for a committee meeting. The <strong>timeline</strong> is the main column and reads from the beginning: the statement, the acknowledgement, every note, and each decision.</p>
+  <p><strong>The complainant&rsquo;s original statement cannot be edited by anyone.</strong> It sits at the top of the file and stays as it was given. Notes are appended and never changed &mdash; a note you could rewrite afterwards is not evidence of anything, so a correction is another note saying what was corrected. That also records that somebody thought the first one was wrong, which is usually the more useful fact.</p>
+
+</section>
+
 <section id="profile">
-  <h2>12. Your profile</h2>
+  <h2>13. Your profile</h2>
   <p>Open the account menu at the foot of the rail and choose <strong>Your profile</strong>.</p>
 
   <h3>What you can change</h3>
@@ -587,7 +659,7 @@ footer { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 16px;
 </section>
 
 <section id="numbers">
-  <h2>13. Reading the numbers</h2>
+  <h2>14. Reading the numbers</h2>
   <p class="lede">The dashboards are deliberately cautious. This section explains what they will and will not tell you, because the caution is easy to mistake for a fault.</p>
 
   <h3>A percentage never travels alone</h3>
@@ -623,7 +695,7 @@ footer { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 16px;
 </section>
 
 <section id="trouble">
-  <h2>14. If something looks wrong</h2>
+  <h2>15. If something looks wrong</h2>
 
   <h4>A list is empty</h4>
   <p>Check the woreda scope at the top of the rail, and check whether any filter chips are selected — a selected chip is filled in. The empty message distinguishes “there is nothing here” from “your filters are hiding everything”, and offers to clear them.</p>
