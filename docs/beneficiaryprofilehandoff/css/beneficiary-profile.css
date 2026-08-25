@@ -1,0 +1,299 @@
+/* ============================================================
+   Beneficiary profile — new styles
+   Extends the existing system. Uses only :root tokens already
+   defined in the app stylesheet. Append to the main stylesheet
+   or import after it.
+   Existing classes reused as-is (do not redefine):
+     .page .stack .card .card--muted .card--tight .card__rule
+     .btn .btn--primary .btn--sm .chip .chip-row
+     .t-title .t-card-title .t-meta .t-caps .t-metric-sm
+     .grid-panels .indicator-row .stat-well .stat-wells
+     .progress .progress__fill .only-laptop .only-phone .sr-only
+   ============================================================ */
+
+/* ---- identity header ---------------------------------------------------- */
+
+.bene-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.bene-header__avatar {
+  width: 76px;
+  height: 76px;
+  flex: none;
+  border-radius: var(--r-group);
+  background: var(--green-100);
+  border: 1px solid var(--green-border);
+  color: var(--green-ink);
+  font-size: 26px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.bene-header__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* no photo on file */
+.bene-header__avatar--empty {
+  background: var(--fill-muted);
+  border: 1px dashed var(--closed-border);
+  color: var(--ink-400);
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* exited beneficiary */
+.bene-header__avatar--muted {
+  background: var(--fill-muted-2);
+  border-color: var(--closed-border);
+  color: var(--ink-400);
+}
+
+.bene-header__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.bene-header__name {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.bene-header__ids {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.bene-header__ids-sep {
+  color: var(--closed-border);
+}
+
+.bene-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: none;
+}
+
+/* ---- fact grid ---------------------------------------------------------- */
+
+.fact-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px var(--s5);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fact__value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.fact__value--num {
+  font-variant-numeric: tabular-nums;
+}
+
+.fact__qualifier {
+  font-weight: 400;
+  color: var(--ink-400);
+}
+
+/* a value the record does not hold yet — always a control, never blank */
+.fact__add {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gold-700);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.fact__add:hover { color: var(--gold-500); }
+
+/* ---- pathway stage list ------------------------------------------------- */
+
+.stage-list { display: flex; flex-direction: column; }
+
+.stage {
+  border-top: 1px solid var(--line-soft);
+}
+
+.stage:first-child { border-top: 0; }
+
+.stage__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  min-height: var(--touch);
+  padding: 11px 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink-900);
+  text-align: left;
+  cursor: pointer;
+}
+
+.stage__mark {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: var(--r-chip);
+  background: var(--green-100);
+  border: 1px solid var(--green-border);
+  color: var(--green-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage__mark--pending {
+  background: var(--fill-muted);
+  border-color: var(--closed-border);
+  color: var(--ink-400);
+}
+
+.stage__mark--blocked {
+  background: var(--gold-100);
+  border-color: var(--gold-border);
+  color: var(--gold-700);
+}
+
+.stage__label { flex: 1; min-width: 0; font-weight: 600; }
+
+.stage__detail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px var(--s5);
+  margin: 0 0 var(--s3) 32px;
+}
+
+/* ---- linkages ----------------------------------------------------------- */
+
+.linkage {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-group);
+  background: var(--surface-alt);
+}
+
+.linkage--pending {
+  border-style: dashed;
+  border-color: var(--closed-border);
+  background: var(--surface);
+}
+
+.linkage__dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: var(--r-chip);
+  background: var(--green-500);
+}
+
+.linkage--pending .linkage__dot { background: var(--gold-500); }
+
+.linkage__body { flex: 1; min-width: 0; }
+
+/* ---- money well --------------------------------------------------------- */
+
+.money-well {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: var(--r-group);
+  background: var(--green-100);
+  border: 1px solid var(--green-border);
+}
+
+.money-well__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--green-ink);
+}
+
+.money-well__value {
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--green-900);
+}
+
+.money-well__unit { font-size: 16px; font-weight: 600; }
+
+.money-outstanding {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-top: 14px;
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+  color: var(--terra-700);
+}
+
+.money-outstanding__value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- responsive --------------------------------------------------------- */
+
+@media (max-width: 899px) {
+  .fact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stage__detail { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 779px) {
+  .bene-header { gap: 14px; }
+  .bene-header__avatar { width: 60px; height: 60px; font-size: 21px; }
+  .bene-header__name { font-size: 21px; }
+  .bene-header__actions { width: 100%; }
+  .bene-header__actions .btn { flex: 1; min-height: var(--touch); }
+  .money-well__value { font-size: 26px; }
+}

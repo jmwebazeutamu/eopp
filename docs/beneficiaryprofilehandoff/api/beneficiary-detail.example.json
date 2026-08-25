@@ -1,0 +1,134 @@
+{
+  "id": "7b70de70-670c-41d3-8b8a-c68d1e039dd0",
+  "identity": {
+    "full_name": "Aster Abebe",
+    "reference_code": "AMH-DSW-01-0247",
+    "psnp_client_number": "03-11-0928-4",
+    "photo_url": null,
+    "date_of_birth": "1992-03-04",
+    "age": 34,
+    "age_is_estimated": false,
+    "phone": "+251912345678",
+    "woreda": { "id": "0d1f...", "name": "Dessie Zuria" },
+    "kebele": { "id": "9c2a...", "name": "Dessie White 01" },
+    "household_size": 6,
+    "registered_on": "2025-07-16",
+    "status": "active",
+    "exited_on": null,
+    "exit_reason": null,
+    "missing_field_count": 1
+  },
+  "household": {
+    "is_head_of_household": true,
+    "marital_status": "widowed",
+    "dependants_count": 4,
+    "dependants_under_5": 2,
+    "disability_type": "none",
+    "disability_notes": null,
+    "education_level": "primary",
+    "education_grade": 6
+  },
+  "case": {
+    "development_agent": { "id": "44ab...", "name": "Tigist Bekele" },
+    "last_contact_on": "2026-08-12",
+    "enterprise": { "id": "77cd...", "name": "Poultry", "status": "operating" },
+    "open_grievance_count": 1
+  },
+  "pathway": {
+    "complete_count": 4,
+    "total_count": 4,
+    "stages": [
+      {
+        "key": "registered",
+        "label": "Registered",
+        "complete": true,
+        "summary": "Consent + PSNP kebele recorded",
+        "checks": [
+          { "label": "Consent recorded", "value": "Yes", "passed": true },
+          { "label": "PSNP kebele recorded", "value": "Yes", "passed": true }
+        ]
+      },
+      {
+        "key": "verified",
+        "label": "Verified",
+        "complete": true,
+        "summary": "Matched to PSNP records",
+        "checks": [
+          { "label": "Verified against PSNP records", "value": "Verified", "passed": true }
+        ]
+      },
+      {
+        "key": "in_group",
+        "label": "In a savings group",
+        "complete": true,
+        "summary": "5 checks",
+        "checks": [
+          { "label": "Verified", "value": "Verified", "passed": true },
+          { "label": "Female", "value": "Yes", "passed": true },
+          { "label": "ELS package completed", "value": "Yes", "passed": true },
+          { "label": "ELS grant received", "value": "Yes", "passed": true },
+          { "label": "PSNP status", "value": "Enrolled", "passed": true }
+        ]
+      },
+      {
+        "key": "linked",
+        "label": "Linked to a service or a structure",
+        "complete": true,
+        "summary": "2 active linkages",
+        "checks": [
+          { "label": "Must already be in a savings group", "value": "Yes", "passed": true },
+          { "label": "Group operating", "value": "Active", "passed": true }
+        ]
+      }
+    ]
+  },
+  "savings_group": {
+    "id": "3f10...",
+    "name": "Dessie White 01",
+    "phase_label": "Phase 2 — internal lending",
+    "member_count": 18,
+    "facilitator_name": "Diamond's Idea",
+    "joined_on": "2025-07-16",
+    "status": "active",
+    "logo_url": null,
+    "meetings_attended": 21,
+    "meetings_held": 24
+  },
+  "finance": {
+    "currency": "ETB",
+    "savings_total": "1040.00",
+    "loans_received_total": "100.00",
+    "loan_count": 1,
+    "repayments_total": "45.00",
+    "repayments_principal": "40.00",
+    "repayments_service_charge": "5.00",
+    "principal_outstanding": "60.00"
+  },
+  "linkages": [
+    {
+      "id": "aa01...",
+      "type_label": "Group savings account",
+      "partner_name": "Amhara Rural Bank",
+      "active_since": "2026-08-20",
+      "status": "active",
+      "blocked_reason": null
+    },
+    {
+      "id": "aa02...",
+      "type_label": "Market or offtake agreement",
+      "partner_name": "Amhara Rural Bank",
+      "active_since": "2026-08-21",
+      "status": "active",
+      "blocked_reason": null
+    },
+    {
+      "id": "aa03...",
+      "type_label": "Cooperative membership",
+      "partner_name": "—",
+      "active_since": null,
+      "status": "pending",
+      "blocked_reason": "Needs Phase 3 — cluster level association, group is at Phase 2"
+    }
+  ],
+  "permissions": { "can_edit": true, "can_log_contact": true }
+}

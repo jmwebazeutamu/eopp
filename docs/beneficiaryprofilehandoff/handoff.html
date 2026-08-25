@@ -1,0 +1,627 @@
+<title>Beneficiary Profile Handoff</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #f7f4ee;
+    --surface: #ffffff;
+    --surface-alt: #fcfbf8;
+    --line: #e3ded2;
+    --line-soft: #efebe1;
+    --ink: #1a1915;
+    --ink-2: #4e4a42;
+    --ink-3: #6b665a;
+    --accent: #0f4f3c;
+    --accent-soft: #e4efe9;
+    --accent-line: #9cc4b4;
+    --warn: #7a5308;
+    --warn-soft: #fbf1dc;
+    --warn-line: #e0bc72;
+    --gone: #8a3a1e;
+    --gone-soft: #f7e7df;
+    --gone-line: #dba98f;
+    --code-bg: #f1eee7;
+    --shadow: 0 1px 2px rgba(26, 25, 21, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #14150f;
+      --surface: #1c1e17;
+      --surface-alt: #191b14;
+      --line: #32352a;
+      --line-soft: #262920;
+      --ink: #f0ede2;
+      --ink-2: #c3bfb1;
+      --ink-3: #948f80;
+      --accent: #6fb99c;
+      --accent-soft: #17301f;
+      --accent-line: #2f5c47;
+      --warn: #e0bc72;
+      --warn-soft: #33290f;
+      --warn-line: #5c4a1d;
+      --gone: #dba98f;
+      --gone-soft: #33190f;
+      --gone-line: #5e3524;
+      --code-bg: #22251c;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14150f;
+    --surface: #1c1e17;
+    --surface-alt: #191b14;
+    --line: #32352a;
+    --line-soft: #262920;
+    --ink: #f0ede2;
+    --ink-2: #c3bfb1;
+    --ink-3: #948f80;
+    --accent: #6fb99c;
+    --accent-soft: #17301f;
+    --accent-line: #2f5c47;
+    --warn: #e0bc72;
+    --warn-soft: #33290f;
+    --warn-line: #5c4a1d;
+    --gone: #dba98f;
+    --gone-soft: #33190f;
+    --gone-line: #5e3524;
+    --code-bg: #22251c;
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Archivo", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    gap: 48px;
+    max-width: 1180px;
+    margin-inline: auto;
+    padding: 40px 28px 96px;
+    align-items: start;
+  }
+
+  /* ---- contents rail ---- */
+  .rail { position: sticky; top: 28px; display: flex; flex-direction: column; gap: 2px; }
+  .rail__eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); padding-bottom: 10px;
+  }
+  .rail a {
+    display: block; padding: 5px 10px; border-radius: 6px; text-decoration: none;
+    color: var(--ink-2); font-size: 13.5px; border-left: 2px solid transparent;
+  }
+  .rail a:hover { background: var(--surface); color: var(--ink); }
+  .rail a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---- masthead ---- */
+  .masthead { padding-bottom: 28px; border-bottom: 1px solid var(--line); margin-bottom: 36px; }
+  .masthead__kicker {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; letter-spacing: .04em; color: var(--accent); text-transform: uppercase;
+  }
+  h1 {
+    font-family: "Spectral", Georgia, serif;
+    font-size: clamp(34px, 5vw, 46px); font-weight: 600; line-height: 1.08;
+    letter-spacing: -0.015em; margin: 8px 0 12px; text-wrap: balance;
+  }
+  .masthead p { margin: 0; max-width: 62ch; color: var(--ink-2); font-size: 16px; }
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 22px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--ink-3);
+  }
+  .meta-row b { color: var(--ink); font-weight: 500; }
+
+  /* ---- sections ---- */
+  section { margin-bottom: 52px; scroll-margin-top: 24px; }
+  h2 {
+    font-family: "Spectral", Georgia, serif;
+    font-size: 25px; font-weight: 600; letter-spacing: -0.01em;
+    margin: 0 0 6px; text-wrap: balance;
+  }
+  .sec-note { margin: 0 0 20px; color: var(--ink-3); font-size: 14px; max-width: 66ch; }
+  h3 {
+    font-size: 15px; font-weight: 700; margin: 26px 0 8px; letter-spacing: -0.005em;
+  }
+  p { max-width: 68ch; }
+  a { color: var(--accent); }
+
+  /* ---- panels ---- */
+  .panel {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .panel + .panel { margin-top: 12px; }
+  .panel__head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .panel__name {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 14px; font-weight: 600;
+  }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px; border: 1px solid var(--accent-line);
+    background: var(--accent-soft); color: var(--accent); white-space: nowrap;
+  }
+  .tag--new { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
+  .tag--change { border-color: var(--warn-line); background: var(--warn-soft); color: var(--warn); }
+  .tag--delete { border-color: var(--gone-line); background: var(--gone-soft); color: var(--gone); }
+
+  /* ---- key/value spec lines ---- */
+  .spec { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 6px 18px; margin: 12px 0 0; }
+  .spec dt {
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-3); padding-top: 3px;
+  }
+  .spec dd { margin: 0; font-size: 14px; }
+  .spec code, code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px;
+    background: var(--code-bg); padding: 1px 5px; border-radius: 4px;
+  }
+
+  /* ---- tables ---- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
+  th {
+    text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--ink-3); padding: 11px 14px;
+    border-bottom: 1px solid var(--line); background: var(--surface-alt); white-space: nowrap;
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td code { font-size: 12px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---- before / after ---- */
+  .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .compare__side { border-radius: 10px; padding: 14px 16px; border: 1px solid; }
+  .compare__side--before { background: var(--gone-soft); border-color: var(--gone-line); }
+  .compare__side--after { background: var(--accent-soft); border-color: var(--accent-line); }
+  .compare__label {
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .compare__side--before .compare__label { color: var(--gone); }
+  .compare__side--after .compare__label { color: var(--accent); }
+  .compare ul { margin: 0; padding-left: 18px; font-size: 13.5px; }
+  .compare li { margin-bottom: 4px; }
+
+  /* ---- checklists ---- */
+  .checks { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  .checks li {
+    display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 10px;
+    font-size: 13.5px; align-items: start;
+  }
+  .box {
+    width: 15px; height: 15px; margin-top: 3px; border: 1px solid var(--ink-3);
+    border-radius: 3px; background: var(--surface);
+  }
+
+  /* ---- numbered rollout (a real sequence) ---- */
+  .steps { list-style: none; counter-reset: step; margin: 0; padding: 0; }
+  .steps li {
+    counter-increment: step; display: grid; grid-template-columns: 30px minmax(0, 1fr);
+    gap: 14px; padding: 12px 0; border-top: 1px solid var(--line);
+  }
+  .steps li:first-child { border-top: 0; }
+  .steps li::before {
+    content: counter(step); font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    border: 1px solid var(--accent-line); background: var(--accent-soft);
+    border-radius: 999px; width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .steps b { display: block; font-size: 14px; }
+  .steps p { margin: 2px 0 0; font-size: 13.5px; color: var(--ink-2); }
+
+  pre {
+    margin: 12px 0 0; padding: 14px 16px; background: var(--code-bg);
+    border-radius: 8px; overflow-x: auto; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12.5px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .callout {
+    border-left: 3px solid var(--warn-line); background: var(--warn-soft);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: var(--ink);
+    margin-top: 14px;
+  }
+  .callout b { color: var(--warn); }
+
+  .file-list {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px;
+    line-height: 1.9; color: var(--ink-2);
+  }
+  .file-list b { color: var(--ink); font-weight: 600; }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 28px 18px 72px; }
+    .rail { position: static; flex-direction: row; flex-wrap: wrap; gap: 4px; margin-bottom: 28px; }
+    .rail__eyebrow { width: 100%; padding-bottom: 4px; }
+    .rail a { border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; }
+    .spec { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
+    .spec dd { margin-bottom: 8px; }
+  }
+</style>
+
+<div class="shell">
+  <nav class="rail" aria-label="Contents">
+    <div class="rail__eyebrow">Contents</div>
+    <a href="#scope">Scope</a>
+    <a href="#where">Where the code goes</a>
+    <a href="#tokens">Tokens</a>
+    <a href="#components">Components</a>
+    <a href="#fields">Data fields</a>
+    <a href="#api">API contract</a>
+    <a href="#delete">What to delete</a>
+    <a href="#rollout">Rollout order</a>
+    <a href="#acceptance">Acceptance criteria</a>
+    <a href="#qa">QA and accessibility</a>
+    <a href="#open">Open questions</a>
+  </nav>
+
+  <main>
+    <header class="masthead">
+      <div class="masthead__kicker">Economic Opportunities Pathway Platform</div>
+      <h1>Beneficiary Profile Handoff</h1>
+      <p>The beneficiary detail page names a woman and then tells you nothing about her. This package adds the identity, household and case record, removes the duplicated stage checks, and moves the page to two columns. Everything is built from tokens and classes the app already ships.</p>
+      <div class="meta-row">
+        <span>Route <b>/wlt/beneficiaries/:id</b></span>
+        <span>Stack <b>React + TS + Vite, Ant Design</b></span>
+        <span>API <b>Django REST</b></span>
+        <span>Design <b><a href="https://claude.ai/code/artifact/79f79c72-223a-489f-9c31-f14d49f9d0ca">Canvas &rarr;</a></b></span>
+      </div>
+    </header>
+
+    <section id="scope">
+      <h2>Scope</h2>
+      <p class="sec-note">One route. No change to the registry list, the group pages, or the linkage module.</p>
+      <div class="compare">
+        <div class="compare__side compare__side--before">
+          <div class="compare__label">Out of scope</div>
+          <ul>
+            <li>Beneficiary registry list and filters</li>
+            <li>Group detail and linkage pages</li>
+            <li>The edit form itself, beyond deep-linking to a field</li>
+            <li>Amharic translation of the new labels (tracked separately)</li>
+          </ul>
+        </div>
+        <div class="compare__side compare__side--after">
+          <div class="compare__label">In scope</div>
+          <ul>
+            <li>New identity header with photo, IDs and five facts</li>
+            <li>Household and case cards</li>
+            <li>Collapsible pathway list replacing two duplicated blocks</li>
+            <li>Two-column layout, money formatting, group logo placeholder</li>
+            <li>13 new model fields, 2 migrations, one serializer rewrite</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="where">
+      <h2>Where the code goes</h2>
+      <p class="sec-note">Paths assume the existing <code>src/</code> layout. Adjust to match your feature-folder convention; nothing depends on the location.</p>
+      <div class="panel">
+        <div class="file-list">
+          <b>src/features/beneficiaries/</b><br>
+          &nbsp;&nbsp;BeneficiaryProfilePage.tsx <span style="color:var(--ink-3)">— route component, layout shell</span><br>
+          &nbsp;&nbsp;BeneficiaryIdentityHeader.tsx <span style="color:var(--ink-3)">— new</span><br>
+          &nbsp;&nbsp;PathwayStageList.tsx <span style="color:var(--ink-3)">— replaces two components</span><br>
+          &nbsp;&nbsp;SavingsSummaryCard.tsx<br>
+          &nbsp;&nbsp;Fact.tsx <span style="color:var(--ink-3)">— shared label/value/Add cell</span><br>
+          &nbsp;&nbsp;format.ts <span style="color:var(--ink-3)">— money, date, phone, initials</span><br>
+          &nbsp;&nbsp;types.ts<br>
+          <b>src/styles/</b><br>
+          &nbsp;&nbsp;beneficiary-profile.css <span style="color:var(--ink-3)">— import after the main stylesheet</span><br>
+          <b>api/wlt/</b><br>
+          &nbsp;&nbsp;models.py, serializers.py, migrations/
+        </div>
+      </div>
+      <div class="callout">
+        <b>No new tokens.</b> <code>beneficiary-profile.css</code> declares zero custom properties. If a value you need is not in <code>:root</code>, raise it rather than hard-coding a hex.
+      </div>
+    </section>
+
+    <section id="tokens">
+      <h2>Tokens</h2>
+      <p class="sec-note">Every value below already exists in the app stylesheet. This table is the mapping, so nobody has to guess which green.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Use</th><th>Token</th><th>Value</th><th>Where</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Card surface, border, radius</td><td><code>--surface</code> / <code>--line</code> / <code>--r-card</code></td><td class="num">#ffffff / #e3ded2 / 12px</td><td>Every card, via <code>.card</code></td></tr>
+            <tr><td>Hairline inside a card</td><td><code>--line-soft</code></td><td class="num">#f4f1ea</td><td>Fact grid rule, stage separators, row dividers</td></tr>
+            <tr><td>Complete, active, savings</td><td><code>--green-100</code> / <code>--green-border</code> / <code>--green-ink</code></td><td class="num">#e4efe9 / #9cc4b4 / #0b4a38</td><td>Status chip, stage marks, savings well</td></tr>
+            <tr><td>Headline savings figure</td><td><code>--green-900</code></td><td class="num">#0a3a2c</td><td>Total savings only</td></tr>
+            <tr><td>Missing data, blocked linkage</td><td><code>--gold-100</code> / <code>--gold-border</code> / <code>--gold-700</code></td><td class="num">#fbf1dc / #e0bc72 / #7a5308</td><td>&ldquo;N details missing&rdquo; chip, Add links, Not yet</td></tr>
+            <tr><td>Money still owed</td><td><code>--terra-700</code></td><td class="num">#8a3a1e</td><td>Principal outstanding, that row only</td></tr>
+            <tr><td>Exited beneficiary</td><td><code>--fill-muted-2</code> / <code>--closed-border</code> / <code>--ink-600</code></td><td class="num">#edeae1 / #d2ccbe / #4e4a42</td><td>Muted header card</td></tr>
+            <tr><td>Spacing</td><td><code>--s2</code> &hellip; <code>--s6</code></td><td class="num">8 / 12 / 16 / 24 / 32</td><td>All gaps. No arbitrary px.</td></tr>
+            <tr><td>Minimum touch target</td><td><code>--touch</code></td><td class="num">48px</td><td>Every control below 780px</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="components">
+      <h2>Components</h2>
+      <p class="sec-note">Five components. Measurements are the values in the shipped CSS, not approximations.</p>
+
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__name">BeneficiaryIdentityHeader</span>
+          <span class="tag tag--new">New</span>
+        </div>
+        <p style="margin:0;font-size:14px;">Sits directly under the breadcrumb, above every other card. Answers &ldquo;who is this woman&rdquo; before the page says anything about programme status.</p>
+        <dl class="spec">
+          <dt>Container</dt><dd><code>.card</code>, padding <code>20px</code> (overrides the default <code>18px 20px</code>)</dd>
+          <dt>Avatar</dt><dd>76&times;76, <code>--r-group</code> 10px. Photo when present, initials otherwise, dashed &ldquo;Add photo&rdquo; button when the record has none and the user may edit. Drops to 60&times;60 below 780px.</dd>
+          <dt>Name</dt><dd>26px / 700 / -0.01em. Deliberately larger than <code>.t-title</code> (22px); it is the page&rsquo;s subject, not a section heading.</dd>
+          <dt>Status chip</dt><dd><code>.chip</code>. Green &ldquo;Active&rdquo;, gold &ldquo;N details missing&rdquo;, grey &ldquo;Exited&rdquo;. Missing wins over Active when <code>missing_field_count &gt; 0</code>.</dd>
+          <dt>Identifier line</dt><dd>13px, <code>--ink-400</code>, tabular figures. Internal ID / PSNP client number / registration date, separated by <code>--closed-border</code> slashes.</dd>
+          <dt>Fact grid</dt><dd>5 columns above 899px, 2 below. Age, Phone, Woreda, Kebele, Household size. 14px hairline rule above.</dd>
+          <dt>Actions</dt><dd><code>.btn--sm</code> Edit details, Record contact, then <code>.btn--sm.btn--primary</code> Print profile. Hidden entirely when status is exited. Full-width, 48px tall below 780px.</dd>
+        </dl>
+        <h3>States</h3>
+        <ul style="font-size:13.5px;margin:6px 0 0;padding-left:18px;">
+          <li><b>Complete</b> &mdash; every header field present, green Active chip.</li>
+          <li><b>Details missing</b> &mdash; gold chip counting the nulls; each null cell is a gold <code>Add</code> button that opens the edit form focused on that field.</li>
+          <li><b>Exited</b> &mdash; <code>.card--muted</code>, grey chip, exit date and reason replace the registration date, actions hidden.</li>
+          <li><b>Read-only user</b> &mdash; nulls render an em dash, not an Add button; no action buttons.</li>
+        </ul>
+        <h3>Edge cases</h3>
+        <ul style="font-size:13.5px;margin:6px 0 0;padding-left:18px;">
+          <li>Name longer than the row: wraps, never truncates. A name is not a candidate for an ellipsis.</li>
+          <li>No date of birth but an estimated age: show the age with the qualifier <code>estimated</code>.</li>
+          <li>One-word name: initials fall back to a single letter.</li>
+          <li>Amharic script names must not clip the 76px avatar; initials use the first grapheme, not the first byte.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__name">PathwayStageList</span>
+          <span class="tag tag--change">Replaces two components</span>
+        </div>
+        <p style="margin:0;font-size:14px;">One list. Rows expand in place. This replaces both the summary block at the top of the page and the four repeated check cards at the bottom.</p>
+        <dl class="spec">
+          <dt>Progress bar</dt><dd><code>.progress</code> / <code>.progress__fill</code>, 6px. Width is <code>complete_count / total_count</code>. <code>data-complete="true"</code> at 100%.</dd>
+          <dt>Row</dt><dd><code>&lt;button&gt;</code>, min-height 48px, <code>aria-expanded</code> + <code>aria-controls</code>. 20px circular mark, label 14px/600, right-aligned summary in <code>.t-meta</code>, chevron.</dd>
+          <dt>Mark states</dt><dd>Green tick when complete; gold when some checks pass; grey when none do.</dd>
+          <dt>Detail</dt><dd><code>.indicator-row</code> pairs in 2 columns, indented 32px, single column below 899px.</dd>
+          <dt>Default open</dt><dd>First incomplete stage. All complete, nothing open.</dd>
+        </dl>
+        <div class="callout"><b>Do not keep the old blocks.</b> Leaving either in place reintroduces the duplication this component exists to remove.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__name">SavingsSummaryCard</span>
+          <span class="tag tag--change">Rework</span>
+        </div>
+        <dl class="spec">
+          <dt>Headline</dt><dd><code>.money-well</code>, green ground, 30px/700 tabular, unit at 16px. Total savings only.</dd>
+          <dt>Secondary</dt><dd>Two columns: Loans received, Repaid. 20px/700 tabular, breakdown in <code>.t-meta</code>.</dd>
+          <dt>Outstanding</dt><dd>Own row on a <code>--line-soft</code> rule, <code>--terra-700</code>, 22px. Hidden when the balance is zero.</dd>
+          <dt>Formatting</dt><dd>Thousands separators, always two decimals. <code>formatMoney()</code> takes the decimal <b>string</b> from the API. Never parse money to a float.</dd>
+        </dl>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__name">Fact</span>
+          <span class="tag tag--new">New, shared</span>
+        </div>
+        <p style="margin:0;font-size:14px;">One label/value cell. The rule it enforces is the point of the whole package: <b>a missing value is never blank and never &ldquo;N/A&rdquo;.</b> It is a gold Add button that opens the edit form on that field, because a missing phone number is work somebody has to do.</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">
+          <span class="panel__name">GroupAvatar</span>
+          <span class="tag tag--delete">Bug fix</span>
+        </div>
+        <p style="margin:0;font-size:14px;">The current page renders a broken <code>&lt;img&gt;</code> whose alt text reads &ldquo;SHG logo&rdquo; on screen. Replace with a 40&times;40 placeholder tile that draws an inline SVG when <code>logo_url</code> is null. Decorative images take <code>alt=""</code>, never a description of themselves.</p>
+      </div>
+    </section>
+
+    <section id="fields">
+      <h2>Data fields</h2>
+      <p class="sec-note">Thirteen new columns, all nullable. The registry already holds partial records, so a non-null constraint would break existing rows and block the migration. Completeness is enforced in the UI and in an export validator, not in the schema.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>UI label</th><th>Field</th><th>Type</th><th>Null</th><th>Source</th></tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="5" style="background:var(--surface-alt);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);">Identity</td></tr>
+            <tr><td>Beneficiary ID</td><td><code>reference_code</code></td><td>char(24), unique, indexed</td><td>No</td><td>Exists</td></tr>
+            <tr><td>PSNP client number</td><td><code>psnp_client_number</code></td><td>char(32), indexed</td><td>Yes</td><td>PSNP import</td></tr>
+            <tr><td>Photo</td><td><code>photo</code></td><td>image</td><td>Yes</td><td>Field capture</td></tr>
+            <tr><td>Age</td><td><code>date_of_birth</code></td><td>date</td><td>Yes</td><td>Registration form</td></tr>
+            <tr><td>Age (no DOB)</td><td><code>estimated_age</code></td><td>smallint</td><td>Yes</td><td>Field estimate</td></tr>
+            <tr><td>Phone</td><td><code>phone</code></td><td>char(20), E.164</td><td>Yes</td><td>Registration form</td></tr>
+            <tr><td>Woreda</td><td><code>woreda</code></td><td>FK geo.Woreda</td><td>Yes</td><td>Derive from kebele where possible</td></tr>
+            <tr><td>Kebele</td><td><code>kebele</code></td><td>FK</td><td>Yes</td><td>Exists</td></tr>
+            <tr><td>Household size</td><td><code>household_size</code></td><td>smallint</td><td>Yes</td><td>PSNP import</td></tr>
+            <tr><td>Status</td><td><code>status</code></td><td>enum active / inactive / exited</td><td>No, default active</td><td>New</td></tr>
+            <tr><td>Exit date, reason</td><td><code>exited_on</code>, <code>exit_reason</code></td><td>date, char(120)</td><td>Yes</td><td>New</td></tr>
+
+            <tr><td colspan="5" style="background:var(--surface-alt);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);">Household</td></tr>
+            <tr><td>Head of household</td><td><code>is_head_of_household</code></td><td>bool</td><td>Yes</td><td>PSNP import</td></tr>
+            <tr><td>Marital status</td><td><code>marital_status</code></td><td>enum, 5 values</td><td>Yes</td><td>Registration form</td></tr>
+            <tr><td>Dependants</td><td><code>dependants_count</code>, <code>dependants_under_5</code></td><td>smallint &times;2</td><td>Yes</td><td>PSNP import</td></tr>
+            <tr><td>Disability</td><td><code>disability_type</code>, <code>disability_notes</code></td><td>enum, char(240)</td><td>Yes</td><td>Registration form</td></tr>
+            <tr><td>Education</td><td><code>education_level</code>, <code>education_grade</code></td><td>enum, smallint</td><td>Yes</td><td>Registration form</td></tr>
+
+            <tr><td colspan="5" style="background:var(--surface-alt);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);">Case &mdash; derived, not stored</td></tr>
+            <tr><td>Development agent</td><td><code>development_agent</code></td><td>FK staff.Staff, SET_NULL</td><td>Yes</td><td>New</td></tr>
+            <tr><td>Last contact</td><td><code>last_contact_on</code></td><td>annotate <code>Max(contacts__occurred_on)</code></td><td>Yes</td><td>Contact log</td></tr>
+            <tr><td>Enterprise</td><td><code>active_enterprise</code></td><td>reverse FK</td><td>Yes</td><td>Enterprises module</td></tr>
+            <tr><td>Grievances</td><td><code>open_grievance_count</code></td><td>annotate <code>Count(filter=status=open)</code></td><td>No, 0</td><td>Grievances module</td></tr>
+            <tr><td>Attendance</td><td><code>meetings_attended / held</code></td><td>annotate</td><td>Yes</td><td>Meeting register</td></tr>
+            <tr><td>Age</td><td><code>age</code>, <code>age_is_estimated</code></td><td>property</td><td>Yes</td><td>Computed from DOB</td></tr>
+            <tr><td>Missing count</td><td><code>missing_field_count</code></td><td>property over <code>HEADER_FIELDS</code></td><td>No</td><td>Computed</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="api">
+      <h2>API contract</h2>
+      <p class="sec-note">One request fills the page. The response is grouped by card, not flat, so a component maps to a key.</p>
+      <div class="panel">
+        <div class="panel__name" style="margin-bottom:8px;">GET /api/wlt/beneficiaries/{id}/</div>
+<pre><code>{
+  id, 
+  identity   { full_name, reference_code, psnp_client_number, photo_url,
+               date_of_birth, age, age_is_estimated, phone, woreda, kebele,
+               household_size, registered_on, status, exited_on, exit_reason,
+               missing_field_count },
+  household  { is_head_of_household, marital_status, dependants_count,
+               dependants_under_5, disability_type, disability_notes,
+               education_level, education_grade },
+  case       { development_agent, last_contact_on, enterprise,
+               open_grievance_count },
+  pathway    { complete_count, total_count, stages[] },
+  savings_group { id, name, phase_label, member_count, facilitator_name,
+                  joined_on, status, logo_url, meetings_attended, meetings_held },
+  finance    { currency, savings_total, loans_received_total, loan_count,
+               repayments_total, repayments_principal,
+               repayments_service_charge, principal_outstanding },
+  linkages   [ { id, type_label, partner_name, active_since, status,
+                 blocked_reason } ],
+  permissions { can_edit, can_log_contact }
+}</code></pre>
+        <dl class="spec">
+          <dt>Money</dt><dd>Decimal serialised as a string, two places, no locale. The client formats it.</dd>
+          <dt>Dates</dt><dd>ISO <code>YYYY-MM-DD</code>. All display formatting is client-side.</dd>
+          <dt>Blocked linkage</dt><dd>Same array as active ones, distinguished by a non-null <code>blocked_reason</code>. The client splits them; the server does not send two lists.</dd>
+          <dt>Queries</dt><dd><code>select_related</code> woreda, kebele, development_agent, savings_group; annotate the four derived counts. The current page issues one query per stage check &mdash; that must go.</dd>
+          <dt>Permissions</dt><dd>Server-side, in the payload. The client must not infer edit rights from a role string.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <section id="delete">
+      <h2>What to delete</h2>
+      <p class="sec-note">The rework only pays off if the old markup goes with it.</p>
+      <div class="compare">
+        <div class="compare__side compare__side--before">
+          <div class="compare__label">Remove</div>
+          <ul>
+            <li>The stage summary block at the top of the page</li>
+            <li>All four <code>REGISTERED</code> / <code>VERIFIED</code> / <code>IN A SAVINGS GROUP</code> / <code>LINKED</code> check cards at the bottom</li>
+            <li>The prose line &ldquo;Her recorded totals across every savings group she has belonged to&rdquo;</li>
+            <li>The broken <code>SHG logo</code> image</li>
+            <li>The <code>Female &mdash; Yes</code> row from the group checklist</li>
+            <li>The floating <code>admin</code> pill overlapping card content, or reposition it clear of the column</li>
+          </ul>
+        </div>
+        <div class="compare__side compare__side--after">
+          <div class="compare__label">Result</div>
+          <ul>
+            <li>Page height drops from roughly 2000px to about 1100px on a laptop</li>
+            <li>Ten checks render once instead of twice</li>
+            <li>Sex moves into identity where it belongs, not into a compliance row</li>
+            <li>Nothing on the page renders alt text as if it were content</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="rollout">
+      <h2>Rollout order</h2>
+      <p class="sec-note">This one is a real sequence &mdash; each step depends on the one before it.</p>
+      <ol class="steps">
+        <li><div><b>Migration 0001 &mdash; add columns</b><p>All thirteen fields nullable. No backfill, no constraint. Safe to deploy on its own.</p></div></li>
+        <li><div><b>Migration 0002 &mdash; backfill</b><p>Populate PSNP client number, household size, head-of-household and dependants from the existing import where a value exists. Log rows left null.</p></div></li>
+        <li><div><b>Serializer and query</b><p>Grouped response, annotations, permissions. Ship behind the existing endpoint version; the old page keeps working because it reads a subset.</p></div></li>
+        <li><div><b>Header, Fact, GroupAvatar</b><p>Land the identity block first. It is the change the field team actually asked for, and it is independent of the pathway rework.</p></div></li>
+        <li><div><b>PathwayStageList, and delete the old blocks</b><p>One commit. Landing the new list without removing the old ones ships the page with three copies of the same information.</p></div></li>
+        <li><div><b>Two-column layout, money formatting, household and case cards</b><p>Layout last, once the pieces it arranges are stable.</p></div></li>
+        <li><div><b>Edit-form deep links</b><p>Wire each Add control to the edit form focused on its field. Until this lands the controls should be hidden, not inert.</p></div></li>
+      </ol>
+    </section>
+
+    <section id="acceptance">
+      <h2>Acceptance criteria</h2>
+      <p class="sec-note">Written so a tester can pass or fail each one without asking what was meant.</p>
+
+      <h3>Identity header</h3>
+      <ul class="checks">
+        <li><span class="box"></span><span>A beneficiary with every field populated shows name, green Active chip, internal ID, PSNP client number, registration date, and five facts, all above the fold at 1280&times;800.</span></li>
+        <li><span class="box"></span><span>A beneficiary with three null header fields shows a gold chip reading &ldquo;3 details missing&rdquo;.</span></li>
+        <li><span class="box"></span><span>Every null field renders a gold Add control. No cell is blank and none reads &ldquo;N/A&rdquo;.</span></li>
+        <li><span class="box"></span><span>Clicking an Add control opens the edit form with that field focused.</span></li>
+        <li><span class="box"></span><span>A user without <code>change_beneficiary</code> sees em dashes and no action buttons.</span></li>
+        <li><span class="box"></span><span>An exited beneficiary shows a muted card, a grey Exited chip, and the exit date and reason in place of the registration date.</span></li>
+        <li><span class="box"></span><span>A record with no photo shows initials, or an Add photo control for an editor. No broken image, ever.</span></li>
+      </ul>
+
+      <h3>Pathway</h3>
+      <ul class="checks">
+        <li><span class="box"></span><span>The four stage checks appear exactly once on the page.</span></li>
+        <li><span class="box"></span><span>Clicking a row expands its checks and sets <code>aria-expanded="true"</code>; clicking again collapses it.</span></li>
+        <li><span class="box"></span><span>On a partly complete record, the first incomplete stage is open on load.</span></li>
+        <li><span class="box"></span><span>Progress bar width matches the stage ratio, and the row is announced to a screen reader as &ldquo;N of 4 stages complete&rdquo;.</span></li>
+      </ul>
+
+      <h3>Money</h3>
+      <ul class="checks">
+        <li><span class="box"></span><span>1040.00 renders as <span class="num">1,040.00</span> ETB with tabular figures.</span></li>
+        <li><span class="box"></span><span>Principal outstanding renders in terracotta with its percentage, and disappears entirely when the balance is zero.</span></li>
+        <li><span class="box"></span><span>No money value is passed through <code>parseFloat</code> anywhere in the render path.</span></li>
+      </ul>
+
+      <h3>Layout</h3>
+      <ul class="checks">
+        <li><span class="box"></span><span>Two columns at 1280px, one column at 899px and below, nothing overlapping at 360px.</span></li>
+        <li><span class="box"></span><span>Page body never scrolls horizontally at any width from 320px to 1920px.</span></li>
+        <li><span class="box"></span><span>Every control is at least 48px tall below 780px.</span></li>
+      </ul>
+    </section>
+
+    <section id="qa">
+      <h2>QA and accessibility</h2>
+      <ul class="checks">
+        <li><span class="box"></span><span>Tab order runs breadcrumb &rarr; actions &rarr; fact Add controls &rarr; stage rows &rarr; group link &rarr; linkages. Focus is visible on every one.</span></li>
+        <li><span class="box"></span><span>Each card is a <code>&lt;section&gt;</code> with <code>aria-labelledby</code> pointing at its own heading.</span></li>
+        <li><span class="box"></span><span>Colour is never the only signal: chips carry text, linkage dots sit beside a written status.</span></li>
+        <li><span class="box"></span><span>Contrast: gold <code>#7a5308</code> on white passes AA at 14px. Verify the Add link against <code>--surface-alt</code> too.</span></li>
+        <li><span class="box"></span><span>Amharic (<code>lang="am"</code>) renders in Noto Sans Ethiopic without clipping in chips, the 76px avatar, or the fact grid.</span></li>
+        <li><span class="box"></span><span>Long values wrap rather than truncate: a 40-character enterprise name, a five-word woreda.</span></li>
+        <li><span class="box"></span><span>Print stylesheet: the profile prints on one A4 page with actions and the rail hidden.</span></li>
+        <li><span class="box"></span><span>Empty states: no savings group, no linkages, zero grievances, all-null household. Each renders a sentence, not an empty card.</span></li>
+        <li><span class="box"></span><span>Slow network: skeletons use the existing <code>.skeleton</code> classes; no layout shift when data lands.</span></li>
+      </ul>
+    </section>
+
+    <section id="open">
+      <h2>Open questions</h2>
+      <p class="sec-note">Answer these before step 1. Each one changes the schema or the copy.</p>
+      <div class="panel">
+        <ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.7;">
+          <li>Does the PSNP import already carry household size, head-of-household and dependants? If so, steps 1 and 2 collapse into one migration.</li>
+          <li>Is disability captured as a single type or as multiple flags? The enum above assumes one plus a notes field.</li>
+          <li>Who owns the exit reason vocabulary &mdash; free text, or a controlled list? Free text will not aggregate.</li>
+          <li>Is there a contact log table today, or does &ldquo;last contact&rdquo; need one built?</li>
+          <li>Photo storage and consent: does the consent record already cover holding a photograph?</li>
+          <li>Should the phone number be visible to every role, or masked for anyone without <code>change_beneficiary</code>?</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+</div>
