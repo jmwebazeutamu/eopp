@@ -19,19 +19,6 @@ from apps.users.models import Role, User
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture
-def raise_grievance(db, supervisor):
-    def _raise(**fields):
-        fields.setdefault("complaint_type", ComplaintType.SERVICE_QUALITY)
-        fields.setdefault("raised_by", RaisedBy.YOUTH)
-        fields.setdefault("summary", "The training centre had no materials for three weeks.")
-        fields.setdefault("assigned_staff", supervisor)
-        fields.setdefault("woreda", "Adama")
-        return services.raise_grievance(**fields)
-
-    return _raise
-
-
 # ---------------------------------------------------------------------------
 # A complaint with no case
 # ---------------------------------------------------------------------------
@@ -179,19 +166,19 @@ def test_a_supervisor_sees_complaints_from_her_own_woreda(as_user, supervisor, r
     assert response.data["results"][0]["woreda"] == "Adama"
 
 
-def test_a_safeguarding_complaint_is_hidden_from_everyone_but_its_assignee(as_user, db, supervisor, raise_grievance):
+def test_a_staff_conduct_complaint_is_hidden_from_everyone_but_its_assignee(as_user, db, supervisor, raise_grievance):
     """The person complained about may be the supervisor who would otherwise
     read it."""
     other = User.objects.create_user(
         "sup-b", "pw-Test-12345", full_name="Other Supervisor", role=Role.SUPERVISOR, woreda_assignment=["Adama"]
     )
-    raise_grievance(complaint_type=ComplaintType.SAFEGUARDING, assigned_staff=other, summary="Serious matter.")
+    raise_grievance(complaint_type=ComplaintType.STAFF_CONDUCT, assigned_staff=other, summary="Serious matter.")
 
     assert as_user(supervisor).get("/api/v1/grievances/").data["count"] == 0
     assert as_user(other).get("/api/v1/grievances/").data["count"] == 1
 
 
-def test_the_administrator_reads_everything(as_user, system_admin, db, supervisor, raise_grievance):
+def test_the_administrator_reads_everything_except_a_disclosure(as_user, system_admin, db, supervisor, raise_grievance):
     raise_grievance(complaint_type=ComplaintType.STAFF_CONDUCT, assigned_staff=supervisor, summary="Serious.")
     assert as_user(system_admin).get("/api/v1/grievances/").data["count"] == 1
 
@@ -231,3 +218,77 @@ def test_creating_through_the_api_inherits_woreda_from_the_case(as_user, make_ca
 
     assert response.status_code == 201
     assert response.data["woreda"] == "Bishoftu"
+
+
+# ---------------------------------------------------------------------------
+# One channel, two modules — added 2026-08-25
+# ---------------------------------------------------------------------------
+
+
+def test_a_complaint_names_one_subject_or_none(raise_grievance, make_case, case_manager, wlt_group):
+    """`NONE` is a real subject type here, unlike on the referral side."""
+    from apps.grievances.models import GrievanceSubjectType
+
+    nobody = raise_grievance()
+    assert nobody.subject_type == GrievanceSubjectType.NONE
+
+    about_a_group = raise_grievance(subject_group=wlt_group)
+    assert about_a_group.subject_type == GrievanceSubjectType.GROUP
+    assert about_a_group.subject_label() == wlt_group.name
+
+
+def test_a_group_complaint_takes_its_group_woreda(raise_grievance, wlt_group, wlt_locations):
+    """A hand-typed woreda that disagrees scopes to one office and reports in
+    another."""
+    grievance = raise_grievance(subject_group=wlt_group, woreda="")
+    assert grievance.woreda == wlt_locations["woreda"].name
+
+
+def test_the_database_refuses_two_subjects(raise_grievance, make_case, case_manager, wlt_group):
+    case = make_case(case_manager=case_manager)
+    with pytest.raises(ValidationError):
+        raise_grievance(case=case, subject_group=wlt_group)
+
+
+def test_a_facilitator_reads_her_own_group_complaint(as_user, facilitator, raise_grievance, wlt_group):
+    """The channel is shared. Gating it on `CanAccessCases` gave every WLT role
+    a 403, so a savings group could not complain about anything."""
+    raise_grievance(subject_group=wlt_group, summary="The bank refused to open the account.")
+
+    response = as_user(facilitator).get("/api/v1/grievances/")
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+
+
+def test_a_facilitator_does_not_thereby_read_case_complaints(as_user, facilitator, raise_grievance, wlt_group):
+    """Reading a complaint about her group is not reading a young person's file."""
+    raise_grievance(subject_group=wlt_group)
+    raise_grievance(woreda="Adama", summary="A complaint about the youth programme.")
+
+    response = as_user(facilitator).get("/api/v1/grievances/")
+    assert response.data["count"] == 1
+    assert response.data["results"][0]["subject_type"] == "GROUP"
+
+
+def test_a_case_manager_does_not_read_a_group_complaint(as_user, case_manager, raise_grievance, wlt_group):
+    """The boundary in the other direction, on the same channel."""
+    raise_grievance(subject_group=wlt_group)
+    assert as_user(case_manager).get("/api/v1/grievances/").data["count"] == 0
+
+
+def test_a_facilitator_can_file_one(as_user, facilitator, wlt_group, supervisor):
+    """Filing is the act the mechanism exists to receive. An outreach worker or
+    a facilitator who can only read complaints cannot take one."""
+    response = as_user(facilitator).post(
+        "/api/v1/grievances/",
+        {
+            "subject_group": str(wlt_group.pk),
+            "complaint_type": "PAYMENT",
+            "raised_by": "YOUTH",
+            "summary": "The group's grant has not arrived.",
+            "assigned_staff": str(supervisor.pk),
+        },
+        format="json",
+    )
+    assert response.status_code == 201, response.data
+    assert response.data["subject_type"] == "GROUP"

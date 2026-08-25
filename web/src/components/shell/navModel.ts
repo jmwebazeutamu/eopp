@@ -77,9 +77,9 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
         // enterprise officer sees her own records and a supervisor her woreda's.
         item("/enterprises", "nav.enterprises", ICON_PATHS.partners),
         item("/verification", "nav.verification", ICON_PATHS.queue),
-        item("/grievances", "nav.grievances", ICON_PATHS.alerts),
       ]
     : [];
+
 
   const directory: NavItem[] = [
     ...(hasCases ? [item("/youth", "nav.registry", ICON_PATHS.registry)] : []),
@@ -95,6 +95,13 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
   // all. `group_scope` is the same server-resolved matrix row the case items
   // read, so the boundary is stated once.
   const hasGroups = user.access.group_scope !== "NONE";
+
+  // The complaints channel belongs to neither module, so it is offered to
+  // anybody either module admits. It sat under the youth-side delivery group,
+  // which meant a facilitator could reach it only by typing the URL — and a
+  // grievance mechanism nobody can find is not one.
+  const grievances: NavItem[] =
+    hasCases || hasGroups ? [item("/grievances", "nav.grievances", ICON_PATHS.alerts)] : [];
   const wlt: NavItem[] = hasGroups
     ? [
         // In workflow order, which is also the order a facilitator meets them:
@@ -113,7 +120,7 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
   // a partner staff account is offered no Work items at all.
   return [
     { titleKey: "nav.sectionDashboard" as StringKey, items: dashboard },
-    { titleKey: "nav.sectionWork" as StringKey, items: [...work, ...delivery] },
+    { titleKey: "nav.sectionWork" as StringKey, items: [...work, ...delivery, ...grievances] },
     { titleKey: "nav.sectionWlt" as StringKey, items: wlt },
     { titleKey: "nav.sectionDirectory" as StringKey, items: directory },
   ].filter((section) => section.items.length > 0);

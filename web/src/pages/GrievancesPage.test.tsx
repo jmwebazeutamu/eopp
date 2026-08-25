@@ -49,6 +49,15 @@ const GRIEVANCE: Grievance = {
   days_open: 5,
   is_open: true,
   is_sensitive: false,
+  short_reference: "A1B2C3D4",
+  is_restricted: false,
+  restricted: false,
+  subject_type: "CASE" as const,
+  subject_label: "Sisay Roba",
+  subject_youth: null,
+  person_name: null,
+  subject_group: null,
+  group_name: null,
 };
 
 function renderPage() {
@@ -110,5 +119,46 @@ describe("GrievancesPage", () => {
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith("/grievances/g-1/close/", { reason: "The complainant withdrew the report." }),
     );
+  });
+});
+
+describe("the safeguarding lane", () => {
+  it("shows a restricted row's shape and nothing else", async () => {
+    // Redacted, not omitted. A disclosure that vanishes from every list is one
+    // nobody can be held to, and nothing counts it. The server sends no
+    // `summary` at all for these rows, which is why it is absent here rather
+    // than blank.
+    const restricted = {
+      ...GRIEVANCE,
+      id: "g-2",
+      restricted: true,
+      is_restricted: true,
+      short_reference: "7F2C91AA",
+      complaint_type: "SAFEGUARDING",
+      complaint_type_display: "Safeguarding or harassment",
+      summary: "",
+      complainant_name: "",
+    };
+    get.mockImplementation((url: string) => {
+      if (url === "/grievances/") return Promise.resolve({ data: { count: 1, results: [restricted] } });
+      if (url === "/grievances/overdue/") return Promise.resolve({ data: { threshold_days: 3, results: [] } });
+      if (url === "/grievances/summary/") return Promise.resolve({ data: { total: 1, counters: [] } });
+      return Promise.reject(new Error(`Unhandled GET ${url}`));
+    });
+
+    renderPage();
+
+    expect(await screen.findAllByText("7F2C91AA")).toHaveLength(2);
+    expect(screen.getAllByText(/safeguarding focal point only/i).length).toBeGreaterThan(0);
+    // Nothing that could identify a survivor or describe what happened.
+    expect(screen.queryByText(GRIEVANCE.summary)).not.toBeInTheDocument();
+    expect(screen.queryByText("Alem Tadesse")).not.toBeInTheDocument();
+    // The lead has to see that a disclosure has been sitting for weeks without
+    // reading it, so the age survives redaction. It rendered "undefined day(s)
+    // open" while it did not.
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+    // Two, not one: the phone card and the table row must say the same thing.
+    // The card used to print the category and the summary while the table beside
+    // it showed a reference, so a narrow screen leaked what a wide one did not.
   });
 });

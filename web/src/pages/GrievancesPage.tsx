@@ -209,7 +209,13 @@ export default function GrievancesPage() {
     }
   }
 
-  const canWrite = Boolean(user?.access.case_write);
+  // Both modules file into this channel, so both may write to it. Gating on
+  // `case_write` alone hid the New complaint button from every WLT role —
+  // all four carry `case_scope: NONE` by design — so a savings group could not
+  // complain about anything and the facilitator who was in the room when the
+  // complaint was made could not write it down.
+  const canWrite = Boolean(user?.access.case_write || user?.access.group_write);
+  const isSafeguarding = createDraft.complaint_type === "SAFEGUARDING";
   const overdueIds = new Set(overdue.map((row) => row.id));
   // Overdue first: the delay is the programme's, not the complainant's.
   const sorted = [...rows].sort((left, right) => {
@@ -234,15 +240,17 @@ export default function GrievancesPage() {
       draft.complainant_name !== selected.complainant_name ||
       draft.complainant_contact !== selected.complainant_contact);
   const canSubmitTerminalAction = actionNotes.trim().length > 0;
-  const canCreate = Boolean(user?.access.case_write);
   const canSubmitCreate = createDraft.case !== "" && createDraft.summary.trim().length > 0;
 
   return (
     <ListPage
       title={t("grievances.title")}
-      subtitle={t("grievances.subtitle", { count: total })}
+      // Not while it loads. "0 grievances" before the response lands reads as a
+      // mechanism nobody uses, which is the one thing a complaints channel must
+      // never say about itself by accident.
+      subtitle={loading ? t("common.loading") : t("grievances.subtitle", { count: total })}
       action={
-        canCreate ? (
+        canWrite ? (
           <Button variant="primary" onClick={() => void openCreateModal()}>
             {t("grievances.add")}
           </Button>
@@ -309,18 +317,36 @@ export default function GrievancesPage() {
                                   setSelected(grievance);
                                 }}
                               >
-                                {grievance.complaint_type_display}
+                                {grievance.restricted
+                                  ? grievance.short_reference
+                                  : grievance.complaint_type_display}
                               </button>
-                              <div className="t-meta">{grievance.summary}</div>
+                              {/* A restricted row shows its shape and nothing
+                                  else: a reference, a date, a woreda. Removing
+                                  the row instead would hide the fact that the
+                                  mechanism received a disclosure at all. */}
+                              <div className="t-meta">
+                                {grievance.restricted ? t("grievances.restrictedRow") : grievance.summary}
+                              </div>
                             </td>
                             <td>
-                              <div>{grievance.raised_by_display}</div>
-                              <div className="t-meta">{grievance.complainant_name || t("common.none")}</div>
+                              <div>{grievance.restricted ? "—" : grievance.raised_by_display}</div>
+                              <div className="t-meta">
+                                {grievance.restricted ? "" : grievance.complainant_name || t("common.none")}
+                              </div>
                             </td>
                             <td>
                               <div>{grievance.woreda}</div>
+                              {/* Defence in depth. The server omits the subject
+                                  from a restricted payload, so this branch
+                                  should never have anything to render — but a
+                                  client that renders whatever it happens to
+                                  hold is one refactor away from rendering
+                                  something it should not. */}
                               <div className="t-meta">
-                                {grievance.case ? (
+                                {grievance.restricted ? (
+                                  "—"
+                                ) : grievance.case ? (
                                   <Link
                                     className="row-link"
                                     to={`/cases/${grievance.case}`}
@@ -390,10 +416,14 @@ export default function GrievancesPage() {
                               setSelected(grievance);
                             }}
                           >
-                            {grievance.complaint_type_display}
+                            {grievance.restricted
+                              ? grievance.short_reference
+                              : grievance.complaint_type_display}
                           </button>
                           <div className="t-meta">
-                            {t("grievances.raisedBy", { who: grievance.raised_by_display })} · {grievance.woreda}
+                            {grievance.restricted
+                              ? grievance.woreda
+                              : `${t("grievances.raisedBy", { who: grievance.raised_by_display })} · ${grievance.woreda}`}
                           </div>
                         </div>
                         <span className="chip" style={{ color: tone.fg, background: tone.bg, borderColor: tone.bd }}>
@@ -403,7 +433,13 @@ export default function GrievancesPage() {
                           {grievance.status_display}
                         </span>
                       </div>
-                      <p style={{ marginTop: 8 }}>{grievance.summary}</p>
+                      {/* The card said the category and printed the summary
+                          while the table beside it showed a reference. Same
+                          rule in both, or a phone leaks what a laptop does
+                          not. */}
+                      <p style={{ marginTop: 8 }}>
+                        {grievance.restricted ? t("grievances.restrictedRow") : grievance.summary}
+                      </p>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <MutedChip style={{ fontSize: 12 }}>
                           {t("grievances.openDays", { days: grievance.days_open })}
@@ -559,7 +595,17 @@ export default function GrievancesPage() {
             onOk={() => void submitCreate()}
           >
             <div className="stack" style={{ gap: 14 }}>
-              <div>
+              {/* The divert. Choosing safeguarding does not merely tag the
+                  record — it changes what this form asks for. Programme staff
+                  do not investigate, so the fields that invite an
+                  investigation are removed rather than left optional. */}
+              {isSafeguarding && (
+                <div className="callout callout--warn" role="note">
+                  <p style={{ margin: 0 }}>{t("grievances.safeguardingIntro")}</p>
+                </div>
+              )}
+
+              <div hidden={isSafeguarding}>
                 <CapsLabel>{t("grievances.case")}</CapsLabel>
                 <Select
                   showSearch
@@ -582,7 +628,20 @@ export default function GrievancesPage() {
                   <Select
                     value={createDraft.complaint_type}
                     style={{ width: "100%", marginTop: 6 }}
-                    onChange={(value) => setCreateDraft((current) => ({ ...current, complaint_type: value }))}
+                    onChange={(value) =>
+                      setCreateDraft((current) => ({
+                        ...current,
+                        complaint_type: value,
+                        // Choosing safeguarding switches the form to the
+                        // restricted path and clears anything already typed.
+                        // A narrative written for the ordinary form — who said
+                        // what about whom — is exactly what must not be kept
+                        // once the category changes under it.
+                        ...(value === "SAFEGUARDING"
+                          ? { summary: "", complainant_name: "", complainant_contact: "", case: "" }
+                          : {}),
+                      }))
+                    }
                     options={[
                       { value: "SERVICE_QUALITY", label: t("grievances.typeServiceQuality") },
                       { value: "REFERRAL_QUALITY", label: t("grievances.typeReferralQuality") },
@@ -590,6 +649,11 @@ export default function GrievancesPage() {
                       { value: "SELECTION", label: t("grievances.typeSelection") },
                       { value: "PAYMENT", label: t("grievances.typePayment") },
                       { value: "WORKPLACE", label: t("grievances.typeWorkplace") },
+                      // Both of these existed in the model and in neither
+                      // dropdown, so the two most serious categories could only
+                      // be filed by mislabelling them as something else.
+                      { value: "STAFF_CONDUCT", label: t("grievances.typeStaffConduct") },
+                      { value: "SAFEGUARDING", label: t("grievances.typeSafeguarding") },
                       { value: "OTHER", label: t("grievances.typeOther") },
                     ]}
                   />
@@ -619,26 +683,35 @@ export default function GrievancesPage() {
                 />
               </div>
 
-              <div className="grid-pairs">
-                <div>
-                  <CapsLabel>{t("grievances.complainant")}</CapsLabel>
-                  <Input
-                    value={createDraft.complainant_name}
-                    onChange={(event) =>
-                      setCreateDraft((current) => ({ ...current, complainant_name: event.target.value }))
-                    }
-                  />
+              {/* Not asked for on the restricted path. A name typed here is a
+                  name in a record that a survivor was told would stay with one
+                  person, and "optional" is not the same as absent. */}
+              {!isSafeguarding && (
+                <div className="grid-pairs">
+                  <div>
+                    <CapsLabel>{t("grievances.complainant")}</CapsLabel>
+                    <Input
+                      value={createDraft.complainant_name}
+                      onChange={(event) =>
+                        setCreateDraft((current) => ({ ...current, complainant_name: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <CapsLabel>{t("grievances.contact")}</CapsLabel>
+                    <Input
+                      value={createDraft.complainant_contact}
+                      onChange={(event) =>
+                        setCreateDraft((current) => ({ ...current, complainant_contact: event.target.value }))
+                      }
+                    />
+                  </div>
                 </div>
-                <div>
-                  <CapsLabel>{t("grievances.contact")}</CapsLabel>
-                  <Input
-                    value={createDraft.complainant_contact}
-                    onChange={(event) =>
-                      setCreateDraft((current) => ({ ...current, complainant_contact: event.target.value }))
-                    }
-                  />
-                </div>
-              </div>
+              )}
+
+              {isSafeguarding && (
+                <p className="t-meta" style={{ margin: 0 }}>{t("grievances.safeguardingLogged")}</p>
+              )}
             </div>
           </Modal>
         </>

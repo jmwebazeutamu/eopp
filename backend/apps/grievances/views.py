@@ -16,18 +16,44 @@ Two narrowings on top of that:
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django_filters.rest_framework import DjangoFilterBackend
+from django_filters.rest_framework import CharFilter, DjangoFilterBackend, FilterSet
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
 from apps.common.summaries import counters_for, summary_response
-from apps.users.permissions import CanAccessCases, IsOperational, ScopedQuerySetMixin
+from apps.users.permissions import CanAccessGrievances, IsOperational
 
-from . import services
+from . import safeguarding, services
 from .models import Grievance, ResolutionStatus
+from .scoping import scope_grievances
 from .serializers import CloseSerializer, GrievanceSerializer, ResolveSerializer
+
+
+class GrievanceFilter(FilterSet):
+    """Explicit, because `subject_type` is a generated column.
+
+    django-filter cannot build a filter for a `GeneratedField` and raises at
+    request time rather than at startup, so the whole list 500s. Named here
+    instead — the same fix `ServiceLinkageFilter` carries, and for the same
+    reason.
+    """
+
+    subject_type = CharFilter(field_name="subject_type", lookup_expr="exact")
+
+    class Meta:
+        model = Grievance
+        fields = {
+            "resolution_status": ["exact", "in"],
+            "complaint_type": ["exact"],
+            "raised_by": ["exact"],
+            "about_partner": ["exact"],
+            "referral_quality_feedback_flag": ["exact"],
+            "woreda": ["exact"],
+            "subject_group": ["exact"],
+            "is_restricted": ["exact"],
+        }
 
 
 def _as_drf_error(exc):
@@ -36,37 +62,75 @@ def _as_drf_error(exc):
     return DRFValidationError({"detail": exc.messages if hasattr(exc, "messages") else [str(exc)]})
 
 
-class GrievanceViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
-    """§4.10, scoped by woreda and narrowed for sensitive types."""
+class GrievanceViewSet(viewsets.ModelViewSet):
+    """§4.10 — one channel, both modules, scoped by caseload *or* by group.
+
+    Not `ScopedQuerySetMixin`. That mixin applies one scope; this needs the
+    union of two, because a facilitator is scoped by the groups she runs and a
+    supervisor by her woreda, and neither vocabulary can express the other. The
+    union lives in `scoping.scope_grievances` and fails closed on both sides.
+    """
 
     queryset = Grievance.objects.select_related(
-        "case", "case__youth", "assigned_staff", "about_partner", "related_referral"
+        "case",
+        "case__youth",
+        "subject_youth",
+        "subject_group",
+        "assigned_staff",
+        "about_partner",
+        "related_referral",
     )
     serializer_class = GrievanceSerializer
-    permission_classes = [IsOperational, CanAccessCases]
-
-    scope_kind = "case"
-    # The grievance's own woreda, not the case's: most complaints have no case.
-    woreda_field = "woreda"
-    case_manager_field = "case__case_manager_id"
-    linked_case_prefix = "case__"
+    permission_classes = [IsOperational, CanAccessGrievances]
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = {
-        "resolution_status": ["exact", "in"],
-        "complaint_type": ["exact"],
-        "raised_by": ["exact"],
-        "about_partner": ["exact"],
-        "referral_quality_feedback_flag": ["exact"],
-        "woreda": ["exact"],
-    }
-    search_fields = ["summary", "complainant_name", "case__youth__full_name"]
+    filterset_class = GrievanceFilter
+    # `summary` is searchable and a restricted record's summary is not returned
+    # — but a substring search would still *confirm* its contents by which rows
+    # come back. Restricted rows are excluded from text search for that reason;
+    # they are found by reference, date or woreda.
+    search_fields = ["complainant_name", "case__youth__full_name", "subject_group__name"]
     ordering_fields = ["date_raised", "resolution_status"]
     ordering = ["-date_raised"]
 
     def get_queryset(self):
-        """Scope by place, then hide what this user must not read."""
-        return super().get_queryset().visible_to(self.request.user)
+        """Scope by caseload or by group, then hide what must not be read.
+
+        `visible_to` still removes staff-conduct complaints from everyone but
+        their assignee. Safeguarding is handled differently and deliberately:
+        the row stays and the serializer redacts it, so the queue can show that
+        a disclosure was received without showing what it said.
+        """
+        queryset = scope_grievances(super().get_queryset(), self.request.user)
+        return queryset.visible_to(self.request.user)
+
+    def retrieve(self, request, *args, **kwargs):
+        """Opening a restricted record is an event, and it is written down.
+
+        Recorded on the detail route only. A list request touches every row and
+        would fill the log with noise that hides the one opening somebody has to
+        answer for.
+        """
+        grievance = self.get_object()
+        if grievance.is_restricted:
+            safeguarding.record_access(
+                grievance,
+                request.user,
+                granted=safeguarding.may_read_content(request.user, grievance),
+            )
+        return Response(self.get_serializer(grievance).data)
+
+    def filter_queryset(self, queryset):
+        """Keep restricted rows out of free-text search results.
+
+        Not out of the list — out of *search*. A search box that returns a
+        restricted row for the word in its summary has published the summary one
+        word at a time.
+        """
+        queryset = super().filter_queryset(queryset)
+        if self.request.query_params.get("search"):
+            queryset = queryset.exclude(is_restricted=True)
+        return queryset
 
     def perform_create(self, serializer):
         grievance = serializer.save(recorded_by=self.request.user)
@@ -90,9 +154,8 @@ class GrievanceViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         A complaints process nobody answers is worse than none: it collects the
         complaint, creates the expectation, and does nothing with it.
         """
-        queryset = self.filter_queryset(self.get_queryset()).filter(
-            pk__in=services.overdue(Grievance.objects.all()).values("pk")
-        )
+        scoped = self.get_queryset()
+        queryset = self.filter_queryset(scoped).filter(pk__in=services.overdue(scoped).values("pk"))
         return Response(
             {
                 "threshold_days": settings.GRIEVANCE_RESPONSE_DAYS,

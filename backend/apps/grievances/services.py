@@ -32,6 +32,17 @@ def raise_grievance(*, complaint_type, raised_by, summary, assigned_staff, wored
     somewhere. Where there is no case there is no woreda to inherit, so one is
     asked for — otherwise the complaint is invisible to every supervisor.
     """
+    subject_group = fields.get("subject_group")
+    subject_youth = fields.get("subject_youth")
+
+    # A group complaint takes its group's woreda; a person complaint takes hers.
+    # A hand-typed one that disagrees would scope to one office and report in
+    # another, which is the same fault `Case.woreda` is denormalised to avoid.
+    if not woreda and subject_group is not None:
+        woreda = _woreda_of(subject_group)
+    if not woreda and subject_youth is not None:
+        woreda = subject_youth.woreda
+
     if case is None and not woreda:
         raise GrievanceError({"woreda": _("Say which woreda this concerns, so it reaches the right office.")})
     if not (summary or "").strip():
@@ -51,6 +62,21 @@ def raise_grievance(*, complaint_type, raised_by, summary, assigned_staff, wored
     if case is not None:
         case.touch()
     return grievance
+
+
+def _woreda_of(group):
+    """The woreda name a group sits in, walked up from its kebele.
+
+    Groups carry a `Location` row; grievances carry a woreda *name*, because
+    most complaints have neither a group nor a case to inherit a location from.
+    This is the one place the two vocabularies meet.
+    """
+    node = getattr(group, "kebele", None)
+    while node is not None:
+        if getattr(node, "level", None) == "WOREDA":
+            return node.name
+        node = node.parent
+    return ""
 
 
 @transaction.atomic

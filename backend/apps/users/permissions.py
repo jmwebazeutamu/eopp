@@ -420,6 +420,49 @@ class CanAccessGroups(BasePermission):
         return user.can_write_groups()
 
 
+class CanAccessGrievances(BasePermission):
+    """The complaints channel, which belongs to neither module and to both.
+
+    Gating this on `CanAccessCases` — what it used to do — meant every WLT role
+    got 403, because all four carry `case_scope: NONE` by design. A savings
+    group could not complain about anything, and the facilitator who was in the
+    room when the complaint was made could not write it down.
+
+    Read is open to anyone with either scope; the row-level narrowing is
+    `scope_grievances`, and safeguarding content is narrower again.
+
+    Write is deliberately wider than either module's write column, and this is
+    the same judgement `delivery_write` and `CanEnrolBeneficiaries` record:
+    §7's write columns describe who may change a *record*, and filing a
+    complaint is not changing a record — it is the act the mechanism exists to
+    receive. An outreach worker who can only read complaints cannot take one.
+
+    It stops short of the roles that read a programme rather than run it: M&E
+    and the donor tier see the numbers and do not file. Deciding a complaint is
+    a further step again, and belongs to the appeals committees, which are not
+    built.
+    """
+
+    message = "Your role does not permit this action on grievance records."
+
+    #: Reads a programme, does not operate it. Read-only here.
+    OBSERVER_ROLES = frozenset({"MNE_STAFF", "PARTNER_STAFF"})
+
+    def has_permission(self, request, view):
+        from .models import GroupScope, Scope
+
+        user = request.user
+        if not (user and user.is_authenticated and user.is_operational):
+            return False
+
+        has_scope = user.case_scope() != Scope.NONE or user.group_scope() != GroupScope.NONE
+        if not has_scope:
+            return False
+        if request.method in SAFE_METHODS:
+            return True
+        return user.role not in self.OBSERVER_ROLES
+
+
 class ScopedGroupQuerySetMixin:
     """Viewset counterpart of `scope_group_queryset`.
 
