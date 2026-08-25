@@ -18,6 +18,7 @@ import ResultsPage from "./pages/dashboard/ResultsPage";
 import WoredaPage from "./pages/dashboard/WoredaPage";
 import LoginPage from "./pages/LoginPage";
 import EnterprisesPage from "./pages/EnterprisesPage";
+import GrievanceCasePage from "./pages/GrievanceCasePage";
 import GrievancesPage from "./pages/GrievancesPage";
 import PartnersPage from "./pages/PartnersPage";
 import VerificationPage from "./pages/VerificationPage";
@@ -154,6 +155,7 @@ export default function App() {
                 <Route path="/enterprises" element={<EnterprisesPage />} />
                 <Route path="/verification" element={<VerificationPage />} />
                 <Route path="/grievances" element={<GrievancesPage />} />
+                <Route path="/grievances/:grievanceId" element={<GrievanceCasePage />} />
                 <Route path="/partners" element={<PartnersPage />} />
                 {/* WLT group module. Its own prefix: a separate programme with
                     a separate subject, and roles that see no case content. */}
