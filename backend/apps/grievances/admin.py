@@ -31,13 +31,22 @@ class GrievanceAdmin(SimpleHistoryAdmin):
         "raised_by",
         "woreda",
         "about_partner",
-        "resolution_status",
+        "status",
         "assigned_staff",
     ]
-    list_filter = ["resolution_status", "complaint_type", "raised_by", "referral_quality_feedback_flag", "woreda"]
+    list_filter = ["status", "tier", "outcome", "complaint_type", "raised_by", "woreda"]
     search_fields = ["summary", "complainant_name", "case__youth__full_name"]
     autocomplete_fields = ["case", "related_referral", "about_partner", "assigned_staff"]
-    readonly_fields = ["resolution_status", "resolution_date", "resolution_notes", "referral_quality_feedback_flag"]
+    # Every one of these moves through `transition_to`, which owns the gates.
+    # A status changed from a changelist skips all of them.
+    readonly_fields = [
+        "status",
+        "outcome",
+        "outcome_reason",
+        "resolution_date",
+        "feedback_given_at",
+        "referral_quality_feedback_flag",
+    ]
     date_hierarchy = "date_raised"
 
     def get_queryset(self, request):

@@ -10,15 +10,17 @@ API never sent.
 
 from rest_framework import serializers
 
-from . import safeguarding
-from .models import Grievance
+from . import clock, safeguarding
+from .models import Grievance, GrievanceNote, Outcome
 
 
 class GrievanceSerializer(serializers.ModelSerializer):
     youth_name = serializers.CharField(source="case.youth.full_name", read_only=True, default=None)
     complaint_type_display = serializers.CharField(source="get_complaint_type_display", read_only=True)
     raised_by_display = serializers.CharField(source="get_raised_by_display", read_only=True)
-    status_display = serializers.CharField(source="get_resolution_status_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    tier_display = serializers.CharField(source="get_tier_display", read_only=True)
+    outcome_display = serializers.CharField(source="get_outcome_display", read_only=True)
     assigned_staff_name = serializers.CharField(source="assigned_staff.full_name", read_only=True)
     partner_name = serializers.CharField(source="about_partner.partner_name", read_only=True, default=None)
     days_open = serializers.IntegerField(read_only=True)
@@ -33,6 +35,27 @@ class GrievanceSerializer(serializers.ModelSerializer):
     # a focal point opening her own woreda's disclosure sees `is_restricted`
     # true and `restricted` false, and the screen needs to tell them apart.
     restricted = serializers.SerializerMethodField()
+    # Time remaining, not age. "3 days late" is a fact somebody has to act on;
+    # "30 day(s) open" on a resolved row is a number that keeps counting after
+    # anybody could have done anything about it.
+    standing = serializers.SerializerMethodField()
+    severity_display = serializers.CharField(source="get_severity_display", read_only=True)
+    # Server-side, in the payload. The client used to infer it from
+    # `case_write || group_write`, which is false for a supervisor — the role
+    # that actually works a woreda's complaints — so every action was hidden on
+    # a screen whose API would have accepted them.
+    can_act = serializers.SerializerMethodField()
+
+    def get_can_act(self, grievance):
+        from apps.users.permissions import CanAccessGrievances
+
+        request = self.context.get("request")
+        if request is None:
+            return False
+        return CanAccessGrievances().has_permission(_Writing(request), None)
+
+    def get_standing(self, grievance):
+        return clock.standing(grievance)
 
     def get_restricted(self, grievance):
         return grievance.is_restricted and not safeguarding.may_read_content(self._reader(), grievance)
@@ -80,11 +103,31 @@ class GrievanceSerializer(serializers.ModelSerializer):
             "date_raised",
             "assigned_staff",
             "assigned_staff_name",
-            "resolution_status",
+            "status",
             "status_display",
+            "tier",
+            "tier_display",
+            "outcome",
+            "outcome_display",
+            "outcome_reason",
+            "parent_grievance",
+            "appeal_ground",
+            "pause_reason",
+            "chase_date",
+            "feedback_given_at",
+            "feedback_method",
+            "complainant_satisfied",
+            "referred_to",
             "resolution_date",
             "resolution_notes",
             "referral_quality_feedback_flag",
+            "severity",
+            "severity_display",
+            "can_act",
+            "due_on",
+            "standing",
+            "acknowledged_at",
+            "acknowledgement_method",
             "days_open",
             "is_open",
             "is_sensitive",
@@ -96,8 +139,22 @@ class GrievanceSerializer(serializers.ModelSerializer):
         # with no description of what was done. `referral_quality_feedback_flag`
         # is derived from the complaint type, so a "referral delay" nobody
         # ticked still reaches the partner panel.
+        # **Every one of these moves through `Grievance.transition_to`**, which
+        # owns the workflow's edges and their gates. A client that could PATCH
+        # `status` could close a case having told nobody anything, which is the
+        # one thing the rebuild exists to make impossible.
         read_only_fields = [
-            "resolution_status",
+            "status",
+            "outcome",
+            "outcome_reason",
+            "parent_grievance",
+            "appeal_ground",
+            "pause_reason",
+            "chase_date",
+            "feedback_given_at",
+            "feedback_method",
+            "complainant_satisfied",
+            "referred_to",
             "resolution_date",
             "resolution_notes",
             "referral_quality_feedback_flag",
@@ -106,6 +163,12 @@ class GrievanceSerializer(serializers.ModelSerializer):
             # the one that matters.
             "is_restricted",
             "subject_type",
+            # Derived in `Model.save` from the date and the severity. A client
+            # that could set its own deadline could also move it.
+            "due_on",
+            # Moved by `services.acknowledge`, which requires saying how.
+            "acknowledged_at",
+            "acknowledgement_method",
         ]
         extra_kwargs = {
             # Case-linked grievances inherit their location from the case. This
@@ -149,14 +212,35 @@ class GrievanceSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ResolveSerializer(serializers.Serializer):
-    notes = serializers.CharField()
-    resolution_date = serializers.DateField(required=False)
+class EmptySerializer(serializers.Serializer):
+    """A move that needs no facts beyond who asked for it."""
+
+
+class PauseSerializer(serializers.Serializer):
+    reason = serializers.CharField()
+    chase_date = serializers.DateField()
+
+
+class DecideSerializer(serializers.Serializer):
+    outcome = serializers.ChoiceField(choices=Outcome.choices)
+    reason = serializers.CharField()
+    decided_on = serializers.DateField(required=False)
 
 
 class CloseSerializer(serializers.Serializer):
-    reason = serializers.CharField()
-    closed_on = serializers.DateField(required=False)
+    method = serializers.CharField()
+    # Nullable on purpose. "Told, and did not say" is a real and common answer,
+    # and recording it as dissatisfaction would be as wrong as recording it as
+    # agreement.
+    satisfied = serializers.BooleanField(required=False, allow_null=True, default=None)
+
+
+class AppealSerializer(serializers.Serializer):
+    ground = serializers.CharField()
+
+
+class ReferOutSerializer(serializers.Serializer):
+    to = serializers.CharField()
 
 
 def _woreda_of(group):
@@ -172,3 +256,34 @@ def _woreda_of(group):
             return node.name
         node = node.parent
     return ""
+
+
+class _Writing:
+    """A request seen as a write, so one permission answers both questions.
+
+    Asking `CanAccessGrievances` directly would answer about the request in
+    hand — a GET — and every payload would say the reader may not act. Wrapping
+    it means the rule lives in exactly one place instead of being restated here
+    and drifting from it.
+    """
+
+    def __init__(self, request):
+        self.user = request.user
+        self.method = "POST"
+
+
+class GrievanceNoteSerializer(serializers.ModelSerializer):
+    author_name = serializers.CharField(source="author.full_name", read_only=True)
+
+    class Meta:
+        model = GrievanceNote
+        fields = ["id", "body", "author", "author_name", "author_role", "created_at"]
+        read_only_fields = ["author", "author_role"]
+
+
+class AcknowledgeSerializer(serializers.Serializer):
+    method = serializers.CharField()
+
+
+class NoteSerializer(serializers.Serializer):
+    body = serializers.CharField()

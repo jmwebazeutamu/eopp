@@ -1596,7 +1596,28 @@ export interface FollowUp {
   notes: string;
 }
 
-export type GrievanceStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+/**
+ * Where the work is — **not** what was decided, which is `GrievanceOutcome`.
+ *
+ * The four values this replaces conflated the two: `RESOLVED` meant both "the
+ * file is finished" and "the complaint was upheld", so a complaint properly
+ * investigated and found unfounded had nowhere to go but `CLOSED`, which also
+ * meant "the complainant withdrew".
+ */
+export type GrievanceStatus =
+  | "RECEIVED"
+  | "ACKNOWLEDGED"
+  | "UNDER_REVIEW"
+  | "AWAITING_COMPLAINANT"
+  | "DECIDED"
+  | "CLOSED"
+  | "APPEALED"
+  | "REFERRED_OUT";
+
+/** What was decided. The enum the overturn rate turns on. */
+export type GrievanceOutcome = "UPHELD" | "PARTLY_UPHELD" | "NOT_UPHELD" | "REFERRED" | "WITHDRAWN";
+
+export type GrievanceTier = "KEBELE" | "WOREDA" | "REGION" | "FEDERAL";
 
 export interface Grievance {
   id: string;
@@ -1622,6 +1643,30 @@ export interface Grievance {
    * — they are typed optional for that reason.
    */
   restricted: boolean;
+  severity: "ROUTINE" | "SERIOUS" | "CRITICAL";
+  severity_display: string;
+  /**
+   * May this reader act on this complaint — acknowledge, note, resolve, close?
+   *
+   * From the server, not inferred. The screen used to read
+   * `case_write || group_write`, both of which are false for a supervisor —
+   * the role that actually works a woreda's complaints — so every action was
+   * hidden on a page whose API would have accepted them.
+   */
+  can_act: boolean;
+  due_on: string | null;
+  /**
+   * Time remaining, not age. One shape for every state so the screen does not
+   * branch: `days` is signed working days to the deadline — negative is late —
+   * and a concluded case reports `closed` with the clock stopped.
+   */
+  standing: {
+    state: "late" | "due" | "on_time" | "closed" | "unscheduled";
+    days: number | null;
+    due_on: string | null;
+  };
+  acknowledged_at: string | null;
+  acknowledgement_method: string;
   subject_type: "NONE" | "CASE" | "YOUTH" | "GROUP";
   subject_label: string;
   subject_youth: string | null;
@@ -1636,7 +1681,21 @@ export interface Grievance {
   date_raised: string;
   assigned_staff: string;
   assigned_staff_name: string;
-  resolution_status: GrievanceStatus;
+  status: GrievanceStatus;
+  tier: GrievanceTier;
+  tier_display: string;
+  outcome: GrievanceOutcome | "";
+  outcome_display: string;
+  outcome_reason: string;
+  parent_grievance: string | null;
+  appeal_ground: string;
+  pause_reason: string;
+  chase_date: string | null;
+  feedback_given_at: string | null;
+  feedback_method: string;
+  /** Null means told and did not say, which is not the same as satisfied. */
+  complainant_satisfied: boolean | null;
+  referred_to: string;
   status_display: string;
   resolution_date: string | null;
   resolution_notes: string;
@@ -1646,4 +1705,21 @@ export interface Grievance {
   is_open: boolean;
   /** Safeguarding or staff conduct: visible to the assignee and the admin only. */
   is_sensitive: boolean;
+}
+
+/** The first row of the grievance queue — the job list, not a summary. */
+export interface GrievanceQueueCounts {
+  late: number;
+  due_this_week: number;
+  awaiting_acknowledgement: number;
+  restricted: number;
+}
+
+/** One thing that happened to a complaint — `grievances.timeline`. */
+export interface GrievanceEvent {
+  at: string;
+  type: "STATEMENT" | "ACKNOWLEDGEMENT" | "NOTE" | "STATUS" | "OUTCOME";
+  title: string;
+  body: string;
+  actor: string;
 }

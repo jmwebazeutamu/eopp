@@ -13,7 +13,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from apps.grievances import services
-from apps.grievances.models import ComplaintType, Grievance, RaisedBy, ResolutionStatus
+from apps.grievances.models import ComplaintType, Grievance, GrievanceStatus, Outcome, RaisedBy
 from apps.users.models import Role, User
 
 pytestmark = pytest.mark.django_db
@@ -61,54 +61,12 @@ def test_a_complaint_needs_a_description(raise_grievance):
 # ---------------------------------------------------------------------------
 
 
-def test_resolving_requires_saying_what_was_done(raise_grievance, supervisor):
-    """A resolution rate computed over status changes nobody described is the
-    kind of figure that survives until somebody asks for an example."""
-    grievance = raise_grievance()
-    with pytest.raises(ValidationError):
-        services.resolve(grievance, notes="  ", actor=supervisor)
-
-
-def test_the_database_refuses_a_resolution_with_no_notes(raise_grievance):
+def test_the_database_refuses_an_outcome_with_no_reason(raise_grievance):
+    """A decision nobody explained is a status change wearing a decision's
+    clothes, and the reason is what a complainant hears read back."""
     grievance = raise_grievance()
     with pytest.raises(IntegrityError), transaction.atomic():
-        Grievance.objects.filter(pk=grievance.pk).update(
-            resolution_status=ResolutionStatus.RESOLVED, resolution_date=date.today(), resolution_notes=""
-        )
-
-
-def test_closing_without_resolution_is_not_a_resolution(raise_grievance, supervisor):
-    """Folding the two would inflate the resolution rate with every complaint
-    whose complainant withdrew or could not be traced."""
-    resolved = raise_grievance()
-    services.resolve(resolved, notes="Materials delivered and the centre apologised.", actor=supervisor)
-    closed = raise_grievance()
-    services.close_without_resolution(closed, reason="Complainant withdrew and could not be traced.", actor=supervisor)
-
-    assert services.resolution_inputs(Grievance.objects.all()) == (1, 2)
-
-
-def test_an_open_grievance_is_neither(raise_grievance, supervisor):
-    """Counting it as a failure would make the rate fall every time somebody
-    files a complaint."""
-    resolved = raise_grievance()
-    services.resolve(resolved, notes="Sorted.", actor=supervisor)
-    raise_grievance()
-
-    assert services.resolution_inputs(Grievance.objects.all()) == (1, 1)
-
-
-def test_a_concluded_grievance_cannot_be_concluded_again(raise_grievance, supervisor):
-    grievance = raise_grievance()
-    services.resolve(grievance, notes="Sorted.", actor=supervisor)
-    with pytest.raises(ValidationError):
-        services.close_without_resolution(grievance, reason="Changed my mind.", actor=supervisor)
-
-
-def test_time_to_resolution_is_measured_in_days(raise_grievance, supervisor):
-    grievance = raise_grievance(date_raised=date.today() - timedelta(days=10))
-    services.resolve(grievance, notes="Sorted.", actor=supervisor)
-    assert services.median_days_to_resolution(Grievance.objects.all()) == 10
+        Grievance.objects.filter(pk=grievance.pk).update(outcome=Outcome.UPHELD, outcome_reason="")
 
 
 def test_an_overdue_grievance_is_one_nobody_answered(raise_grievance, settings):
@@ -195,11 +153,14 @@ def test_resolution_cannot_be_patched_onto_a_grievance(as_user, supervisor, rais
     grievance = raise_grievance()
     as_user(supervisor).patch(
         f"/api/v1/grievances/{grievance.pk}/",
-        {"resolution_status": "RESOLVED", "resolution_date": date.today().isoformat()},
+        {"status": "CLOSED", "outcome": "UPHELD", "resolution_date": date.today().isoformat()},
         format="json",
     )
     grievance.refresh_from_db()
-    assert grievance.resolution_status == ResolutionStatus.OPEN
+    # A client that could PATCH the status could close a case having told
+    # nobody anything, which is the one thing the workflow exists to refuse.
+    assert grievance.status == GrievanceStatus.RECEIVED
+    assert grievance.outcome == ""
 
 
 def test_creating_through_the_api_inherits_woreda_from_the_case(as_user, make_case, case_manager):

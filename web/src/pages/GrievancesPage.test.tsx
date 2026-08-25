@@ -1,7 +1,7 @@
 import { App } from "antd";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Grievance } from "../api/types";
@@ -41,7 +41,7 @@ const GRIEVANCE: Grievance = {
   date_raised: "2026-08-15",
   assigned_staff: "staff-1",
   assigned_staff_name: "Supervisor One",
-  resolution_status: "OPEN",
+  status: "RECEIVED",
   status_display: "Open",
   resolution_date: null,
   resolution_notes: "",
@@ -49,6 +49,26 @@ const GRIEVANCE: Grievance = {
   days_open: 5,
   is_open: true,
   is_sensitive: false,
+  severity: "ROUTINE" as const,
+  tier: "KEBELE" as const,
+  tier_display: "Kebele Appeals Committee",
+  outcome: "" as const,
+  outcome_display: "",
+  outcome_reason: "",
+  parent_grievance: null,
+  appeal_ground: "",
+  pause_reason: "",
+  chase_date: null,
+  feedback_given_at: null,
+  feedback_method: "",
+  complainant_satisfied: null,
+  referred_to: "",
+  severity_display: "Routine",
+  can_act: true,
+  due_on: "2026-09-01",
+  standing: { state: "on_time" as const, days: 5, due_on: "2026-09-01" },
+  acknowledged_at: null,
+  acknowledgement_method: "",
   short_reference: "A1B2C3D4",
   is_restricted: false,
   restricted: false,
@@ -60,6 +80,13 @@ const GRIEVANCE: Grievance = {
   group_name: null,
 };
 
+/** Reports where the router ended up, so a navigation can be asserted without
+ *  mounting the destination page. */
+function Location() {
+  const location = useLocation();
+  return <span data-testid="location">{location.pathname}</span>;
+}
+
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/grievances"]}>
@@ -67,6 +94,7 @@ function renderPage() {
         <TestAuth>
           <App>
             <GrievancesPage />
+            <Location />
           </App>
         </TestAuth>
       </LanguageProvider>
@@ -81,44 +109,41 @@ beforeEach(() => {
 
   get.mockImplementation((url: string) => {
     if (url === "/grievances/") return Promise.resolve({ data: { count: 1, results: [GRIEVANCE] } });
-    if (url === "/grievances/overdue/") return Promise.resolve({ data: { threshold_days: 3, results: [GRIEVANCE] } });
+    if (url === "/grievances/queue-counts/")
+      return Promise.resolve({ data: { late: 0, due_this_week: 1, awaiting_acknowledgement: 1, restricted: 0 } });
     if (url === "/grievances/summary/") return Promise.resolve({ data: { total: 1, counters: [] } });
     return Promise.reject(new Error(`Unhandled GET ${url}`));
   });
 });
 
 describe("GrievancesPage", () => {
-  it("opens a grievance detail modal from the list", async () => {
+  it("sends the reader to the case file, not to a modal", async () => {
+    // A grievance is worked over weeks by several people. A modal cannot be
+    // linked to, cannot be printed for a committee, and has nowhere to put a
+    // timeline.
     renderPage();
 
     await userEvent.click((await screen.findAllByText("Quality of the service received"))[0]);
 
-    expect(await screen.findByText("Assigned to")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("The support visit was promised but nobody came.")).toBeInTheDocument();
-    expect(screen.getByText("Supervisor One")).toBeInTheDocument();
+    expect(await screen.findByTestId("location")).toHaveTextContent("/grievances/g-1");
   });
 
-  it("closes a grievance from the detail modal", async () => {
-    post.mockResolvedValue({
-      data: {
-        ...GRIEVANCE,
-        resolution_status: "CLOSED",
-        status_display: "Closed without resolution",
-        resolution_notes: "The complainant withdrew the report.",
-        resolution_date: "2026-08-20",
-        is_open: false,
-      },
-    });
-
+  it("leads the queue with what needs somebody today", async () => {
+    // The banner it replaces said only how many were overdue, which answers
+    // half the question a queue is opened with.
     renderPage();
 
-    await userEvent.click((await screen.findAllByText("Quality of the service received"))[0]);
-    await userEvent.type(screen.getByLabelText("Action notes"), "The complainant withdrew the report.");
-    await userEvent.click(screen.getByRole("button", { name: "Close the file" }));
+    expect(await screen.findByText("awaiting acknowledgement")).toBeInTheDocument();
+    expect(screen.getByText("due this week")).toBeInTheDocument();
+  });
 
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith("/grievances/g-1/close/", { reason: "The complainant withdrew the report." }),
-    );
+  it("says time remaining rather than age", async () => {
+    // The Age column counted from creation and kept counting after resolution,
+    // so a concluded row read "30 day(s) open".
+    renderPage();
+
+    expect(await screen.findAllByText("Due in 5 day(s)")).toHaveLength(2);
+    expect(screen.queryByText(/day\(s\) open/)).not.toBeInTheDocument();
   });
 });
 
@@ -141,7 +166,8 @@ describe("the safeguarding lane", () => {
     };
     get.mockImplementation((url: string) => {
       if (url === "/grievances/") return Promise.resolve({ data: { count: 1, results: [restricted] } });
-      if (url === "/grievances/overdue/") return Promise.resolve({ data: { threshold_days: 3, results: [] } });
+      if (url === "/grievances/queue-counts/")
+        return Promise.resolve({ data: { late: 0, due_this_week: 0, awaiting_acknowledgement: 1, restricted: 1 } });
       if (url === "/grievances/summary/") return Promise.resolve({ data: { total: 1, counters: [] } });
       return Promise.reject(new Error(`Unhandled GET ${url}`));
     });

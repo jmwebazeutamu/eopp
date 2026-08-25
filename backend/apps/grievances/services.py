@@ -16,7 +16,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
-from .models import ComplaintType, Grievance, ResolutionStatus
+from .models import ComplaintType, Grievance, GrievanceStatus, Outcome, Tier
 
 
 class GrievanceError(ValidationError):
@@ -80,57 +80,268 @@ def _woreda_of(group):
 
 
 @transaction.atomic
-def start_work(grievance, *, actor=None):
-    if grievance.resolution_status != ResolutionStatus.OPEN:
-        raise GrievanceError(_("This grievance is no longer open."))
-    grievance.resolution_status = ResolutionStatus.IN_PROGRESS
-    grievance.full_clean()
-    grievance.save(update_fields=["resolution_status", "updated_at"])
+def acknowledge(grievance, *, method, actor, when=None):
+    """Record that the complainant was told it had arrived.
+
+    A separate step from working on it, and the artifact is right that it is the
+    one auditors check: action notes capture what staff did, and nothing used to
+    capture what the complainant was told. In a district where many complainants
+    cannot read a letter and share a household phone, it is also the step most
+    likely to be skipped.
+
+    **The method is required.** "Acknowledged" with no record of how is a tick
+    somebody can apply from a desk, and the whole point of the field is that it
+    describes something that happened in the world.
+    """
+    from django.utils import timezone
+
+    if grievance.acknowledged_at:
+        raise GrievanceError({"detail": _("This complaint has already been acknowledged.")})
+    if not (method or "").strip():
+        raise GrievanceError({"method": _("Say how the complainant was told — in person, by phone, at a meeting.")})
+
+    # The stamp *and* the move, in that order and in one transaction. Written
+    # as a stamp alone at first, which left an acknowledged complaint still
+    # reading "Received" — the exact conflation of "what happened" and "where
+    # the work is" that eight states exist to undo.
+    #
+    # The fact is persisted **before** the edge is attempted, because
+    # `transition_to` re-reads the row under `select_for_update` and its gate
+    # asks the database, not this instance. That is the right way round: the
+    # gate's question is "is this true of the record", and an unsaved attribute
+    # is not yet true of anything.
+    grievance.acknowledged_at = when or timezone.now()
+    grievance.acknowledged_by = actor
+    grievance.acknowledgement_method = method.strip()
+    grievance.save(update_fields=["acknowledged_at", "acknowledged_by", "acknowledgement_method", "updated_at"])
+
+    grievance.transition_to(GrievanceStatus.ACKNOWLEDGED, actor=actor)
+    grievance.save(update_fields=["status", "updated_at"])
     return grievance
 
 
 @transaction.atomic
-def resolve(grievance, *, notes, resolution_date=None, actor=None):
-    """Something was done about it, and here is what.
+def add_note(grievance, *, body, author):
+    """Append to the case file. Nothing here is ever edited afterwards."""
+    from .models import GrievanceNote
 
-    The notes are mandatory. A resolution rate computed over status changes
-    nobody described is the kind of figure that survives right up until somebody
-    asks for an example.
+    if not (body or "").strip():
+        raise GrievanceError({"body": _("Write what happened.")})
+
+    return GrievanceNote.objects.create(
+        grievance=grievance,
+        body=body.strip(),
+        author=author,
+        author_role=author.role or "",
+    )
+
+
+def queue_counts(grievances, as_of=None):
+    """The first row of the queue — what needs somebody today.
+
+    Counted over the caller's already-scoped queryset, never over the table: an
+    aggregate is a disclosure too, and "4 late" told to someone entitled to see
+    one woreda must mean four in that woreda.
     """
-    if grievance.resolution_status in ResolutionStatus.terminal():
-        raise GrievanceError(_("This grievance has already been concluded."))
-    if not (notes or "").strip():
-        raise GrievanceError({"resolution_notes": _("Say what was done about it.")})
+    return {
+        "late": grievances.late(as_of=as_of).count(),
+        "due_this_week": grievances.due_within(7, as_of=as_of).count(),
+        "awaiting_acknowledgement": grievances.awaiting_acknowledgement().count(),
+        "restricted": grievances.filter(is_restricted=True).count(),
+    }
 
-    grievance.resolution_status = ResolutionStatus.RESOLVED
-    grievance.resolution_date = resolution_date or date.today()
-    grievance.resolution_notes = notes
-    grievance.full_clean()
-    grievance.save()
-    if grievance.case_id:
-        grievance.case.touch()
+
+# ---------------------------------------------------------------------------
+# The workflow
+#
+# Every one of these is a thin wrapper over `Grievance.transition_to`, which owns
+# the edges and the gates. The wrapper's job is to write the facts the edge
+# demanded — the outcome, the feedback, the pause reason — in the same
+# transaction that moves the status, so a case can never sit in `DECIDED` with
+# no outcome or in `CLOSED` with nobody told.
+# ---------------------------------------------------------------------------
+
+
+@transaction.atomic
+def start_review(grievance, *, actor=None):
+    """A committee or officer picks it up.
+
+    Reachable only from `ACKNOWLEDGED`. Working a complaint before telling the
+    complainant it arrived is the order this workflow refuses on purpose: the
+    acknowledgement is a promise, and a promise made after the fact is not one.
+    """
+    grievance.transition_to(GrievanceStatus.UNDER_REVIEW, actor=actor)
+    grievance.save(update_fields=["status", "updated_at"])
     return grievance
 
 
 @transaction.atomic
-def close_without_resolution(grievance, *, reason, closed_on=None, actor=None):
-    """The file is shut and nothing was resolved.
+def pause_for_complainant(grievance, *, reason, chase_date, actor=None):
+    """The only pause, and it stops the clock.
 
-    Kept apart from `resolve` because §4.10 keeps them apart, and because
-    folding the two would inflate the resolution rate with every complaint whose
-    complainant withdrew or could not be traced.
+    Any other pause would be a hiding place — a state whose clock does not run
+    and which nobody is accountable for. This one has a reason and a date to
+    chase, and both are required by the edge rather than by a form.
     """
-    if grievance.resolution_status in ResolutionStatus.terminal():
-        raise GrievanceError(_("This grievance has already been concluded."))
-    if not (reason or "").strip():
-        raise GrievanceError({"resolution_notes": _("Say why the file is being closed.")})
-
-    grievance.resolution_status = ResolutionStatus.CLOSED
-    grievance.resolution_date = closed_on or date.today()
-    grievance.resolution_notes = reason
-    grievance.full_clean()
-    grievance.save()
+    grievance.transition_to(
+        GrievanceStatus.AWAITING_COMPLAINANT, actor=actor, pause_reason=reason, chase_date=chase_date
+    )
+    grievance.pause_reason = (reason or "").strip()
+    grievance.chase_date = chase_date
+    grievance.paused_on = date.today()
+    grievance.save(update_fields=["status", "pause_reason", "chase_date", "paused_on", "updated_at"])
     return grievance
+
+
+@transaction.atomic
+def resume(grievance, *, actor=None):
+    """The complainant answered, or the chase date passed.
+
+    **The deadline moves by however long the pause lasted.** Leaving `due_on`
+    where it was would charge the programme for time it spent waiting on
+    somebody else, and a metric that does that teaches people not to pause —
+    which means recording the wait somewhere it cannot be seen.
+    """
+    from . import clock
+
+    grievance.transition_to(GrievanceStatus.UNDER_REVIEW, actor=actor)
+    if grievance.paused_on and grievance.due_on:
+        waited = clock.working_days_between(grievance.paused_on, date.today())
+        grievance.due_on = clock.add_working_days(grievance.due_on, max(0, waited))
+    grievance.pause_reason = ""
+    grievance.chase_date = None
+    grievance.paused_on = None
+    grievance.save(update_fields=["status", "due_on", "pause_reason", "chase_date", "paused_on", "updated_at"])
+    return grievance
+
+
+@transaction.atomic
+def decide(grievance, *, outcome, reason, actor=None, decided_on=None):
+    """Record what was decided — which is not the same as shutting the file.
+
+    `DECIDED` exists as its own state because a decision the complainant has not
+    heard is not a conclusion. The old ladder went straight from in-progress to
+    resolved, so the gap between deciding and telling somebody was invisible and
+    therefore unmeasured.
+    """
+    grievance.transition_to(GrievanceStatus.DECIDED, actor=actor, outcome=outcome, outcome_reason=reason)
+    grievance.outcome = outcome
+    grievance.outcome_reason = (reason or "").strip()
+    grievance.resolution_date = decided_on or date.today()
+    grievance.save(update_fields=["status", "outcome", "outcome_reason", "resolution_date", "updated_at"])
+    return grievance
+
+
+@transaction.atomic
+def record_feedback_and_close(grievance, *, method, satisfied=None, actor=None, when=None):
+    """Shut the file, having told the complainant the answer.
+
+    The gate the whole rebuild turns on. Before this it was possible to close a
+    case having told nobody anything: action notes captured what staff did, and
+    nothing captured what the complainant was told. It is the step most likely
+    to be skipped and the one an auditor asks about first.
+
+    `satisfied` is deliberately nullable. "Told, and did not say" is a real and
+    common answer, and recording it as dissatisfaction would be as wrong as
+    recording it as agreement.
+    """
+    from django.utils import timezone
+
+    grievance.transition_to(GrievanceStatus.CLOSED, actor=actor, feedback_method=method)
+    grievance.feedback_given_at = when or timezone.now()
+    grievance.feedback_method = (method or "").strip()
+    grievance.complainant_satisfied = satisfied
+    grievance.resolution_date = grievance.resolution_date or date.today()
+    grievance.save(
+        update_fields=[
+            "status",
+            "feedback_given_at",
+            "feedback_method",
+            "complainant_satisfied",
+            "resolution_date",
+            "updated_at",
+        ]
+    )
+    return grievance
+
+
+@transaction.atomic
+def appeal(grievance, *, ground, actor=None):
+    """The complainant rejects the decision, and the case goes up a tier.
+
+    A **child record**, not a status flip on the parent. Both records keep their
+    own history, their own clock and their own decision — which is the only
+    shape in which "the woreda overturned the kebele" is a computable fact
+    rather than a story somebody remembers.
+
+    The statement travels with it and the outcome does not: the appeal is heard
+    on what the complainant said, not on what the tier below concluded about it.
+    """
+    grievance.transition_to(GrievanceStatus.APPEALED, actor=actor, appeal_ground=ground)
+    # The ground belongs to the **child**, not to the parent. Storing it on both
+    # tripped `grievance_appeal_needs_a_parent`, and the constraint was right to
+    # complain: a record carrying a ground of appeal and no parent is an appeal
+    # against nothing. The parent's `APPEALED` status and the child's existence
+    # are what say it was appealed.
+    grievance.save(update_fields=["status", "updated_at"])
+
+    child = Grievance(
+        parent_grievance=grievance,
+        tier=Tier.above(grievance.tier),
+        appeal_ground=(ground or "").strip(),
+        case=grievance.case,
+        subject_youth=grievance.subject_youth,
+        subject_group=grievance.subject_group,
+        about_partner=grievance.about_partner,
+        related_referral=grievance.related_referral,
+        woreda=grievance.woreda,
+        complaint_type=grievance.complaint_type,
+        severity=grievance.severity,
+        raised_by=grievance.raised_by,
+        complainant_name=grievance.complainant_name,
+        complainant_contact=grievance.complainant_contact,
+        summary=grievance.summary,
+        assigned_staff=grievance.assigned_staff,
+        recorded_by=actor,
+    )
+    child.full_clean()
+    child.save()
+    return child
+
+
+@transaction.atomic
+def refer_out(grievance, *, to, actor=None):
+    """Somebody else owns this now — a court, an agency, a safeguarding service.
+
+    Recorded rather than worked. The clock stops and the reference is kept, so
+    the case can be answered for without the platform pretending to be handling
+    something it is not.
+    """
+    grievance.transition_to(GrievanceStatus.REFERRED_OUT, actor=actor, referred_to=to)
+    grievance.referred_to = (to or "").strip()
+    grievance.resolution_date = grievance.resolution_date or date.today()
+    grievance.save(update_fields=["status", "referred_to", "resolution_date", "updated_at"])
+    return grievance
+
+
+def overturn_rate(grievances):
+    """How often the tier above disagreed with the tier below.
+
+    The number a supervision mission reads to decide whether the second tier is
+    independent. **A zero overturn rate is a finding, not a success** — it means
+    either that first-tier decisions are always right or that the second tier is
+    not really reviewing them, and only somebody who knows the woreda can say
+    which.
+
+    Reported with its denominator, like every other rate in this platform: three
+    appeals of which one was overturned is not 33%, it is one of three.
+    """
+    appeals = grievances.filter(parent_grievance__isnull=False).decided()
+    total = appeals.count()
+    overturned = appeals.filter(outcome__in=Outcome.in_the_complainant_favour()).exclude(
+        parent_grievance__outcome__in=Outcome.in_the_complainant_favour()
+    )
+    return {"appeals_decided": total, "overturned": overturned.count()}
 
 
 def resolution_inputs(grievances):
@@ -140,7 +351,7 @@ def resolution_inputs(grievances):
     still open is neither resolved nor unresolved, and counting it as a failure
     would make the rate fall every time somebody files a complaint.
     """
-    concluded = grievances.filter(resolution_status__in=ResolutionStatus.terminal()).count()
+    concluded = grievances.filter(status__in=GrievanceStatus.terminal()).count()
     return grievances.resolved().count(), concluded
 
 
@@ -150,7 +361,7 @@ def median_days_to_resolution(grievances):
 
     days = [
         (grievance.resolution_date - grievance.date_raised).days
-        for grievance in grievances.filter(resolution_status__in=ResolutionStatus.terminal())
+        for grievance in grievances.filter(status__in=GrievanceStatus.terminal())
         if grievance.resolution_date
     ]
     return median(days)

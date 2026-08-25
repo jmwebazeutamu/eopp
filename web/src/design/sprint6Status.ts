@@ -70,10 +70,20 @@ export const MILESTONE_TONE: Record<MilestoneStatusCode, MilestoneTone> = {
 };
 
 export const GRIEVANCE_TONE: Record<GrievanceStatus, StatusTone> = {
-  OPEN: { fg: "var(--gold-700)", bg: "var(--gold-100)", bd: "var(--gold-border)", mark: "◔" },
-  IN_PROGRESS: { fg: "var(--green-ink)", bg: "var(--green-100)", bd: "var(--green-border)", mark: "●" },
-  RESOLVED: { fg: "#ffffff", bg: "var(--green-700)", bd: "var(--green-700)", mark: "✓" },
-  // Ended, not answered. A different fact from resolved, and it must not read
-  // like one.
-  CLOSED: { fg: "var(--ink-600)", bg: "var(--fill-muted-2)", bd: "var(--closed-border)", mark: "■" },
+  // Nobody has told the complainant anything yet, which is the state most
+  // likely to be sat in and the one nothing used to name. Gold: somebody has
+  // to act, and soon.
+  RECEIVED: { fg: "var(--gold-700)", bg: "var(--gold-100)", bd: "var(--gold-border)", mark: "◔" },
+  ACKNOWLEDGED: { fg: "var(--blue-700)", bg: "var(--blue-100)", bd: "var(--blue-100)", mark: "◇" },
+  UNDER_REVIEW: { fg: "var(--teal-700)", bg: "var(--teal-100)", bd: "var(--teal-100)", mark: "▶" },
+  // Paused, and the clock with it. Slate rather than gold: the programme is not
+  // late, it is waiting on somebody else, and colouring it as overdue would
+  // teach people not to pause.
+  AWAITING_COMPLAINANT: { fg: "var(--slate-700)", bg: "var(--slate-100)", bd: "var(--slate-100)", mark: "⏸" },
+  // Decided is not finished. Green would say it was.
+  DECIDED: { fg: "var(--gold-700)", bg: "var(--gold-100)", bd: "var(--gold-border)", mark: "◑" },
+  CLOSED: { fg: "var(--green-ink)", bg: "var(--green-100)", bd: "var(--green-border)", mark: "✓" },
+  // Terracotta, not red: an appeal is the mechanism working, not a failure.
+  APPEALED: { fg: "var(--terra-700)", bg: "var(--terra-100)", bd: "var(--terra-border)", mark: "↑" },
+  REFERRED_OUT: { fg: "var(--ink-600)", bg: "var(--fill-muted)", bd: "var(--closed-border)", mark: "→" },
 };

@@ -32,7 +32,9 @@ VISIBLE_WHEN_RESTRICTED = (
     "short_reference",
     "woreda",
     "date_raised",
-    "resolution_status",
+    "status",
+    "tier",
+    "tier_display",
     "status_display",
     "complaint_type",
     "complaint_type_display",
@@ -45,6 +47,13 @@ VISIBLE_WHEN_RESTRICTED = (
     # the queue rendered "undefined day(s) open" — which is how this was found.
     "days_open",
     "is_open",
+    # The clock, but not what it is about. A lead has to see that a disclosure
+    # is three days from its deadline without reading a word of it.
+    "severity",
+    "severity_display",
+    "can_act",
+    "due_on",
+    "standing",
     "created_at",
     "updated_at",
 )
