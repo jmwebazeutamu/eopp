@@ -428,10 +428,17 @@ These need validation, but they are not on the §11 list.
   30/60/90-day retention checkpoints and their reminders, the trainer and
   employer-liaison screens, and the four dashboard cards that had been reporting
   `available: false` since the dashboards were built. See the section below.
+- **Grievance redress — rebuilt 2026-08-25.** The complaints channel is now
+  shared by both programmes, has an eight-state workflow with a kebele-to-woreda
+  appeal ladder, a working-day clock, and a safeguarding lane with named focal
+  points. It supersedes parts of Sprint 6; see its own section below.
 - **Sprint 6 — done.** Enterprise (§4.8) with its milestones sub-table,
   Follow-Up / Contact Log (§4.9) with referral outcome verification, Grievance
   (§4.10), the enterprise-officer, M&E and grievance screens, and §4.13's last
   undetected alert type. See the section below.
+- **WLT dashboards — Tier 1 and Tiers 2-4 built** (2026-08-26), in React on the
+  existing token layer. The handoff's Django-template port is **not** done; see
+  its section below.
 - **Sprint 7 — next.** The §8 Metabase deliverable: nine analytical dashboards
   against a read-only Postgres role, on port 8009. Note that the four-tier
   React dashboard already built does **not** discharge it — see the dashboard
@@ -738,7 +745,12 @@ the door.
 - **A static file, not a route.** A manual is wanted precisely when the app is
   not working — an uncached bundle on 3G, a printout, a copy saved to disk. It
   is served by nginx (Traefik gives `/manual.html` to the `spa` service), has no
-  JavaScript, and prints. 33 kB, 11 kB gzipped.
+  JavaScript, and prints. **60 kB, 19 kB gzipped** (2026-08-25, fifteen
+  sections). It was 33/11 when first written and the figure here went stale
+  twice before anybody noticed; if you add a section, update this number in the
+  same commit. There is no budget test — the constraint is a 3G connection and
+  a shared woreda office, so treat 25 kB gzipped as the point at which to start
+  cutting rather than adding.
 - **It duplicates the token hex values in its own `<style>`.** This is the one
   sanctioned exception to "no literal hex outside `design/status.ts` and
   `ANTD_THEME`": the page cannot import `tokens.css` and still open on its own.
@@ -748,12 +760,27 @@ the door.
   `i18n/strings.ts`, the role table from `ACCESS_MATRIX` and `TIER_ACCESS`.
   Checked against those, not written from memory — a manual that names a button
   nobody can find is worse than none.
-- **No threshold days are printed.** Confirmation, stall and abandonment windows
-  are configuration and three of them are still open questions; the manual says
-  "past the threshold" and leaves the number to the screen.
-- **Section 12 is the one to keep current.** It explains suppression bands,
+- **No threshold days are printed.** Confirmation, stall, abandonment and now
+  the grievance deadlines are configuration and most are still open questions;
+  the manual says "past the threshold" and leaves the number to the screen. §12
+  follows the rule the hardest: it explains the *shape* of the grievance clock —
+  working days, Sunday the only rest day, Ethiopian holidays skipped — and then
+  sends the reader to the screen for the lengths. The review artifact prints
+  them; the two documents differ deliberately, and settling
+  `GRIEVANCE_RESPONSE_DAYS` means editing the artifact and not the manual.
+- **§12 covers grievances and appeals**, added 2026-08-25 with the workflow. The
+  safeguarding exception leads the section rather than closing it: put at the
+  end, somebody reads six steps, follows them, and types a survivor's account
+  into a form that was never meant to hold it.
+- **§14 is the one to keep current.** It explains suppression bands,
   "too few to assess" and "not measurable yet" — the parts of the dashboards
-  that read as faults until somebody explains that they are not.
+  that read as faults until somebody explains that they are not. It was §12
+  until the grievance section was inserted; the numbers shift, the anchors
+  (`#numbers`, `#grievances`) do not, so link by anchor.
+- **Its chip palette has six classes against the workflow's eight statuses.**
+  Acknowledged and Under review both render green where the app shows blue and
+  teal. Labels are correct and colour is never the only signal, so it reads
+  honestly — but do not take a manual chip as authority on a tone.
 
 ## The WLT group module (`backend/apps/wlt`, `web/src/pages/wlt/`)
 
@@ -1189,15 +1216,19 @@ reason `status` is. `/verification` is the M&E screen that works the queue.
   people already on file is not a channel. So a grievance carries its **own
   woreda** and scopes by place rather than by caseload — a supervisor must see a
   complaint about a partner in her woreda whether or not it names her youth.
-- **Sensitive complaints are narrowed further.** Safeguarding and staff conduct
-  are visible only to the assigned staff member and the administrator, because
-  the person complained about may be the supervisor who would otherwise read it.
-  `GrievanceQuerySet.visible_to` is the one place that decides it.
+- **Sensitive complaints are narrowed further.** Staff conduct is visible only
+  to the assigned staff member and the administrator, because the person
+  complained about may be the supervisor who would otherwise read it.
+  `GrievanceQuerySet.visible_to` is the one place that decides it. *Safeguarding
+  left this list on 2026-08-25 — it is `is_restricted` now, which is a wider
+  rule about who sees the row and a much narrower one about who reads it. See
+  the grievance redress section below.*
 - **`RESOLVED` and `CLOSED` are not the same**, and §4.10 is right to separate
-  them. Resolved means something was done; closed means the file is shut, which
-  also happens when a complainant withdraws. Folding them would inflate the
-  resolution rate with every complaint nobody could pursue. Resolving requires
-  saying what was done — in the service and in a check constraint.
+  them. *Superseded 2026-08-25:* the distinction was real and the field was the
+  wrong place for it. `RESOLVED` meant both "the file is finished" and "the
+  complaint was upheld", so a complaint properly investigated and found
+  unfounded had nowhere to go. Status is now the workflow and `Outcome` is the
+  decision, which is the same separation stated correctly.
 - **A grant disbursed is not a business trading**, and trading is not surviving.
   Three separate fields, three separate counts, and only the third is an
   outcome. `record_disbursement` refuses money against an unapproved plan.
@@ -1225,7 +1256,8 @@ and a rate cannot answer it.
 
 ### Three new thresholds, all unagreed
 
-`FOLLOW_UP_DUE_DAYS` (14), `GRIEVANCE_RESPONSE_DAYS` (21) and
+`FOLLOW_UP_DUE_DAYS` (14), `GRIEVANCE_RESPONSE_DAYS` (21, now counted in
+*working* days and contested — see below) and
 `FAILED_CONTACT_ATTEMPTS_AT_RISK` (4). Only the last comes from the spec — §5
 says "4+". The other two are working defaults marked `TODO(open-question)` and
 want the same conversation the confirmation threshold had on 2026-08-18.
@@ -1245,8 +1277,232 @@ $C exec web pytest apps/enterprises apps/followups apps/grievances -q
 ```
 
 Screens: `/enterprises` (the officer's — **awaiting disbursement leads**, because
-that delay is the programme's), `/verification` (M&E's two queues) and
-`/grievances` (**overdue leads**, for the same reason).
+that delay is the programme's) and `/verification` (M&E's two queues). The
+grievance screens were rebuilt on 2026-08-25; see the section below.
+
+## Grievance redress — rebuilt 2026-08-25
+
+`apps/grievances` was a clean CRUD table over a complaint record, and a
+grievance redress mechanism is not a table of complaints. It could not answer
+the four questions FSCO or a supervision mission asks: was the complainant told
+you received it, is this late and whose desk is it on, where did the appeal go,
+and who read the safeguarding case. `docs/` has no copy of the review that said
+so — it is the "Grievance Redress Rebuild" artifact, and its build order is the
+one followed here.
+
+### One channel, both programmes
+
+- **The subject generalises the way `referrals.SubjectType` does** (handoff D4):
+  typed nullable columns, a generated `subject_type`, a check constraint. One
+  difference and it is the important one — **`NONE` is a real value.** §4.10
+  makes the subject optional so a person who never registered can complain, so
+  the constraint is **at most one**, not exactly one.
+- **`scoping.scope_grievances` is the union of two scopes**, not one.
+  `woreda_assignment` is a list of names and `wlt_scope_location` is a point in
+  a hierarchy; neither can express the other. Combined through primary keys
+  rather than `queryset | queryset` — Django refuses to OR a unique query with a
+  non-unique one, which surfaced as a 500 on the list route for the first WLT
+  role that read it. Fails closed on both sides.
+- **`CanAccessGrievances` replaced `CanAccessCases`.** All four WLT roles carry
+  `case_scope: NONE`, so a savings group could not complain about anything and
+  the facilitator who was in the room could not write it down. Write is wider
+  than either module's write column, for the reason `delivery_write` exists:
+  filing a complaint is not changing a record, it is the act the mechanism
+  exists to receive.
+
+### The safeguarding lane
+
+Treated as a different product in the same application, and three of its rules
+run against how the rest of the platform works.
+
+- **A named list, not a role.** `SafeguardingFocalPoint` names people per
+  woreda, dated. A role is inherited — provision an account with the right
+  permission and it silently acquires the ability to read a survivor's account.
+- **Redacted, not omitted.** The row stays in every list its scope reaches,
+  showing a reference, a date, a woreda, a status and its age; the serializer
+  strips the rest by **whitelist**, so a field added later is withheld by
+  default. Excluding the row instead — which `visible_to` used to do — hid the
+  mechanism working: nobody could show a disclosure had been received and
+  nothing counted it. Restricted rows are excluded from free-text search: a
+  search box that returns one for the word in its summary publishes the summary
+  one word at a time.
+- **The system administrator cannot read one.** This reverses the confirmed
+  `ACCESS_MATRIX` widening, scoped to restricted content only. Deliberate;
+  `test_the_administrator_may_not` is the single place to reverse it back, and
+  doing so should be a decision rather than a refactor.
+- **The escape hatch is `recorded_by`, never `assigned_staff`.** Assignment is a
+  field anybody with write access can change, so granting the assignee read
+  access would let a reader grant it to herself by typing her own name in it.
+  This was live until a screenshot showed a disclosure printing in full for a
+  supervisor it had merely been assigned to.
+- **`GrievanceAccess` records every open**, granted or refused; the refused ones
+  are the interesting rows. Append-only, and the admin has no add, change or
+  delete — a log a reader can tidy is not a log. The intake screen says the
+  logging is happening, because a control that watches silently is a different
+  thing from one that says so.
+
+### The workflow
+
+Eight states, `TRANSITIONS` and `Grievance.transition_to()` — the §6.2 pattern,
+including the `select_for_update` re-read so two officers deciding the same case
+cannot both pass a check made against a stale copy. `status` is read-only on the
+serializer for the same reason `Referral.status` is.
+
+**Status is where the work is; `Outcome` is what was decided.** Upheld, partly
+upheld, not upheld, referred, withdrawn — the enum the overturn rate turns on,
+and none of it expressible as a status.
+
+Three gates carry the weight, and each is on the edge rather than in a disabled
+button:
+
+1. **A case cannot be worked before the complainant is told it arrived.** The
+   acknowledgement is a promise, and a promise made after the fact is not one.
+2. **A decision needs a reason**, in words the complainant will hear read back.
+3. **A file cannot be shut until there is a record that they were told the
+   answer** — on the edge *and* in `grievance_closed_needs_feedback`. This was
+   possible before: notes captured what staff did and nothing captured what the
+   complainant was told.
+
+`AWAITING_COMPLAINANT` is the only pause — any other is a hiding place — and it
+needs a reason and a chase date. **Resuming moves the deadline forward by the
+length of the wait.** Leaving it charges the programme for somebody else's time,
+which teaches people not to pause, which means recording the wait where it
+cannot be seen.
+
+An appeal creates a **child** at the next tier with a fresh clock. The statement
+travels and the outcome does not — an appeal is heard on what the complainant
+said. The **ground of appeal lives on the child only**; storing it on the parent
+too trips `grievance_appeal_needs_a_parent`, and the constraint is right: a
+record carrying a ground and no parent is an appeal against nothing. Tiers 1-2
+are worked; region and federal are recorded, not queued.
+
+`overturn_rate` reports with its denominator. **A zero overturn rate is a
+finding, not a success** — either every first decision is right or the second
+tier is not reviewing them.
+
+### The clock (`apps/grievances/clock.py`)
+
+- **Working days.** Sunday is the only rest day: offices here work Saturday
+  mornings and excluding Saturday would flatter every figure.
+- **`PUBLIC_HOLIDAYS` is hand-listed for 2026-27** and skipped. Fasika and the
+  Eids follow Julian Easter and a lunar calendar observed by sighting; getting
+  Ramadan wrong in code is a bug nobody notices until a deadline is disputed. A
+  table somebody extends yearly is the honest shape. Irreecha and the other
+  Oromia regional holidays are **not in it** — `TODO(open-question)`.
+- **`standing()` returns one shape for every state** so the screen does not
+  branch: signed days to the deadline, negative is late, a concluded case
+  reports `closed` with the clock stopped.
+- `GRIEVANCE_RESPONSE_DAYS` stays **21** and now counts working days, against
+  the federal GRM's **10** at both kebele and woreda. Deliberately not
+  retightened to a number nobody agreed. `GRIEVANCE_APPEAL_WINDOW_DAYS` (15) is
+  calendar days — that window is the complainant's time to think, not the
+  programme's to work.
+
+### Three faults worth not repeating
+
+- **`Model.save` recomputed `due_on` on every save**, silently undoing
+  `services.resume`. It now recomputes only when `date_raised` or `severity` is
+  itself in `update_fields`. A deliberate adjustment has to survive a save that
+  was not about the deadline.
+- **The autodetector put `RemoveField` before the data could be read.** A
+  status-column swap needs the copy *between* the add and the remove, in the
+  same migration, where both exist. Check the operation order on any field
+  rename the autodetector writes.
+- **`can_act` comes from the server.** The screen read `case_write ||
+  group_write`, and a supervisor has neither — she is exactly the role that
+  works a woreda's complaints, so every action was hidden on a page whose API
+  would have accepted them.
+
+### The migration maps; it does not invent
+
+`OPEN → RECEIVED`, `IN_PROGRESS → UNDER_REVIEW`, `RESOLVED`/`CLOSED` → `CLOSED`.
+**No outcome is written on a migrated row**: old `RESOLVED` was the
+upheld/partly-upheld family but not which, and old `CLOSED` covered withdrawn,
+untraceable and not-upheld alike. A guess there puts a decision nobody made into
+the number a supervision mission reads. `feedback_method` reads `"not recorded"`
+rather than a backdated tick. Reversible, and the reverse is documented as lossy.
+
+### Screens and commands
+
+```bash
+$C exec web pytest apps/grievances -q      # 78 tests
+```
+
+`/grievances` — counts row (late · due this week · awaiting acknowledgement ·
+restricted), `Due` replacing `Age`, Tier column, late first and most overdue at
+the top. `/grievances/:id` — the case file as a page, because a grievance is
+worked over weeks by several people and a modal cannot be linked to, printed for
+a committee or hold a timeline. **The original statement is the first entry and
+is editable by nobody**; notes append and are never edited.
+
+The timeline is **assembled, not logged** — history rows, notes, the
+acknowledgement — for the same reason as `wlt.services.history`.
+
+**Not built:** kebele geography (so a kebele committee cannot filter to its own
+kebele), channels and printed receipts, auto-escalation of an overdue case to
+the tier above, the appeal inbox as its own queue, attachments, Afaan Oromo and
+offline.
+
+## The WLT dashboards (`docs/dashboard_handoff_wlt/`)
+
+Four tiers, the same shape as the youth side: a facilitator's queue, a woreda
+officer's approval desk, the programme view and the M&E/donor view.
+`services/facilitator.py` is Tier 1 (cards **FC-1** to **FC-6**);
+`services/programme.py` is Tiers 2-4 (**WO-**, **PG-**, **ME-**). Two actions on
+the group viewset: `GET /wlt/groups/facilitator-home/` and
+`GET /wlt/groups/dashboard/<woreda|programme|results>/`.
+
+**Built in the app, not in Metabase** — the handoff puts tiers 2-4 there, and
+this is the same override the programme made on the youth side, for the same
+reasons. Raising it again is a decision to take, not one to make in a commit.
+
+- **Every tier is scoped through `scope_group_queryset`.** An aggregate is a
+  disclosure: "29,885 ETB saved" told to somebody entitled to see one woreda has
+  to mean that woreda. Rates band like every other rate here — suppressed reads
+  "too few to assess", never 0%.
+- **FC-2 reports `available: false` and says why.** The state it looks for
+  cannot exist in this build: `wlt_meeting_close_requires_reconciliation`
+  refuses the update, so an unbalanced till keeps its meeting *open* and appears
+  under FC-1. A 0 there would claim the programme has no discrepancies.
+- **ME-1 is blocked on OQ-4**, the PSNP 6 ELS results framework wording. Built
+  from the handbook's phrasing it would produce woreda figures that do not roll
+  up.
+- **One request per tier, computed on demand.** Acceptance criterion 1 is a
+  single request under 100 KB, and criterion 6 needs closing a meeting to move
+  the rows without waiting for a nightly refresh.
+- **A refusal renders `WltTierUnavailable`, not the youth one.** The youth
+  screen sends the reader to case, referral and alert lists that every WLT
+  role's `case_scope: NONE` forbids.
+
+**Not done, and the brief asks for it.** The UI/UX handoff
+(`UIUX_HANDOFF_PROMPT.md`, `UIUX_AUDIT_v1.md`) requires the v2 prototype's
+`:root` block, component CSS and tab JS lifted **verbatim into the Django
+template layer**, plus six carried rules and six implementer items (B3, B4, E1,
+E2, D1, D4) that are definitions of done. What exists is React on `tokens.css`.
+That is a conflict with the shipped precedent above and wants a decision before
+anybody ports it.
+
+## The rail (`web/src/components/shell/`)
+
+Restructured 2026-08-26. Fifteen links across four open sections was a list to
+read rather than a place to navigate.
+
+- **Sections open collapsed; the route decides which one expands.** Derived from
+  the path, never written into state on arrival — storing it leaves a section
+  open behind you and the rail drifts back to the fully-expanded list this
+  replaces. An explicit close beats being the active section.
+- **`sessionStorage`, not `localStorage`** (`useSessionPreference`). "Collapsed
+  on load" is the specification, and a persisted preference defeats it from the
+  second visit onwards.
+- **`ownsPaths` / `isActiveItem`, because `isActivePath` could not answer it.**
+  One item owns four routes now, so with nothing owning `/training` no item lit
+  and the section holding it stayed shut.
+- **Tabs live in the screen, not the rail.** The four dashboard tiers are one
+  Dashboard link; Training, Placements, Enterprises and Verification are one
+  Delivery link. Every path is unchanged, so older links still work, and each
+  role lands on its own first screen.
+- **Grievances is top level with no heading to collapse into.** A complaints
+  channel that can be folded away is one nobody finds.
 
 ## Definition of Done (spec §10.1)
 
@@ -1257,6 +1513,29 @@ that delay is the programme's), `/verification` (M&E's two queues) and
 
 ## Gotchas
 
+- **A tier page must hold its payload together with the tier it came from.**
+  Each tier answers a different shape, so a bare `data` still holding the
+  previous tab's reply while the next loads renders one tier's cards against
+  another's payload — which is not a blank card, it is a crash on the first
+  field. `WltDashboardPage` keeps `{tier, payload}` and renders only on a match.
+- **A card guarded by `if not total` is a card no test exercises.** Every test on
+  `/dashboard/programme/` ran with an empty grievance table, so the panel
+  returned early and a queryset method deleted by the grievance rebuild went on
+  being called for a day, in production. When a panel has an empty-set early
+  return, one test has to put a row in it.
+- **A bare date anchors at *local* midnight.** `date.today()` is written in
+  Africa/Addis_Ababa and `created_at` is a UTC instant; between 00:00 and 03:00
+  local they disagree about the day, so a UTC-anchored sort put a grievance's
+  opening statement after a note written minutes later. Both assembled timelines
+  had it. It will recur anywhere a stored date meets a stored timestamp.
+- **A `GeneratedField` breaks django-filter at request time**, not at startup,
+  so the whole list route 500s. `subject_type` on both `Referral` and
+  `Grievance` needs an explicit `FilterSet` — see `ServiceLinkageFilter` and
+  `GrievanceFilter`.
+- **Check the operation order on any field swap the autodetector writes.** It
+  put `RemoveField` before the data could be copied out, which would have
+  deleted every complaint's status. The copy belongs between the add and the
+  remove, in the same migration.
 - **Traefik must be v3.6+.** Earlier v3.x pin their Docker client to API v1.24,
   which Docker 29 rejects; the provider silently fails and every route 404s.
 - **Only `web` has a build block.** `celery` and `celery-beat` reference the
