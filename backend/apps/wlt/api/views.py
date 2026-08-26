@@ -42,8 +42,8 @@ from apps.users.permissions import (
     scope_group_queryset,
 )
 from apps.wlt import imports as wlt_imports
-from apps.wlt import reporting
 from apps.wlt import policy as wlt_policy
+from apps.wlt import reporting
 from apps.wlt.models import (
     BeneficiaryProfile,
     EntryType,
@@ -63,6 +63,7 @@ from apps.wlt.models import (
     VerificationStatus,
 )
 from apps.wlt.services import enrolment as enrolment_service
+from apps.wlt.services import facilitator as facilitator_service
 from apps.wlt.services import formation as formation_service
 from apps.wlt.services import history as history_service
 from apps.wlt.services import indicators as indicator_service
@@ -70,6 +71,7 @@ from apps.wlt.services import journey as journey_service
 from apps.wlt.services import ledger as ledger_service
 from apps.wlt.services import linkage as linkage_service
 from apps.wlt.services import phase as phase_service
+from apps.wlt.services import programme as programme_service
 from apps.youth import imports as youth_imports
 
 from .serializers import (
@@ -194,6 +196,40 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
         # the service created has to be handed back rather than left behind.
         serializer.instance = group
 
+    @action(detail=False, methods=["get"], url_path=r"dashboard/(?P<tier>woreda|programme|results)")
+    def dashboard(self, request, tier=None):
+        """Tiers 2 to 4, one request each.
+
+        **Built in the app rather than in Metabase**, which is the same call the
+        programme made on the youth side and for the same reasons: the §7
+        boundary stays in the ORM where it is tested, every rate goes through
+        one rules module, and Metabase is not deployed.
+
+        Scoped through `scope_group_queryset` like every other group read — an
+        aggregate is a disclosure too, and "29,885 ETB saved" told to somebody
+        entitled to see one woreda has to mean that woreda.
+        """
+        return Response(programme_service.tier(tier, request.user))
+
+    @action(detail=False, methods=["get"], url_path="facilitator-home")
+    def facilitator_home(self, request):
+        """Tier 1 of the dashboard handoff, in one request.
+
+        Six queue cards, and **every count carries the list behind it** — the
+        handoff deletes any figure that cannot be tapped to produce named
+        groups, meetings or members.
+
+        One endpoint rather than six because acceptance criterion 1 is a single
+        request under 100 KB: six round trips on a 3G connection in a woreda
+        office is the difference between a screen that opens and one that does
+        not.
+
+        Computed from the services on request, not read from a materialised
+        view. Criterion 6 requires closing a meeting to move these rows without
+        a reload, and a nightly view cannot do that.
+        """
+        return Response(facilitator_service.home(request.user))
+
     @action(detail=False, methods=["get"])
     def summary(self, request):
         """The counter row that is also the filter, per the platform convention."""
@@ -282,9 +318,8 @@ class GroupViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
             # `person__wlt_profile` too: the roster links to each woman's
             # record, and without it the serializer would fetch her profile one
             # row at a time.
-            roster = (
-                group.memberships.select_related("person", "person__wlt_profile")
-                .order_by("exited_on", "joined_on", "person__full_name")
+            roster = group.memberships.select_related("person", "person__wlt_profile").order_by(
+                "exited_on", "joined_on", "person__full_name"
             )
             return Response(GroupMembershipSerializer(roster, many=True).data)
         from apps.youth.models import Youth
@@ -717,7 +752,7 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
             return None
         predecessor = self.get_queryset().filter(pk=predecessor_id).first()
         if predecessor is None:
-            raise DRFValidationError({"predecessor": [_('Unknown or inaccessible earlier linkage.')]})
+            raise DRFValidationError({"predecessor": [_("Unknown or inaccessible earlier linkage.")]})
         return predecessor
 
     def _resolve_proposal(self, request):
@@ -846,8 +881,11 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
         linkage = self.get_object()
         try:
             linkage_service.resolve_obligation(
-                linkage, reference=request.data.get("reference", ""), resolution="SETTLED",
-                note=request.data.get("note", ""), actor=request.user,
+                linkage,
+                reference=request.data.get("reference", ""),
+                resolution="SETTLED",
+                note=request.data.get("note", ""),
+                actor=request.user,
             )
         except ValidationError as exc:
             raise _as_drf_error(exc)
@@ -856,14 +894,20 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="obligations/write-off")
     def write_off_obligation(self, request, pk=None):
         if request.user.role not in {
-            Role.WLT_WOREDA_OFFICER, Role.WLT_REGION_OFFICER, Role.WLT_FEDERAL_OFFICER, Role.SYSTEM_ADMIN
+            Role.WLT_WOREDA_OFFICER,
+            Role.WLT_REGION_OFFICER,
+            Role.WLT_FEDERAL_OFFICER,
+            Role.SYSTEM_ADMIN,
         }:
             raise DRFValidationError({"detail": _("An approver must authorize a write-off.")})
         linkage = self.get_object()
         try:
             linkage_service.resolve_obligation(
-                linkage, reference=request.data.get("reference", ""), resolution="WRITE_OFF",
-                note=request.data.get("note", ""), actor=request.user,
+                linkage,
+                reference=request.data.get("reference", ""),
+                resolution="WRITE_OFF",
+                note=request.data.get("note", ""),
+                actor=request.user,
             )
         except ValidationError as exc:
             raise _as_drf_error(exc)
@@ -874,9 +918,12 @@ class ServiceLinkageViewSet(ScopedGroupQuerySetMixin, viewsets.ModelViewSet):
         linkage = self.get_object()
         try:
             linkage_service.resolve_obligation(
-                linkage, reference=request.data.get("reference", ""), resolution="TRANSFER",
+                linkage,
+                reference=request.data.get("reference", ""),
+                resolution="TRANSFER",
                 transfer_reference=request.data.get("transfer_reference", ""),
-                note=request.data.get("note", ""), actor=request.user,
+                note=request.data.get("note", ""),
+                actor=request.user,
             )
         except ValidationError as exc:
             raise _as_drf_error(exc)
@@ -1044,11 +1091,15 @@ class BeneficiaryProfileViewSet(viewsets.ModelViewSet):
         # it per row cost one query per woman. `to_attr` because only the open
         # range is wanted — pulling every closed row to answer a yes/no would
         # trade one problem for another.
-        queryset = super().get_queryset().prefetch_related(
-            Prefetch(
-                "person__wlt_memberships",
-                queryset=GroupMembership.objects.filter(exited_on__isnull=True).select_related("group"),
-                to_attr="open_memberships",
+        queryset = (
+            super()
+            .get_queryset()
+            .prefetch_related(
+                Prefetch(
+                    "person__wlt_memberships",
+                    queryset=GroupMembership.objects.filter(exited_on__isnull=True).select_related("group"),
+                    to_attr="open_memberships",
+                )
             )
         )
         user = self.request.user
@@ -1102,10 +1153,17 @@ class BeneficiaryProfileViewSet(viewsets.ModelViewSet):
                 "kebele": {"code": kebele.code, "name": kebele.name} if kebele else None,
                 "waiting_elsewhere": elsewhere,
                 "registered_here": self.get_queryset().filter(psnp_kebele_id=kebele_id).count() if kebele_id else 0,
-                "already_grouped_here": self.get_queryset().filter(
-                    psnp_kebele_id=kebele_id,
-                    person__wlt_memberships__exited_on__isnull=True,
-                ).distinct().count() if kebele_id else 0,
+                "already_grouped_here": (
+                    self.get_queryset()
+                    .filter(
+                        psnp_kebele_id=kebele_id,
+                        person__wlt_memberships__exited_on__isnull=True,
+                    )
+                    .distinct()
+                    .count()
+                    if kebele_id
+                    else 0
+                ),
             }
         )
 
