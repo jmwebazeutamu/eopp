@@ -69,9 +69,7 @@ class TestTheRegister:
         row = next(m for m in data["members"] if m["person"] == str(wlt_members[0].pk))
         assert row["attendance"] == AttendanceStatus.PRESENT
 
-    def test_the_roster_is_the_one_in_force_on_the_meeting_date(
-        self, as_user, facilitator, wlt_group, wlt_members
-    ):
+    def test_the_roster_is_the_one_in_force_on_the_meeting_date(self, as_user, facilitator, wlt_group, wlt_members):
         """Membership is a dated range, so a meeting is registered against the
         roster as it stood *then*. A woman who left last week was in the group
         when last month's meeting was held, and her attendance is part of that
@@ -106,17 +104,13 @@ class TestClosingTheMeeting:
             )
 
         expected = _register(client, open_meeting)["expected_cash_etb"]
-        closed = client.post(
-            f"{MEETINGS}{open_meeting.pk}/close/", {"counted_cash_etb": str(expected)}, format="json"
-        )
+        closed = client.post(f"{MEETINGS}{open_meeting.pk}/close/", {"counted_cash_etb": str(expected)}, format="json")
 
         assert closed.status_code == 200
         open_meeting.refresh_from_db()
         assert open_meeting.status == MeetingStatus.CLOSED
 
-    def test_an_unbalanced_till_is_refused_and_says_by_how_much(
-        self, as_user, facilitator, open_meeting, wlt_members
-    ):
+    def test_an_unbalanced_till_is_refused_and_says_by_how_much(self, as_user, facilitator, open_meeting, wlt_members):
         """The rule everything else depends on. The message is the product —
         a facilitator has to know which way and by how much."""
         client = as_user(facilitator)
@@ -163,9 +157,7 @@ class TestClosingTheMeeting:
         )
         assert late.status_code == 400
 
-    def test_savings_posted_twice_are_visible_rather_than_silent(
-        self, as_user, facilitator, open_meeting, wlt_members
-    ):
+    def test_savings_posted_twice_are_visible_rather_than_silent(self, as_user, facilitator, open_meeting, wlt_members):
         """The hazard the register exists to make visible.
 
         The ledger appends and has no update path, so a retried request doubles
@@ -181,9 +173,7 @@ class TestClosingTheMeeting:
                 format="json",
             )
 
-        row = next(
-            m for m in _register(client, open_meeting)["members"] if m["person"] == str(wlt_members[0].pk)
-        )
+        row = next(m for m in _register(client, open_meeting)["members"] if m["person"] == str(wlt_members[0].pk))
         assert Decimal(row["saved_etb"]) == Decimal("40")
         assert LedgerEntry.objects.filter(meeting=open_meeting, entry_type=EntryType.SAVINGS).count() == 2
 
@@ -202,9 +192,7 @@ def test_two_meetings_on_one_date_sort_by_number(as_user, facilitator, wlt_group
     rows = listed.data["results"] if isinstance(listed.data, dict) else listed.data
     same_day = [row for row in rows if row["held_on"] == date.today().isoformat()]
 
-    assert [row["meeting_no"] for row in same_day] == sorted(
-        (row["meeting_no"] for row in same_day), reverse=True
-    )
+    assert [row["meeting_no"] for row in same_day] == sorted((row["meeting_no"] for row in same_day), reverse=True)
     assert same_day[0]["meeting_no"] == second.meeting_no
 
 
@@ -219,9 +207,7 @@ def _lendable(group, facilitator):
 
     while group.meetings.filter(status=MeetingStatus.CLOSED).count() < 10:
         meeting = ledger_service.open_meeting(group, held_on=date.today(), recorded_by=facilitator)
-        ledger_service.close_meeting(
-            meeting, counted_cash_etb=ledger_service.expected_cash(meeting), actor=facilitator
-        )
+        ledger_service.close_meeting(meeting, counted_cash_etb=ledger_service.expected_cash(meeting), actor=facilitator)
     return ledger_service.open_meeting(group, held_on=date.today(), recorded_by=facilitator)
 
 
@@ -361,9 +347,7 @@ class TestLending:
         theirs = formation_service.open_draft(
             name="Another SHG", kebele=wlt_locations["other_kebele"], facilitator=other_facilitator
         )
-        from apps.wlt.models import Loan, LoanPurpose, LoanStatus
-
-        from apps.wlt.models import ServiceChargeBasis
+        from apps.wlt.models import Loan, LoanPurpose, LoanStatus, ServiceChargeBasis
 
         stranger = Loan.objects.create(
             group=theirs,

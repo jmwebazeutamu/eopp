@@ -77,9 +77,7 @@ def test_a_savings_account_screens_clean_for_a_p2_group(p2_group, bank, facilita
 
 
 def test_onward_linkages_can_branch_and_overlap(p2_group, bank, facilitator):
-    first = linkage_service.propose(
-        linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator
-    )
+    first = linkage_service.propose(linkage_type="savings_account", subject=p2_group, provider=bank, actor=facilitator)
     first.closed_on = date.today() + timedelta(days=30)
     first.save(update_fields=["closed_on"])
 

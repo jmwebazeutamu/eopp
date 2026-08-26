@@ -355,9 +355,7 @@ class GroupSerializer(serializers.ModelSerializer):
         if self.instance is None and attrs.get("facilitator") is None:
             actor = self.context["request"].user
             if actor.role != Role.WLT_FACILITATOR:
-                raise serializers.ValidationError(
-                    {"facilitator": _("Name the facilitator who will run this group.")}
-                )
+                raise serializers.ValidationError({"facilitator": _("Name the facilitator who will run this group.")})
         facilitator = attrs.get("facilitator")
         event = attrs.get("mobilisation_event")
         if self.instance is None and facilitator is not None:

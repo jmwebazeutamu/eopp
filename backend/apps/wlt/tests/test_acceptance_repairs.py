@@ -2,8 +2,8 @@ import pytest
 
 from apps.partners.models import PartnerType
 from apps.wlt.models import Group, LinkageStatus, MobilisationEvent, Phase
-from apps.wlt.services import linkage as linkage_service
 from apps.wlt.services import formation as formation_service
+from apps.wlt.services import linkage as linkage_service
 
 pytestmark = pytest.mark.django_db
 
@@ -11,7 +11,9 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def endorsed_meeting(wlt_locations, facilitator):
     return MobilisationEvent.objects.create(
-        kebele=wlt_locations["kebele"], held_on="2026-08-20", facilitator=facilitator,
+        kebele=wlt_locations["kebele"],
+        held_on="2026-08-20",
+        facilitator=facilitator,
         endorsement_obtained=True,
     )
 
@@ -37,22 +39,23 @@ def test_admin_and_woreda_officer_can_draft_with_an_explicit_facilitator(
 def test_facilitator_picker_is_scoped_to_the_chosen_kebele(as_user, system_admin, facilitator, wlt_locations):
     facilitator.wlt_scope_location = wlt_locations["woreda"]
     facilitator.save(update_fields=["wlt_scope_location"])
-    response = as_user(system_admin).get(
-        f"/api/v1/users/wlt-facilitators/?kebele={wlt_locations['kebele'].pk}"
-    )
+    response = as_user(system_admin).get(f"/api/v1/users/wlt-facilitators/?kebele={wlt_locations['kebele'].pk}")
     assert response.status_code == 200
     assert str(facilitator.pk) in {str(row["id"]) for row in response.data}
 
 
 def test_bulk_roster_add_uses_the_same_member_rules(as_user, facilitator, endorsed_meeting, make_wlt_member):
     group = formation_service.open_draft(
-        name="Bulk roster", kebele=endorsed_meeting.kebele, facilitator=facilitator,
+        name="Bulk roster",
+        kebele=endorsed_meeting.kebele,
+        facilitator=facilitator,
         mobilisation_event=endorsed_meeting,
     )
     people = [make_wlt_member("Bulk One"), make_wlt_member("Bulk Two")]
     response = as_user(facilitator).post(
         f"/api/v1/wlt/groups/{group.pk}/members/",
-        {"people": [str(person.pk) for person in people]}, format="json",
+        {"people": [str(person.pk) for person in people]},
+        format="json",
     )
     assert response.status_code == 201
     assert len(response.data) == 2

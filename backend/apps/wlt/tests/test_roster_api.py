@@ -369,9 +369,7 @@ def test_an_empty_pool_says_how_many_women_wait_in_other_kebeles(
     """
     # A second group of hers, so the other kebele is inside her scope at all.
     # Without one she cannot see those women, and must not be told they exist.
-    formation_service.open_draft(
-        name="Second SHG", kebele=wlt_locations["other_kebele"], facilitator=facilitator
-    )
+    formation_service.open_draft(name="Second SHG", kebele=wlt_locations["other_kebele"], facilitator=facilitator)
     make_wlt_member("Woman Elsewhere", kebele=wlt_locations["other_kebele"])
 
     pool = as_user(facilitator).get("/api/v1/wlt/profiles/candidates/", {"kebele": str(wlt_group.kebele_id)})
@@ -390,9 +388,7 @@ def test_the_count_of_women_elsewhere_excludes_the_ones_it_is_offering(
     Adding the two together has to give the whole waiting pool, or the message
     double-counts the women already on the list in front of you.
     """
-    formation_service.open_draft(
-        name="Second SHG", kebele=wlt_locations["other_kebele"], facilitator=facilitator
-    )
+    formation_service.open_draft(name="Second SHG", kebele=wlt_locations["other_kebele"], facilitator=facilitator)
     make_wlt_member("Here One")
     make_wlt_member("Here Two")
     make_wlt_member("There One", kebele=wlt_locations["other_kebele"])
@@ -406,7 +402,7 @@ def test_the_count_of_women_elsewhere_excludes_the_ones_it_is_offering(
 def test_the_count_never_reports_women_outside_her_scope(
     as_user, facilitator, wlt_group, wlt_locations, make_wlt_member
 ):
-    """"Elsewhere" means elsewhere *that she can see*.
+    """ "Elsewhere" means elsewhere *that she can see*.
 
     A facilitator's register is the kebeles of the groups she runs. Counting
     women in a kebele she has no group in would disclose the size of a
@@ -461,9 +457,7 @@ def test_the_context_counts_separate_nobody_registered_from_everybody_placed(
     assert pool.data["already_grouped_here"] == len(wlt_members)
 
 
-def test_a_seated_woman_is_counted_once_not_once_per_membership(
-    as_user, facilitator, wlt_group, wlt_members
-):
+def test_a_seated_woman_is_counted_once_not_once_per_membership(as_user, facilitator, wlt_group, wlt_members):
     """A membership join multiplies the row — the lesson `unassigned()` carries.
 
     She has one open membership and one closed one; a join would count her
@@ -505,9 +499,7 @@ def test_the_roster_can_read_back_who_holds_office(as_user, facilitator, wlt_gro
     assert chair["full_name"] == wlt_members[0].full_name
 
 
-def test_electing_a_new_chair_closes_the_old_term_rather_than_editing_it(
-    as_user, facilitator, wlt_group, wlt_members
-):
+def test_electing_a_new_chair_closes_the_old_term_rather_than_editing_it(as_user, facilitator, wlt_group, wlt_members):
     """A8: "who was treasurer on the date of that disbursement" gets asked.
 
     So a term is a dated range and the previous holder stays on the record with
@@ -537,15 +529,11 @@ def test_electing_a_new_chair_closes_the_old_term_rather_than_editing_it(
 def test_the_three_offices_are_held_independently(as_user, facilitator, wlt_group, wlt_members):
     client = as_user(facilitator)
     for role, person in (("CHAIR", wlt_members[0]), ("SECRETARY", wlt_members[1]), ("TREASURER", wlt_members[2])):
-        elected = client.post(
-            OFFICES.format(wlt_group.pk), {"person": str(person.pk), "role": role}, format="json"
-        )
+        elected = client.post(OFFICES.format(wlt_group.pk), {"person": str(person.pk), "role": role}, format="json")
         assert elected.status_code == 201
 
     current = {
-        row["role"]: row["full_name"]
-        for row in client.get(OFFICES.format(wlt_group.pk)).data
-        if row["to_date"] is None
+        row["role"]: row["full_name"] for row in client.get(OFFICES.format(wlt_group.pk)).data if row["to_date"] is None
     }
     assert current == {
         "CHAIR": wlt_members[0].full_name,
@@ -562,9 +550,7 @@ def test_only_a_current_member_can_hold_office(as_user, facilitator, wlt_group, 
     assert refused.status_code == 400
 
 
-def test_an_officer_who_leaves_the_group_is_no_longer_offered_as_one(
-    as_user, facilitator, wlt_group, wlt_members
-):
+def test_an_officer_who_leaves_the_group_is_no_longer_offered_as_one(as_user, facilitator, wlt_group, wlt_members):
     """Her term does not silently continue after she leaves.
 
     The roster is the source of truth for who may hold office, so re-electing
@@ -622,7 +608,7 @@ def test_correcting_a_same_day_election_is_not_a_succession(as_user, facilitator
 def test_the_register_filters_to_one_named_group(
     as_user, facilitator, wlt_group, wlt_members, wlt_locations, make_wlt_member
 ):
-    """"Filter by group" on the register — which women are in this group."""
+    """ "Filter by group" on the register — which women are in this group."""
     outsider = make_wlt_member("Not In That Group")
 
     filtered = _profiles(as_user(facilitator), group=str(wlt_group.pk))
@@ -649,8 +635,11 @@ def test_a_woman_who_left_and_rejoined_appears_once(as_user, facilitator, wlt_gr
     formation_service.exit_member(membership, reason=ExitReason.MOVED, on_date=date(2026, 4, 1))
     formation_service.add_member(wlt_group, wlt_members[0], on_date=date(2026, 5, 1))
 
-    rows = [r for r in _profiles(as_user(facilitator), group=str(wlt_group.pk))
-            if r["full_name"] == wlt_members[0].full_name]
+    rows = [
+        r
+        for r in _profiles(as_user(facilitator), group=str(wlt_group.pk))
+        if r["full_name"] == wlt_members[0].full_name
+    ]
     assert len(rows) == 1
 
 

@@ -26,23 +26,23 @@ Two things it deliberately does not do:
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from django.db.models import Sum
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django.db.models import Sum
-
-from apps.youth.models import PsnpStatus, Sex
 
 from apps.users.models import Role
+from apps.youth.models import PsnpStatus, Sex
+
 from ..models import (
     CLA,
     ChildType,
-    GroupMembership,
     EntryType,
+    GroupMembership,
     GroupStatus,
     LinkageStatus,
+    LoanStatus,
     Phase,
     ServiceLinkage,
-    LoanStatus,
     ServiceLinkageType,
     StructuralMembership,
     VerificationStatus,

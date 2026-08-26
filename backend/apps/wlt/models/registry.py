@@ -226,11 +226,7 @@ class BeneficiaryProfile(BaseModel):
         else:
             in_a_group = bool(prefetched)
 
-        return (
-            self.is_programme_eligible
-            and self.verification_status == VerificationStatus.VERIFIED
-            and not in_a_group
-        )
+        return self.is_programme_eligible and self.verification_status == VerificationStatus.VERIFIED and not in_a_group
 
 
 class ImportMatchCandidate(BaseModel):

@@ -154,9 +154,7 @@ class TestMobilisationEvent:
         """A refusal only explains an empty kebele for as long as the row lives."""
         assert as_user(facilitator).delete(f"{EVENTS}{endorsed.pk}/").status_code == 405
 
-    def test_endorsed_only_narrows_to_what_a_group_can_be_drafted_from(
-        self, as_user, facilitator, endorsed, refused
-    ):
+    def test_endorsed_only_narrows_to_what_a_group_can_be_drafted_from(self, as_user, facilitator, endorsed, refused):
         """The form asks for this set, so the server names it.
 
         A form that offered a refused meeting would collect a submission the
@@ -207,9 +205,7 @@ class TestDraftAGroup:
         assert "mobilisation_event" in response.data
         assert not Group.objects.filter(name="No meeting").exists()
 
-    def test_a_typed_kebele_cannot_disagree_with_the_meeting(
-        self, as_user, facilitator, endorsed, wlt_locations
-    ):
+    def test_a_typed_kebele_cannot_disagree_with_the_meeting(self, as_user, facilitator, endorsed, wlt_locations):
         """Read-only, like `Case.woreda`. A group that scoped to one place and
         reported in another would be a scoping fault nobody could see."""
         response = as_user(facilitator).post(

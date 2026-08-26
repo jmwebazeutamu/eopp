@@ -185,9 +185,7 @@ def test_drafting_does_not_widen_anything_else_for_an_officer(
         == 403
     )
     assert (
-        as_user(woreda_officer)
-        .post("/api/v1/wlt/meetings/", {"group": str(wlt_group.pk)}, format="json")
-        .status_code
+        as_user(woreda_officer).post("/api/v1/wlt/meetings/", {"group": str(wlt_group.pk)}, format="json").status_code
         == 403
     )
 

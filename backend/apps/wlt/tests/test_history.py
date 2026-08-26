@@ -39,7 +39,7 @@ class TestAssembly:
         assert len(left) == 1
 
     def test_an_exit_carries_its_reason(self, wlt_group, wlt_members):
-        """"Moved away" and "expelled" are opposite programme outcomes, and a
+        """ "Moved away" and "expelled" are opposite programme outcomes, and a
         trail recording only the date could not tell them apart afterwards."""
         membership = GroupMembership.objects.get(group=wlt_group, person=wlt_members[0], exited_on__isnull=True)
         formation_service.exit_member(membership, reason=ExitReason.EXPELLED, on_date=date.today())
