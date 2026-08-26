@@ -6,7 +6,7 @@ import type { CurrentUser } from "../../api/types";
 import { useLang } from "../../i18n/LanguageContext";
 import { Icon, ICON_PATHS } from "../ui";
 import LanguageSwitch from "./LanguageSwitch";
-import { isActivePath, type NavSection } from "./navModel";
+import { isActiveItem, type NavSection } from "./navModel";
 
 /** Labels the bar and sheet shorten. The rail keeps the full wording. */
 const SHORT: Record<string, "nav.registryShort"> = { "nav.registry": "nav.registryShort" };
@@ -26,8 +26,16 @@ const shortLabel = (key: string) => SHORT[key] ?? key;
 
 export const TAB_BAR_HEIGHT = 56;
 
-/** The four that stay on the bar, in the order the work happens. */
-const PRIMARY = ["/dashboard/my-work", "/dashboard/woreda", "/dashboard/programme", "/dashboard/results", "/cases", "/referrals", "/alerts"];
+/**
+ * The four that stay on the bar, in the order the work happens.
+ *
+ * One dashboard entry, not four tier paths. The rail collapsed its tiers into a
+ * single `/dashboard` that lands each role on its own, which also removed the
+ * rule this list used to need — "keep the first tier and push the rest into
+ * More", because four dashboards on a phone bar is not navigation. There is now
+ * only ever one.
+ */
+const PRIMARY = ["/dashboard", "/cases", "/referrals", "/alerts"];
 const MAX_PRIMARY = 4;
 
 export default function MobileTabBar({
@@ -46,15 +54,9 @@ export default function MobileTabBar({
   const [moreOpen, setMoreOpen] = useState(false);
 
   const all = sections.flatMap((section) => section.items);
-  // The role's first dashboard tier, then Cases, Referrals, Alerts. A role with
-  // several tiers puts only its first on the bar; the rest go under More,
-  // because four dashboards on a phone bar is not navigation.
-  const primary = PRIMARY.filter((path) => all.some((item) => item.path === path))
-    .reduce<string[]>((kept, path) => {
-      const isTier = path.startsWith("/dashboard/");
-      if (isTier && kept.some((p) => p.startsWith("/dashboard/"))) return kept;
-      return kept.length < MAX_PRIMARY ? [...kept, path] : kept;
-    }, []);
+  // Dashboard, Cases, Referrals, Alerts — whichever of them this role has.
+  // Everything else goes under More.
+  const primary = PRIMARY.filter((path) => all.some((item) => item.path === path)).slice(0, MAX_PRIMARY);
 
   const onBar = primary.map((path) => all.find((item) => item.path === path)!).filter(Boolean);
   const inMore = all.filter((item) => !primary.includes(item.path));
@@ -82,7 +84,7 @@ export default function MobileTabBar({
             key={entry.path}
             icon={entry.icon}
             label={t(shortLabel(entry.labelKey) as typeof entry.labelKey)}
-            active={isActivePath(entry.path, pathname)}
+            active={isActiveItem(entry, pathname)}
             badge={Boolean(entry.badgeCount)}
             onClick={() => navigate(entry.path)}
           />
@@ -91,7 +93,7 @@ export default function MobileTabBar({
           <TabButton
             icon={ICON_PATHS.more}
             label={t("nav.more")}
-            active={inMore.some((entry) => isActivePath(entry.path, pathname))}
+            active={inMore.some((entry) => isActiveItem(entry, pathname))}
             expanded={moreOpen}
             onClick={() => setMoreOpen(true)}
           />
@@ -127,7 +129,7 @@ export default function MobileTabBar({
               padding: "0 8px",
               borderRadius: "var(--r-button)",
               border: "none",
-              background: isActivePath(entry.path, pathname) ? "var(--green-100)" : "transparent",
+              background: isActiveItem(entry, pathname) ? "var(--green-100)" : "transparent",
               color: "var(--ink-900)",
               font: "inherit",
               fontFamily: "var(--font-body)",

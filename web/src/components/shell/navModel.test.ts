@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AccessMatrix, CurrentUser, Role } from "../../api/types";
-import { buildNav, isActivePath } from "./navModel";
+import { buildNav, isActiveItem, isActivePath } from "./navModel";
 
 /**
  * Which items a role is offered.
@@ -45,25 +45,50 @@ const paths = (user: CurrentUser) =>
   buildNav(user, { openAlerts: 0 }).flatMap((section) => section.items.map((item) => item.path));
 
 describe("buildNav", () => {
-  it("groups a case manager's items into Dashboard, Work and Directory", () => {
+  it("spends one rail row each on the dashboard and on delivery", () => {
+    // Every tier reports on the youth-employment caseload — My work is a case
+    // manager's queue, Results is the donor's view of placements — so a
+    // top-level "Dashboard" heading claimed a breadth they do not have and put
+    // four PSNP screens above the section that names PSNP.
     const sections = buildNav(userWith("CASE_MANAGER", {}), { openAlerts: 3 });
-    expect(sections.map((s) => s.titleKey)).toEqual(["nav.sectionDashboard", "nav.sectionWork", "nav.sectionDirectory"]);
-    expect(sections[0].items.map((i) => i.path)).toEqual(["/dashboard/my-work"]);
-    // Sprints 5 and 6 added five delivery screens to the Work section. All are
-    // offered to anyone with case content, because all are scoped server-side:
-    // a trainer sees the enrolments she recorded, an enterprise officer her own
-    // records, a case manager her caseload's.
-    expect(sections[1].items.map((i) => i.path)).toEqual([
+
+    expect(sections.map((s) => s.titleKey)).toEqual(["nav.sectionWork", null, "nav.sectionDirectory"]);
+    // Sprints 5 and 6 added five delivery screens. All are offered to anyone
+    // with case content, because all are scoped server-side: a trainer sees the
+    // enrolments she recorded, a case manager her caseload's.
+    // Nine rows became six. The four tiers and the four delivery screens are
+    // tabs on the pages they lead to, so the rail no longer duplicates a
+    // control that already exists one click away.
+    expect(sections[0].items.map((i) => i.path)).toEqual([
+      "/dashboard",
+      // The register leads the operational items — somebody is registered
+      // before a case is opened for them — the same order the WLT section uses.
+      "/youth",
       "/cases",
       "/referrals",
       "/alerts",
-      "/training",
-      "/placements",
-      "/enterprises",
-      "/verification",
-      "/grievances",
+      "/delivery",
     ]);
-    expect(sections[2].items.map((i) => i.path)).toEqual(["/youth", "/partners"]);
+    // Directory is a reference list now — partners, and user accounts for the
+    // administrator. The register moved out because it is a working screen.
+    expect(sections[2].items.map((i) => i.path)).toEqual(["/partners"]);
+  });
+
+  it("gives grievances a heading-less section of its own", () => {
+    // The complaints channel belongs to neither programme. Filing it under
+    // either would say something untrue about who may use it, so it sits at the
+    // top level with no heading — and cannot be collapsed away.
+    const sections = buildNav(userWith("CASE_MANAGER", {}), { openAlerts: 0 });
+    const grievances = sections.find((s) => s.items.some((i) => i.path === "/grievances"));
+
+    expect(grievances?.titleKey).toBeNull();
+    expect(grievances?.items).toHaveLength(1);
+  });
+
+  it("offers grievances to a WLT role that has no case content at all", () => {
+    const facilitator = paths(userWith("WLT_FACILITATOR", { case_scope: "NONE", group_scope: "OWN_GROUPS" }));
+    expect(facilitator).toContain("/grievances");
+    expect(facilitator).not.toContain("/cases");
   });
 
   it("offers user administration to the system administrator alone", () => {
@@ -95,13 +120,16 @@ describe("buildNav", () => {
     expect(trainer.filter((path) => path.startsWith("/dashboard"))).toEqual([]);
   });
 
-  it("gives a programme manager the comparative tiers and no personal one", () => {
+  it("offers one dashboard entry, whichever tiers the role has", () => {
+    // Four tier links were four rows of the rail spent on one destination, and
+    // the tiers are already tabs on the page they lead to. `/dashboard` sends
+    // each role to its own landing tier, so the rail does not have to know
+    // which — and `tierAccess` still decides what they then see.
     const pm = paths(userWith("PROGRAMME_MANAGER", { case_scope: "ALL", case_write: false, referral_scope: "ALL" }));
-    expect(pm.filter((path) => path.startsWith("/dashboard"))).toEqual([
-      "/dashboard/woreda",
-      "/dashboard/programme",
-      "/dashboard/results",
-    ]);
+    expect(pm.filter((path) => path.startsWith("/dashboard"))).toEqual(["/dashboard"]);
+
+    const cm = paths(userWith("CASE_MANAGER", {}));
+    expect(cm.filter((path) => path.startsWith("/dashboard"))).toEqual(["/dashboard"]);
   });
 
   it("carries the live alert count on the alerts item only", () => {
@@ -122,5 +150,32 @@ describe("isActivePath", () => {
     // every tier once those become sidebar items of their own.
     expect(isActivePath("/case", "/cases")).toBe(false);
     expect(isActivePath("/users", "/youth")).toBe(false);
+  });
+});
+
+describe("isActiveItem", () => {
+
+  it("lets one rail entry stand for the routes it fronts", () => {
+    // `/delivery` redirects to whichever of the four is the reader's, and the
+    // four keep their original URLs. Without this the rail loses track the
+    // moment the redirect completes: nothing is lit, and the section holding
+    // the page collapses because no item claims the route.
+    const delivery = buildNav(userWith("CASE_MANAGER", {}), { openAlerts: 0 })
+      .flatMap((s) => s.items)
+      .find((i) => i.path === "/delivery")!;
+
+    expect(isActiveItem(delivery, "/delivery")).toBe(true);
+    expect(isActiveItem(delivery, "/training")).toBe(true);
+    expect(isActiveItem(delivery, "/verification")).toBe(true);
+    expect(isActiveItem(delivery, "/cases")).toBe(false);
+  });
+
+  it("does not let an item claim a route it merely prefixes", () => {
+    const cases = buildNav(userWith("CASE_MANAGER", {}), { openAlerts: 0 })
+      .flatMap((s) => s.items)
+      .find((i) => i.path === "/cases")!;
+
+    expect(isActiveItem(cases, "/cases/abc")).toBe(true);
+    expect(isActiveItem(cases, "/caseload")).toBe(false);
   });
 });

@@ -30,6 +30,14 @@ interface Props {
   title: string;
   /** Result count and active scope. */
   subtitle?: ReactNode;
+  /**
+   * A tab row, rendered directly under the header.
+   *
+   * Under the title, not above it: tabs are a secondary choice within a named
+   * screen, not the screen's identity. Same placement `TierPage` uses, so the
+   * dashboard tiers and the delivery screens read the same way.
+   */
+  tabs?: ReactNode;
   /** One primary action, right-aligned on the title row. */
   action?: ReactNode;
   searchPlaceholder: string;
@@ -53,6 +61,7 @@ interface Props {
 }
 
 export default function ListPage({
+  tabs,
   title,
   subtitle,
   action,
@@ -71,6 +80,7 @@ export default function ListPage({
   return (
     <div className="page list-page">
       <PageHeader title={title} subtitle={subtitle} action={action} />
+      {tabs}
 
       <div className="list-page__controls">
         <SearchBox placeholder={searchPlaceholder} />

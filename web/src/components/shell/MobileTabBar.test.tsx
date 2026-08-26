@@ -49,7 +49,7 @@ const barLabels = () =>
 describe("MobileTabBar", () => {
   it("carries five: the role's work, then More", () => {
     renderBar("CASE_MANAGER");
-    expect(barLabels()).toEqual(["My work", "Cases", "Referrals", "Alerts", "More"]);
+    expect(barLabels()).toEqual(["Dashboard", "Cases", "Referrals", "Alerts", "More"]);
   });
 
   it("shortens the registry label so nothing wraps at 360px", async () => {
@@ -61,12 +61,15 @@ describe("MobileTabBar", () => {
     expect(screen.queryByRole("button", { name: "Beneficiary registry" })).toBeNull();
   });
 
-  it("puts only the role's first dashboard tier on the bar", () => {
-    // An administrator is offered four tiers. Four dashboards on a phone bar is
-    // not navigation.
+  it("puts one dashboard on the bar however many tiers the role has", () => {
+    // An administrator can see four tiers. They are tabs on the page now, not
+    // four rows of a phone bar — the rule that used to keep only the first is
+    // gone with the paths it filtered.
     renderBar("SYSTEM_ADMIN", { case_scope: "ALL" });
     const labels = barLabels();
-    expect(labels.filter((l) => ["My work", "Woreda", "Programme", "Results"].includes(l))).toEqual(["My work"]);
+    expect(labels.filter((l) => ["Dashboard", "My work", "Woreda", "Programme", "Results"].includes(l))).toEqual([
+      "Dashboard",
+    ]);
     expect(labels).toHaveLength(5);
   });
 

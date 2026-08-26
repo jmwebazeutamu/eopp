@@ -6,6 +6,7 @@ import { api, errorMessage } from "../api/client";
 import type { Paginated, Summary, TrainingEnrolment } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import ListPage from "../components/ListPage";
+import DeliveryTabs from "./delivery/DeliveryTabs";
 import { Button, Card, MutedChip } from "../components/ui";
 import { TRAINING_TONE } from "../design/sprint5Status";
 import { useLang } from "../i18n/LanguageContext";
@@ -102,6 +103,7 @@ export default function TrainingPage() {
 
   return (
     <ListPage
+      tabs={<DeliveryTabs />}
       title={t("training.title")}
       subtitle={t("training.subtitle", { count: total })}
       searchPlaceholder={t("training.search")}

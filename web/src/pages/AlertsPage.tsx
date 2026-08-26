@@ -114,6 +114,28 @@ export default function AlertsPage() {
     <div className="page stack">
       <PageHeader title={t("alerts.title")} subtitle={t("alerts.subtitle", { count: summary?.open_total ?? 0, scope: scope.label })} />
 
+      {/* The job list, above the type filters.
+ 
+          The pills below already say what *kind* of alert each is; they do not
+          say which of them are yours, and the difference is the whole reason
+          an administrator once read this screen as "the alert engine is not
+          firing" — 113 alerts existed, all assigned to other people.
+ 
+          The third count is the alert about the alerts: every row here exists
+          because something passed a threshold, so what this measures is the
+          second failure, the queue itself going unread. */}
+      {summary && (
+        <div className="queue-counts" role="group" aria-label={t("alerts.countsLabel")}>
+          <QueueCount value={summary.assigned_to_me} label={t("alerts.countMine")} tone="due" />
+          <QueueCount value={summary.open_total} label={t("alerts.countOpen")} tone="calm" />
+          <QueueCount
+            value={summary.unactioned}
+            label={t("alerts.countUnactioned", { days: summary.unactioned_days })}
+            tone="late"
+          />
+        </div>
+      )}
+
       <div className="pill-row" role="group" aria-label={t("filters.label")}>
         {filterOptions.map((option) => {
           const active = option.value === filter || (!filter && option.value === "");
@@ -419,5 +441,25 @@ function EmptyState({ onClear }: { onClear: () => void }) {
         <Button size="compact" onClick={onClear}>{t("alerts.showAll")}</Button>
       </div>
     </Card>
+  );
+}
+
+
+/**
+ * One count in the row above the filters.
+ *
+ * Zero is shown — "0 assigned to you" is the sentence somebody opens this page
+ * hoping to read — but it takes no colour. A row where every number is coloured
+ * prioritises nothing, and a terracotta zero cries wolf.
+ *
+ * Shares `.queue-counts` with the grievance queue: the two screens ask the same
+ * question of their reader, so they should not answer it in two shapes.
+ */
+function QueueCount({ value, label, tone }: { value: number; label: string; tone: "late" | "due" | "calm" }) {
+  return (
+    <div className="queue-count" data-tone={value > 0 ? tone : "calm"}>
+      <strong className="tabular">{value}</strong>
+      <span className="t-meta">{label}</span>
+    </div>
   );
 }

@@ -6,6 +6,7 @@ import { api, errorMessage } from "../api/client";
 import type { Paginated, Placement, RetentionCheck } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import ListPage from "../components/ListPage";
+import DeliveryTabs from "./delivery/DeliveryTabs";
 import { Button, Card, CapsLabel, MutedChip } from "../components/ui";
 import { EXIT_DIRECTION, RETENTION_TONE } from "../design/sprint5Status";
 import { useLang } from "../i18n/LanguageContext";
@@ -89,6 +90,7 @@ export default function PlacementsPage() {
 
   return (
     <ListPage
+      tabs={<DeliveryTabs />}
       title={t("placements.title")}
       subtitle={t("placements.subtitle", { count: total, due: due.length })}
       searchPlaceholder={t("placements.search")}

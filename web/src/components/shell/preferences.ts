@@ -54,3 +54,49 @@ function read<T>(name: string, userId: string | undefined, fallback: T): T {
     return fallback;
   }
 }
+
+
+/**
+ * The same thing, for the rest of this sitting only.
+ *
+ * `sessionStorage`, not `localStorage`, and the difference is the whole point
+ * for the nav sections: they are specified to open **collapsed** every time the
+ * app is loaded, and a localStorage preference would defeat that from the
+ * second visit onwards. Within one sitting, a section somebody opened stays
+ * open as they move around — reopening it on every navigation is the fault this
+ * exists to avoid.
+ *
+ * Keyed by user id like its sibling, because these are shared office machines.
+ */
+export function useSessionPreference<T>(name: string, userId: string | undefined, fallback: T) {
+  const [value, setValue] = useState<T>(() => readSession(name, userId, fallback));
+
+  useEffect(() => {
+    setValue(readSession(name, userId, fallback));
+    // `fallback` is intentionally absent — see `usePreference`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, userId]);
+
+  const store = useCallback(
+    (next: T) => {
+      setValue(next);
+      try {
+        sessionStorage.setItem(storageKey(name, userId), JSON.stringify(next));
+      } catch {
+        // Private browsing, or a full quota. A preference is not worth an error.
+      }
+    },
+    [name, userId],
+  );
+
+  return [value, store] as const;
+}
+
+function readSession<T>(name: string, userId: string | undefined, fallback: T): T {
+  try {
+    const raw = sessionStorage.getItem(storageKey(name, userId));
+    return raw === null ? fallback : (JSON.parse(raw) as T);
+  } catch {
+    return fallback;
+  }
+}

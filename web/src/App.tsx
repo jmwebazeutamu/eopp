@@ -1,5 +1,5 @@
 import { App as AntApp, ConfigProvider } from "antd";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 
 import AppLayout from "./components/AppLayout";
 import type { ReactNode } from "react";
@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import { canSeeTier, landingTier } from "./pages/dashboard/tierAccess";
+import { canSeeDelivery, landingDelivery } from "./pages/delivery/deliveryAccess";
 import TierUnavailablePage from "./pages/dashboard/TierUnavailablePage";
 import AlertsPage from "./pages/AlertsPage";
 import CaseDetailPage from "./pages/CaseDetailPage";
@@ -18,6 +19,10 @@ import ResultsPage from "./pages/dashboard/ResultsPage";
 import WoredaPage from "./pages/dashboard/WoredaPage";
 import LoginPage from "./pages/LoginPage";
 import EnterprisesPage from "./pages/EnterprisesPage";
+import FacilitatorHomePage from "./pages/wlt/FacilitatorHomePage";
+import WltDashboardPage from "./pages/wlt/WltDashboardPage";
+import WltTierUnavailable from "./pages/wlt/WltTierUnavailable";
+import { canSeeWltTier, landingWltTier } from "./pages/wlt/wltTiers";
 import GrievanceCasePage from "./pages/GrievanceCasePage";
 import GrievancesPage from "./pages/GrievancesPage";
 import PartnersPage from "./pages/PartnersPage";
@@ -76,6 +81,59 @@ function DashboardHome() {
   // A role with no dashboard is sent to its own work rather than to a tier that
   // would immediately refuse it. Partner staff and trainers land here.
   return <Navigate to={target ? `/dashboard/${target.path}` : "/referrals"} replace />;
+}
+
+/**
+ * Where `/wlt/dashboard` lands this role.
+ *
+ * Her own tier, so a facilitator gets her queue and a region officer gets the
+ * programme view — the handoff's §1 argument applied to routing. Four small
+ * dashboards, not one with role-based hiding.
+ */
+function WltDashboardHome() {
+  const { user } = useAuth();
+  const target = landingWltTier(user);
+  return <Navigate to={target ? `/wlt/dashboard/${target.path}` : "/wlt/groups"} replace />;
+}
+
+/** A WLT tier route, refused with an explanation rather than a redirect. */
+function WltTier({ path, children }: { path: string; children: ReactNode }) {
+  const { user } = useAuth();
+  return canSeeWltTier(user, path) ? <>{children}</> : <WltTierUnavailable />;
+}
+
+/** The same guard, reading the tier from the URL rather than from a prop. */
+function WltTierRoute() {
+  const { tier = "" } = useParams();
+  return (
+    <WltTier path={tier}>
+      <WltDashboardPage />
+    </WltTier>
+  );
+}
+
+/**
+ * Where `/delivery` lands this role.
+ *
+ * Its own first screen, so a trainer gets Training and an employer liaison gets
+ * Placements — the same argument `DashboardHome` makes about the tiers. A role
+ * with none is sent to its cases rather than to a screen that would refuse it.
+ */
+function DeliveryHome() {
+  const { user } = useAuth();
+  const target = landingDelivery(user);
+  return <Navigate to={target ? target.path : "/cases"} replace />;
+}
+
+/**
+ * A delivery route, refused with an explanation rather than a redirect.
+ *
+ * Same reasoning as the tier guard: bouncing somebody off a link a colleague
+ * sent them, silently, reads as a broken link.
+ */
+function Delivery({ path, children }: { path: string; children: ReactNode }) {
+  const { user } = useAuth();
+  return canSeeDelivery(user, path) ? <>{children}</> : <TierUnavailablePage />;
 }
 
 /**
@@ -150,10 +208,14 @@ export default function App() {
                 <Route path="/referrals" element={<ReferralsPage />} />
                 <Route path="/alerts" element={<AlertsPage />} />
                 <Route path="/youth" element={<YouthListPage />} />
-                <Route path="/training" element={<TrainingPage />} />
-                <Route path="/placements" element={<PlacementsPage />} />
-                <Route path="/enterprises" element={<EnterprisesPage />} />
-                <Route path="/verification" element={<VerificationPage />} />
+                {/* `/delivery` is the rail's single entry; the four paths are
+                    unchanged, so links and bookmarks that predate the tabs
+                    still work. */}
+                <Route path="/delivery" element={<DeliveryHome />} />
+                <Route path="/training" element={<Delivery path="/training"><TrainingPage /></Delivery>} />
+                <Route path="/placements" element={<Delivery path="/placements"><PlacementsPage /></Delivery>} />
+                <Route path="/enterprises" element={<Delivery path="/enterprises"><EnterprisesPage /></Delivery>} />
+                <Route path="/verification" element={<Delivery path="/verification"><VerificationPage /></Delivery>} />
                 <Route path="/grievances" element={<GrievancesPage />} />
                 <Route path="/grievances/:grievanceId" element={<GrievanceCasePage />} />
                 <Route path="/partners" element={<PartnersPage />} />
@@ -161,6 +223,17 @@ export default function App() {
                     a separate subject, and roles that see no case content. */}
                 <Route path="/wlt/beneficiaries" element={<BeneficiariesPage />} />
                 <Route path="/wlt/beneficiaries/:profileId" element={<JourneyPage />} />
+                {/* One rail entry, four tiers as tabs — the same shape the youth
+                    dashboard now uses. `/wlt/dashboard` lands each role on its
+                    own: a facilitator on her queue, a region officer on the
+                    programme view. */}
+                <Route path="/wlt/dashboard" element={<WltDashboardHome />} />
+                <Route path="/wlt/dashboard/home" element={<WltTier path="home"><FacilitatorHomePage /></WltTier>} />
+                {/* Guarded, like the tier route above it. Without this a
+                    woreda officer reached the programme tier by typing the URL
+                    — the tab strip did not offer it and nothing refused it. */}
+                <Route path="/wlt/dashboard/:tier" element={<WltTierRoute />} />
+                <Route path="/wlt/home" element={<Navigate to="/wlt/dashboard/home" replace />} />
                 <Route path="/wlt/groups" element={<GroupsPage />} />
                 <Route path="/wlt/groups/:groupId" element={<GroupReadinessPage />} />
                 {/* Tabs are routes: a link to the roster is a link to the

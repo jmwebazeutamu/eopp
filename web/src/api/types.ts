@@ -400,6 +400,9 @@ export interface Alert {
 export interface AlertSummary {
   open_total: number;
   assigned_to_me: number;
+  /** Open and untouched for `unactioned_days` — the queue itself going unread. */
+  unactioned: number;
+  unactioned_days: number;
   by_type: { alert_type: AlertTypeCode; label: string; count: number }[];
 }
 
@@ -1722,4 +1725,26 @@ export interface GrievanceEvent {
   title: string;
   body: string;
   actor: string;
+}
+
+/** One queue card on the WLT facilitator home — Tier 1 of the dashboard handoff. */
+export interface FacilitatorCard {
+  id: "FC-1" | "FC-2" | "FC-3" | "FC-4" | "FC-5" | "FC-6";
+  total: number;
+  rows: Record<string, unknown>[];
+  note: string;
+  /**
+   * False when the figure has no source in this schema — **not the same as
+   * zero**, and the screen must not render it as one. A zero is a finding; an
+   * unavailable card is an absence of evidence.
+   */
+  available: boolean;
+}
+
+export interface FacilitatorHome {
+  as_of: string;
+  /** Null when nothing has ever synced. On the page always, so nobody assumes it is live. */
+  last_sync_at: string | null;
+  groups_in_scope: number;
+  cards: FacilitatorCard[];
 }

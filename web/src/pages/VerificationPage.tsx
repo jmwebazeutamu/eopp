@@ -6,6 +6,7 @@ import { api, errorMessage } from "../api/client";
 import type { Paginated, Referral } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import ListPage from "../components/ListPage";
+import DeliveryTabs from "./delivery/DeliveryTabs";
 import { Button, Card, CapsLabel, MutedChip } from "../components/ui";
 import { useLang } from "../i18n/LanguageContext";
 
@@ -93,6 +94,7 @@ export default function VerificationPage() {
 
   return (
     <ListPage
+      tabs={<DeliveryTabs />}
       title={t("verification.title")}
       subtitle={t("verification.subtitle", { unverified: unverified.length, due: due.length })}
       searchPlaceholder={t("verification.search")}

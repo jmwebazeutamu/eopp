@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WLT Dashboards — Prototype v1</title>
+<style>
+:root{
+  --green-900:#0A3A2C; --green-700:#0F4F3C; --green-500:#1C7A5B; --green-100:#E4EFE9;
+  --green-border:#9CC4B4; --green-ink:#0B4A38;
+  --gold-700:#7A5308; --gold-500:#C98A15; --gold-300:#E9C877; --gold-100:#FBF1DC; --gold-border:#E0BC72;
+  --terra-700:#8A3A1E; --terra-500:#A84B2A; --terra-100:#F7E7DF; --terra-border:#DBA98F;
+  --red-700:#8C1D18; --red-500:#B3261E; --red-100:#FAE6E4; --red-border:#DCA6A2;
+  --ink-900:#1A1915; --ink-600:#4E4A42; --ink-400:#7A7568;
+  --line:#E3DED2; --line-soft:#F4F1EA; --paper:#F7F4EE; --surface:#FFFFFF; --surface-alt:#FCFBF8;
+  --fill-muted:#F1EEE7; --fill-muted-2:#EDEAE1;
+  /* series palette, charts only */
+  --s1:#12836B; --s2:#D08A0A; --s3:#B0442A; --s4:#7A4CA8;
+  /* sequential ramp, ordered data only (phase) */
+  --q1:#84BEAC; --q2:#5FA890; --q3:#3D9078; --q4:#0C5346;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink-900);
+  font-family:'Archivo','Noto Sans Ethiopic',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  line-height:1.5; font-size:15px; -webkit-font-smoothing:antialiased;
+}
+table{border-collapse:collapse}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- chrome ---------- */
+.topbar{background:var(--green-900);color:#fff;padding:14px 24px 0}
+.topbar-inner{max-width:1280px;margin:0 auto}
+.brand{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+.brand h1{font-size:20px;line-height:1.25;font-weight:700;margin:0}
+.brand .mark{color:var(--gold-300);font-weight:700;letter-spacing:.06em;font-size:11px;text-transform:uppercase}
+.brand .asof{color:#B9CFC6;font-size:13px;margin-left:auto}
+.warnstrip{background:var(--gold-100);border-bottom:1px solid var(--gold-border);color:var(--gold-700);
+  font-size:13px;padding:8px 24px}
+.warnstrip div{max-width:1280px;margin:0 auto}
+.tabs{display:flex;gap:2px;margin-top:14px;overflow-x:auto}
+.tabs button{
+  appearance:none;border:0;background:transparent;color:#D8E4DE;font:inherit;font-size:13px;font-weight:600;
+  padding:11px 14px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;min-height:44px}
+.tabs button:hover{background:rgba(255,255,255,.08);color:#fff}
+.tabs button[aria-selected="true"]{background:var(--paper);color:var(--green-900)}
+main{max-width:1280px;margin:0 auto;padding:22px 24px 64px}
+
+/* ---------- layout ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;align-items:start}
+.span2{grid-column:span 2}
+@media(max-width:900px){.span2{grid-column:auto}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.card.alt{background:var(--surface-alt)}
+.chead{display:flex;align-items:flex-start;gap:10px;margin-bottom:4px}
+.chead h3{font-size:17px;line-height:1.35;font-weight:600;margin:0}
+.cid{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--ink-400);
+  background:var(--fill-muted);border-radius:999px;padding:3px 8px;white-space:nowrap;margin-left:auto}
+.csub{font-size:13px;color:var(--ink-600);margin:0 0 12px}
+.src{font-size:11px;color:var(--ink-400);letter-spacing:.02em;margin-top:12px;padding-top:9px;border-top:1px solid var(--line-soft)}
+.src code{font-size:11px;background:var(--fill-muted);border-radius:4px;padding:1px 4px}
+
+/* ---------- text bits ---------- */
+.lab{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-400)}
+.metric{font-size:32px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums}
+.den{font-size:13px;color:var(--ink-600)}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:999px;
+  padding:2px 9px;border:1px solid transparent;white-space:nowrap}
+.chip.ok{background:var(--green-100);color:var(--green-ink);border-color:var(--green-border)}
+.chip.wait{background:var(--gold-100);color:var(--gold-700);border-color:var(--gold-border)}
+.chip.stall{background:var(--terra-100);color:var(--terra-700);border-color:var(--terra-border)}
+.chip.fail{background:var(--red-100);color:var(--red-700);border-color:var(--red-border)}
+.chip.mute{background:var(--fill-muted-2);color:var(--ink-600);border-color:#D2CCBE}
+
+/* ---------- rows / tables ---------- */
+.rows{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line-soft)}
+.row:first-child{border-top:0}
+.row .main{min-width:0}
+.row .t{font-size:14px;font-weight:600}
+.row .m{font-size:12px;color:var(--ink-600)}
+.row .right{margin-left:auto;text-align:right;white-space:nowrap}
+table.tbl{width:100%;font-size:13px}
+table.tbl th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-400);
+  font-weight:700;padding:7px 8px;background:var(--surface-alt);border-bottom:1px solid var(--line)}
+table.tbl td{padding:8px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+table.tbl td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.tbl th.n{text-align:right}
+.wrap{overflow-x:auto}
+
+/* ---------- bars ---------- */
+.bar-row{display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:center;padding:5px 0}
+.bar-row .bl{font-size:12px;color:var(--ink-600);text-align:right}
+.track{display:block;background:var(--fill-muted);border-radius:5px;height:16px;overflow:hidden}
+.fill{display:block;height:100%;border-radius:5px}
+.bar-row .bv{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;min-width:56px;text-align:right}
+.stack{display:flex;height:20px;border-radius:5px;overflow:hidden;background:var(--fill-muted)}
+.stack span{display:block}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:12px;color:var(--ink-600)}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* ---------- gate readiness ---------- */
+.gate{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.gate .gr{display:grid;grid-template-columns:1fr auto auto 74px;gap:10px;align-items:center;
+  padding:10px 12px;border-top:1px solid var(--line-soft);font-size:13px}
+.gate .gr:first-child{border-top:0}
+.gate .gr.short{background:var(--gold-100)}
+.gate .gn{font-weight:600}
+.gate .ga{font-weight:700;font-variant-numeric:tabular-nums}
+.gate .gt{color:var(--ink-600);font-variant-numeric:tabular-nums}
+.gate .gs{text-align:right}
+
+/* ---------- heatmap ---------- */
+.heat td{padding:0;border:1px solid #fff}
+.heat .cell{display:block;padding:9px 6px;text-align:center;font-size:12px;font-weight:700;
+  font-variant-numeric:tabular-nums;color:#fff;min-width:52px}
+.heat .cens{background:repeating-linear-gradient(45deg,#F1EEE7 0 5px,#E3DED2 5px 10px);
+  color:var(--ink-400);font-weight:600;font-size:11px}
+.heat th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-400);font-weight:700;padding:6px}
+
+/* ---------- notes ---------- */
+.note{font-size:12px;color:var(--ink-600);margin-top:10px}
+.blocked{background:var(--terra-100);border:1px solid var(--terra-border);border-radius:10px;
+  padding:12px 14px;color:var(--terra-700);font-size:13px}
+.blocked b{display:block;font-size:14px;margin-bottom:3px}
+.narr{font-size:14px;line-height:1.6}
+.narr li{margin-bottom:8px}
+.sw{display:inline-block;width:100%;height:34px;border-radius:6px;border:1px solid var(--line)}
+h2.sec{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-400);
+  margin:26px 0 12px}
+h2.sec:first-child{margin-top:4px}
+.subtabs{display:flex;gap:8px;margin:4px 0 16px}
+.subtabs button{appearance:none;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink-600);border-radius:999px;padding:8px 14px;cursor:pointer;min-height:40px}
+.subtabs button[aria-selected="true"]{background:var(--green-700);border-color:var(--green-700);color:#fff}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="mark">PSNP 6 · ELS</span>
+      <h1>WLT dashboards — prototype v1</h1>
+      <span class="asof">Illustrative data · as of 24 Aug 2026</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="true"  data-tab="t1">1 · Facilitator</button>
+      <button role="tab" aria-selected="false" data-tab="t2">2 · Woreda FSCO</button>
+      <button role="tab" aria-selected="false" data-tab="t3">3 · Programme</button>
+      <button role="tab" aria-selected="false" data-tab="t4">4 · M&amp;E and World Bank</button>
+      <button role="tab" aria-selected="false" data-tab="t5">Rationale</button>
+    </nav>
+  </div>
+</header>
+<div class="warnstrip"><div><strong>Design reference, not production code.</strong> Every number here is invented. Card IDs match <code>dashboard_handoff_wlt/README.md</code> and appear as <code>data-card</code> attributes in the markup.</div></div>
+
+<main>
+
+<!-- ============================ TIER 1 ============================ -->
+<section id="t1">
+  <h2 class="sec">Facilitator home · Hana Bekele · Dubti 03 kebele · 7 groups · last sync 2h ago</h2>
+  <div class="grid">
+
+    <div class="card" data-card="FC-1">
+      <div class="chead"><h3>Meetings to record</h3><span class="cid">FC-1</span></div>
+      <p class="csub">3 overdue, 2 due today. Sorted by days late.</p>
+      <div class="rows">
+        <div class="row"><div class="main"><div class="t">Berhan SHG</div><div class="m">Scheduled 12 Aug · weekly</div></div>
+          <div class="right"><span class="chip fail">12 days late</span></div></div>
+        <div class="row"><div class="main"><div class="t">Wubet SHG</div><div class="m">Scheduled 17 Aug · weekly</div></div>
+          <div class="right"><span class="chip stall">7 days late</span></div></div>
+        <div class="row"><div class="main"><div class="t">Hiwot SHG</div><div class="m">Scheduled 20 Aug · weekly</div></div>
+          <div class="right"><span class="chip wait">4 days late</span></div></div>
+        <div class="row"><div class="main"><div class="t">Selam SHG</div><div class="m">Scheduled today · captured, not sent</div></div>
+          <div class="right"><span class="chip wait">◔ queued</span></div></div>
+        <div class="row"><div class="main"><div class="t">Tesfa SHG</div><div class="m">Scheduled today · 14:00</div></div>
+          <div class="right"><span class="chip mute">due</span></div></div>
+      </div>
+      <p class="note">Queued meetings appear here, marked, so the same meeting is not recorded twice on a second device.</p>
+      <div class="src">Source <code>wlt.meeting</code> + bylaw cadence · live, renders offline</div>
+    </div>
+
+    <div class="card" data-card="FC-2">
+      <div class="chead"><h3>Tills that did not balance</h3><span class="cid">FC-2</span></div>
+      <p class="csub">Named in birr, never "reconciliation failed".</p>
+      <div class="rows">
+        <div class="row"><div class="main"><div class="t">Anbessa SHG · meeting 31</div><div class="m">10 Aug · counted 4,260 · expected 4,600</div></div>
+          <div class="right"><span class="chip fail">Short 340 ETB</span></div></div>
+        <div class="row"><div class="main"><div class="t">Fiker SHG · meeting 24</div><div class="m">14 Aug · counted 3,120 · expected 3,000</div></div>
+          <div class="right"><span class="chip stall">Over 120 ETB</span></div></div>
+      </div>
+      <p class="note">Both raised an <code>unbalanced_till</code> risk flag, so these two groups also appear in FC-4.</p>
+      <div class="src">Source <code>mv_meeting_reconciliation</code> (new)</div>
+    </div>
+
+    <div class="card" data-card="FC-3">
+      <div class="chead"><h3>Repayments overdue</h3><span class="cid">FC-3</span></div>
+      <p class="csub">Two blocks, never one total. One is a conversation, the other blocks a gate.</p>
+      <div class="lab" style="margin-bottom:4px">Delinquent · 1 day or more</div>
+      <div class="rows">
+        <div class="row"><div class="main"><div class="t">Almaz T. · Berhan SHG</div><div class="m">1,200 ETB outstanding</div></div><div class="right"><span class="chip wait">6 days</span></div></div>
+        <div class="row"><div class="main"><div class="t">Meseret G. · Wubet SHG</div><div class="m">800 ETB outstanding</div></div><div class="right"><span class="chip wait">4 days</span></div></div>
+        <div class="row"><div class="main"><div class="t">Zewditu A. · Selam SHG</div><div class="m">1,500 ETB outstanding</div></div><div class="right"><span class="chip wait">11 days</span></div></div>
+        <div class="row"><div class="main"><div class="t">Aster M. · Fiker SHG</div><div class="m">600 ETB outstanding</div></div><div class="right"><span class="chip wait">2 days</span></div></div>
+      </div>
+      <div class="lab" style="margin:14px 0 4px">In default · 30 days or more</div>
+      <div class="rows">
+        <div class="row"><div class="main"><div class="t">Hirut B. · Anbessa SHG</div><div class="m">2,000 ETB outstanding · PAR30 event</div></div><div class="right"><span class="chip fail">41 days</span></div></div>
+      </div>
+      <div class="src">Source <code>mv_loan_arrears</code> (new) · thresholds from <code>policy_parameter</code></div>
+    </div>
+
+    <div class="card" data-card="FC-4">
+      <div class="chead"><h3>Groups at risk</h3><span class="cid">FC-4</span></div>
+      <p class="csub">A warning, not a demotion. Gold, never red.</p>
+      <div class="rows">
+        <div class="row"><div class="main"><div class="t">Anbessa SHG</div><div class="m">Till did not balance · 10 Aug</div></div><div class="right"><span class="chip wait">14 days open</span></div></div>
+        <div class="row"><div class="main"><div class="t">Wubet SHG</div><div class="m">Attendance 54% (floor 60%)</div></div><div class="right"><span class="chip wait">9 days open</span></div></div>
+        <div class="row"><div class="main"><div class="t">Hiwot SHG</div><div class="m">No treasurer on record since 12 May</div></div><div class="right"><span class="chip stall">104 days open</span></div></div>
+      </div>
+      <p class="note">Six reason codes exist and none of them collapse into a count. The actual value sits next to the threshold that raised the flag.</p>
+      <div class="src">Source <code>wlt.risk_flag</code> via <code>mv_risk_register</code> (new)</div>
+    </div>
+
+    <div class="card" data-card="FC-5">
+      <div class="chead"><h3>Formation clock</h3><span class="cid">FC-5</span></div>
+      <p class="csub">Drafts expire at 60 days, constitutions with no savings meeting at 30.</p>
+      <div class="rows">
+        <div class="row"><div class="main"><div class="t">Draft: Dubti 03 group 8</div><div class="m">17 members selected · bylaws not recorded</div></div><div class="right"><span class="chip wait">9 days left</span></div></div>
+        <div class="row"><div class="main"><div class="t">Constituted: Merkato SHG</div><div class="m">Officers elected 4 Aug · no savings meeting</div></div><div class="right"><span class="chip stall">10 days left</span></div></div>
+      </div>
+      <p class="note">Days remaining, not the expiry date. A date has to be subtracted from today before it means anything.</p>
+      <div class="src">Source <code>mv_formation_clock</code> (new)</div>
+    </div>
+
+    <div class="card" data-card="FC-6">
+      <div class="chead"><h3>Sync and conflicts</h3><span class="cid">FC-6</span></div>
+      <p class="csub">Offline is the requirement, so the queue is part of the screen.</p>
+      <div class="rows">
+        <div class="row"><div class="main"><div class="t">3 changes queued</div><div class="m">Will send when online · last sync 12:40, 2h ago</div></div><div class="right"><span class="chip wait">◔ queued</span></div></div>
+        <div class="row"><div class="main"><div class="t">1 meeting recorded twice</div><div class="m">Selam SHG · 21 Aug · device A and device C</div></div><div class="right"><span class="chip stall">▲ resolve</span></div></div>
+      </div>
+      <p class="note">Both records are kept and flagged. Financial records are never auto-merged.</p>
+      <div class="src">Source <code>mv_sync_health</code> (new) + local queue</div>
+    </div>
+
+  </div>
+
+  <h2 class="sec">Group detail screen · Berhan SHG · P1 · 19 members · activated 3 Nov 2025</h2>
+  <div class="grid">
+
+    <div class="card span2" data-card="FC-7">
+      <div class="chead"><h3>Readiness for Phase 2</h3><span class="cid">FC-7</span></div>
+      <p class="csub">
+        <span class="chip stall">▲ Blocked · 2 conditions short</span>
+        <span class="den" style="margin-left:8px">Computed from last sync, 12:40 today. Policy version 2026-01-01.</span>
+      </p>
+      <div class="gate">
+        <div class="gr"><span class="gn">Meeting adherence</span><span class="ga">92%</span><span class="gt">need 90%</span><span class="gs"><span class="chip ok">✓ met</span></span></div>
+        <div class="gr short"><span class="gn">Attendance</span><span class="ga">74%</span><span class="gt">need 80%</span><span class="gs"><span class="chip wait">◔ short</span></span></div>
+        <div class="gr short"><span class="gn">Group savings compliance</span><span class="ga">66%</span><span class="gt">need 80%</span><span class="gs"><span class="chip wait">◔ short</span></span></div>
+        <div class="gr"><span class="gn">Savings meetings held</span><span class="ga">21</span><span class="gt">need 10</span><span class="gs"><span class="chip ok">✓ met</span></span></div>
+        <div class="gr"><span class="gn">PAR30</span><span class="ga">0%</span><span class="gt">need 0%</span><span class="gs"><span class="chip ok">✓ met</span></span></div>
+      </div>
+      <p class="note"><strong>Attendance 74% (need 80%) changes what happens next week. A red dot does not.</strong> Savings compliance is the share of members at or above 90% of their own contributions, not a group average: 12 of 19 members qualify. The rows move the moment a meeting closes.</p>
+      <div class="src">Source <code>mv_gate_block_reasons</code> (new) · thresholds resolve through <code>policy_parameter</code>, never constants</div>
+    </div>
+
+    <div class="card span2" data-card="FC-8">
+      <div class="chead"><h3>Member passbook</h3><span class="cid">FC-8</span></div>
+      <p class="csub">Sorted by compliance ascending. The women who need a conversation are at the top.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Member</th><th>Joined</th><th class="n">Attended</th><th class="n">Contributed</th><th class="n">Compliance</th><th>Loan</th></tr></thead>
+        <tbody>
+          <tr><td>Meseret G.</td><td>3 Nov 2025</td><td class="n">9 / 21</td><td class="n">7 / 21</td><td class="n">33%</td><td>—</td></tr>
+          <tr><td>Hirut B.</td><td>3 Nov 2025</td><td class="n">12 / 21</td><td class="n">11 / 21</td><td class="n">52%</td><td><span class="chip fail">41 days late</span></td></tr>
+          <tr><td>Almaz T.</td><td>3 Nov 2025</td><td class="n">17 / 21</td><td class="n">15 / 21</td><td class="n">71%</td><td><span class="chip wait">6 days late</span></td></tr>
+          <tr><td>Zewditu A.</td><td>12 Feb 2026</td><td class="n">10 / 11</td><td class="n">10 / 11</td><td class="n">91%</td><td><span class="chip ok">● current</span></td></tr>
+          <tr><td>Aster M.</td><td>3 Nov 2025</td><td class="n">20 / 21</td><td class="n">20 / 21</td><td class="n">95%</td><td>—</td></tr>
+          <tr><td>Tigist W.</td><td>3 Nov 2025</td><td class="n">21 / 21</td><td class="n">21 / 21</td><td class="n">100%</td><td><span class="chip ok">● current</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Zewditu joined in month 4, so her denominator is 11, not 21. Every denominator comes from <code>wlt.roster_on(group_id, meeting_date)</code>, never from today's roster.</p>
+      <div class="src">Source <code>wlt.ledger_entry</code>, <code>wlt.attendance</code>, roster on date</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================ TIER 2 ============================ -->
+<section id="t2" hidden>
+  <h2 class="sec">Woreda FSCO officer · Dubti woreda · 4 kebeles · 38 groups · refreshed 05:30 EAT</h2>
+  <div class="grid">
+
+    <div class="card span2" data-card="WO-1">
+      <div class="chead"><h3>Approval queue, by age</h3><span class="cid">WO-1</span></div>
+      <p class="csub">Card one, because this is the job. Age, not just count.</p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+        <div class="card alt"><div class="lab">Phase transitions</div><div class="metric">6</div><div class="den">oldest <strong>18 days</strong></div></div>
+        <div class="card alt"><div class="lab">Linkage approvals</div><div class="metric">3</div><div class="den">oldest <strong>9 days</strong></div></div>
+        <div class="card alt"><div class="lab">Profile verifications</div><div class="metric">11</div><div class="den">oldest <strong>26 days</strong></div></div>
+        <div class="card alt"><div class="lab">Overrides unreviewed</div><div class="metric">8</div><div class="den">oldest <strong>34 days</strong></div></div>
+      </div>
+      <p class="note">Gates are evaluated again at approval, so each item shows the indicator value <strong>as of now</strong>, not as of submission. Two of the six phase transitions have drifted below threshold while queued.</p>
+      <div class="src">Source <code>wlt.phase_event</code>, <code>referrals.referral</code>, <code>beneficiary_profile</code>, <code>validation_override</code></div>
+    </div>
+
+    <div class="card span2" data-card="WO-2">
+      <div class="chead"><h3>Groups by phase</h3><span class="cid">WO-2</span></div>
+      <p class="csub">Four segments, sequential ramp. Phase is ordered, so categorical hues would be wrong.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:6px">
+        <div><div class="row" style="padding:0 0 4px;border:0"><span class="t">Dubti 01</span><span class="right den">12 groups</span></div>
+          <div class="stack"><span style="width:17%;background:var(--q1)"></span><span style="width:41%;background:var(--q2)"></span><span style="width:34%;background:var(--q3)"></span><span style="width:8%;background:var(--q4)"></span></div>
+          <div class="den" style="margin-top:3px">Forming 2 · P1 5 · P2 4 · P3+ 1</div></div>
+        <div><div class="row" style="padding:0 0 4px;border:0"><span class="t">Dubti 02</span><span class="right den">9 groups</span></div>
+          <div class="stack"><span style="width:33%;background:var(--q1)"></span><span style="width:45%;background:var(--q2)"></span><span style="width:22%;background:var(--q3)"></span></div>
+          <div class="den" style="margin-top:3px">Forming 3 · P1 4 · P2 2 · P3+ 0</div></div>
+        <div><div class="row" style="padding:0 0 4px;border:0"><span class="t">Dubti 03</span><span class="right den">10 groups</span></div>
+          <div class="stack"><span style="width:20%;background:var(--q1)"></span><span style="width:50%;background:var(--q2)"></span><span style="width:30%;background:var(--q3)"></span></div>
+          <div class="den" style="margin-top:3px">Forming 2 · P1 5 · P2 3 · P3+ 0</div></div>
+        <div><div class="row" style="padding:0 0 4px;border:0"><span class="t">Dubti 05</span><span class="right den">7 groups</span></div>
+          <div class="stack"><span style="width:57%;background:var(--q1)"></span><span style="width:43%;background:var(--q2)"></span></div>
+          <div class="den" style="margin-top:3px">Forming 4 · P1 3 · P2 0 · P3+ 0</div></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--q1)"></i>Forming</span><span><i style="background:var(--q2)"></i>P1</span>
+        <span><i style="background:var(--q3)"></i>P2</span><span><i style="background:var(--q4)"></i>P3+</span>
+      </div>
+      <p class="note">Dubti 05 has four groups still forming and none past P1. That is a mobilisation sequencing question, not a performance one.</p>
+      <div class="src">Source <code>mv_groups_by_phase</code></div>
+    </div>
+
+    <div class="card" data-card="WO-3">
+      <div class="chead"><h3>Facilitator load and data currency</h3><span class="cid">WO-3</span></div>
+      <p class="csub">Counts only. A rate at 5 to 10 groups is noise.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Facilitator</th><th class="n">Groups</th><th class="n">Meetings on time</th><th class="n">Last sync</th></tr></thead>
+        <tbody>
+          <tr><td>Hana B.</td><td class="n">7</td><td class="n">24 / 31</td><td class="n">2h</td></tr>
+          <tr><td>Fatuma A.</td><td class="n">9</td><td class="n">37 / 40</td><td class="n">1h</td></tr>
+          <tr><td>Ibrahim S.</td><td class="n">8</td><td class="n">19 / 34</td><td class="n">6 days</td></tr>
+          <tr><td>Mulu K.</td><td class="n">6</td><td class="n">26 / 27</td><td class="n">4h</td></tr>
+          <tr><td>Nuria H.</td><td class="n">8</td><td class="n">31 / 35</td><td class="n">1 day</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Ibrahim has not synced in six days. Read that as a device or power problem before reading it as performance.</p>
+      <div class="src">Source <code>mv_sync_health</code> (new) + group counts</div>
+    </div>
+
+    <div class="card" data-card="WO-4">
+      <div class="chead"><h3>At-risk register</h3><span class="cid">WO-4</span></div>
+      <p class="csub">Oldest flag first. A flag open 104 days is a supervision failure.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Group</th><th>Reason</th><th class="n">Actual</th><th class="n">Days open</th></tr></thead>
+        <tbody>
+          <tr><td>Hiwot SHG</td><td>No treasurer on record</td><td class="n">—</td><td class="n">104</td></tr>
+          <tr><td>Meba SHG</td><td>PAR30 above ceiling</td><td class="n">34% (max 20%)</td><td class="n">57</td></tr>
+          <tr><td>Anbessa SHG</td><td>Till did not balance</td><td class="n">Short 340 ETB</td><td class="n">14</td></tr>
+          <tr><td>Wubet SHG</td><td>Attendance below floor</td><td class="n">54% (floor 60%)</td><td class="n">9</td></tr>
+          <tr><td>Ediget SHG</td><td>Two consecutive missed meetings</td><td class="n">2</td><td class="n">6</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="src">Source <code>mv_risk_register</code> (new)</div>
+    </div>
+
+    <div class="card" data-card="WO-5">
+      <div class="chead"><h3>What is blocking Phase 2</h3><span class="cid">WO-5</span></div>
+      <p class="csub">The coaching card, and the evidence for revising a threshold.</p>
+      <div style="margin-top:4px">
+        <div class="bar-row"><span class="bl">Savings compliance</span><span class="track"><span class="fill" style="width:100%;background:var(--s1)"></span></span><span class="bv">14</span></div>
+        <div class="bar-row"><span class="bl">Attendance</span><span class="track"><span class="fill" style="width:79%;background:var(--s1)"></span></span><span class="bv">11</span></div>
+        <div class="bar-row"><span class="bl">Meeting adherence</span><span class="track"><span class="fill" style="width:43%;background:var(--s1)"></span></span><span class="bv">6</span></div>
+        <div class="bar-row"><span class="bl">Savings meetings held</span><span class="track"><span class="fill" style="width:21%;background:var(--s1)"></span></span><span class="bv">3</span></div>
+        <div class="bar-row"><span class="bl">PAR30</span><span class="track"><span class="fill" style="width:14%;background:var(--s1)"></span></span><span class="bv">2</span></div>
+      </div>
+      <p class="note"><strong>These rows do not sum to a group count.</strong> A group appears under every condition it fails. 19 distinct groups are blocked; savings compliance is short in 14 of them.</p>
+      <div class="src">Source <code>mv_gate_block_reasons</code> (new)</div>
+    </div>
+
+    <div class="card" data-card="WO-6">
+      <div class="chead"><h3>Overrides recorded</h3><span class="cid">WO-6</span></div>
+      <p class="csub">A rule overridden 31 times is a rule to change, not 31 facilitators to correct.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Soft rule overridden</th><th class="n">Times</th><th class="n">Facilitators</th></tr></thead>
+        <tbody>
+          <tr><td>Roster outside 18 to 22</td><td class="n">31</td><td class="n">5</td></tr>
+          <tr><td>No member with a device</td><td class="n">18</td><td class="n">4</td></tr>
+          <tr><td>Members from more than one kebele</td><td class="n">7</td><td class="n">2</td></tr>
+          <tr><td>No member with basic literacy</td><td class="n">5</td><td class="n">2</td></tr>
+          <tr><td>Allocation above 90%</td><td class="n">2</td><td class="n">1</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">18 groups formed with no device breaks the "at least one member with a device" selection rule and it also predicts which groups will stop syncing. Cross-read with WO-3.</p>
+      <div class="src">Source <code>mv_override_register</code> (new)</div>
+    </div>
+
+    <div class="card" data-card="WO-7">
+      <div class="chead"><h3>CLA readiness</h3><span class="cid">WO-7</span></div>
+      <p class="csub">Eligible groups against the threshold, per kebele.</p>
+      <div class="blocked">
+        <b>Not yet instrumented</b>
+        Structural linkage lands at stage 8, around month 12. Until then this card renders these words and never a zero, because zero would read as "no kebele is ready" rather than "nothing is measured yet".
+      </div>
+      <p class="note">Before it ships, fix the eligibility definition: the view counts groups <em>at</em> P2, and the CLA gate says P2-<em>eligible</em>. A group meeting every condition while its approval sits in WO-1 is eligible and is currently uncounted.</p>
+      <div class="src">Source <code>mv_cla_readiness</code></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================ TIER 3 ============================ -->
+<section id="t3" hidden>
+  <h2 class="sec">Programme manager · five regions · 192 active groups · refreshed 02:00 EAT, 24 Aug 2026</h2>
+  <div class="subtabs">
+    <button aria-selected="true"  data-sub="s1">Tab 1 · Formation and money</button>
+    <button aria-selected="false" data-sub="s2">Tab 2 · Survival and linkage</button>
+  </div>
+
+  <div id="s1">
+  <div class="grid">
+
+    <div class="card span2" data-card="PG-1">
+      <div class="chead"><h3>Formation attrition</h3><span class="cid">PG-1</span></div>
+      <p class="csub">Row chart, shared left baseline. Not a funnel: the question is the losses, and a funnel shows the survivors.</p>
+      <div style="margin-top:4px">
+        <div class="bar-row"><span class="bl">Mobilisations held</span><span class="track"><span class="fill" style="width:100%;background:var(--s1)"></span></span><span class="bv">268</span></div>
+        <div class="bar-row"><span class="bl">Endorsed</span><span class="track"><span class="fill" style="width:90%;background:var(--s1)"></span></span><span class="bv">241</span></div>
+        <div class="bar-row"><span class="bl">Drafts opened</span><span class="track"><span class="fill" style="width:87%;background:var(--s1)"></span></span><span class="bv">233</span></div>
+        <div class="bar-row"><span class="bl">Constituted</span><span class="track"><span class="fill" style="width:78%;background:var(--s1)"></span></span><span class="bv">209</span></div>
+        <div class="bar-row"><span class="bl">Activated</span><span class="track"><span class="fill" style="width:72%;background:var(--s1)"></span></span><span class="bv">192</span></div>
+      </div>
+      <div class="wrap" style="margin-top:12px">
+      <table class="tbl">
+        <thead><tr><th>Transition</th><th class="n">Lost</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td>Mobilisation → endorsed</td><td class="n">27</td><td>Community endorsement refused. Concentrated in 6 kebeles, 4 of them in Afar.</td></tr>
+          <tr><td>Endorsed → draft</td><td class="n">8</td><td>No draft opened within 60 days of the meeting.</td></tr>
+          <tr><td>Draft → constituted</td><td class="n">24</td><td>Draft expired at 60 days. Members returned to the pool.</td></tr>
+          <tr><td>Constituted → activated</td><td class="n">17</td><td>Never held a first savings meeting. Three kebeles account for 11 of these.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">A system recording only successful formations cannot explain why some kebeles produced none. The 27 refusals are the highest-value row on this card.</p>
+      <div class="src">Source <code>mv_formation_attrition</code></div>
+    </div>
+
+    <div class="card span2" data-card="PG-2">
+      <div class="chead"><h3>Enrolment against allocation</h3><span class="cid">PG-2</span></div>
+      <p class="csub">Both series in counts, one axis. Never a dual axis, never a gauge.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Region</th><th>Progress</th><th class="n">Enrolled</th><th class="n">Target</th><th class="n">Groups</th><th class="n">Exception route</th></tr></thead>
+        <tbody>
+          <tr><td>Somali</td><td><span class="track" style="display:block;width:150px"><span class="fill" style="width:76%;background:var(--s1)"></span></span></td><td class="n">1,214</td><td class="n">1,600</td><td class="n">61 / 80</td><td class="n">7%</td></tr>
+          <tr><td>Amhara</td><td><span class="track" style="display:block;width:150px"><span class="fill" style="width:87%;background:var(--s1)"></span></span></td><td class="n">1,043</td><td class="n">1,200</td><td class="n">52 / 60</td><td class="n">4%</td></tr>
+          <tr><td>Afar</td><td><span class="track" style="display:block;width:150px"><span class="fill" style="width:60%;background:var(--s1)"></span></span></td><td class="n">604</td><td class="n">1,000</td><td class="n">31 / 50</td><td class="n"><span class="chip wait">14%</span></td></tr>
+          <tr><td>Central Ethiopia</td><td><span class="track" style="display:block;width:150px"><span class="fill" style="width:81%;background:var(--s1)"></span></span></td><td class="n">731</td><td class="n">908</td><td class="n">37 / 45</td><td class="n">6%</td></tr>
+          <tr><td>Dire Dawa</td><td><span class="track" style="display:block;width:150px"><span class="fill" style="width:71%;background:var(--s1)"></span></span></td><td class="n">208</td><td class="n">292</td><td class="n">11 / 15</td><td class="n">9%</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Afar's exception route is at 14%, above the 10% alert in <code>enrolment.exception_route_alert_pct</code>. An exception route becoming the main route is a control failure, not a throughput win.</p>
+      <div class="blocked" style="margin-top:12px"><b>Blocked on defect R-1</b>
+        The geography join in <code>mv_enrolment_vs_allocation</code> reaches one level below region, and groups anchor at kebele. Every region currently returns zero enrolled. The numbers above are what the card will show once the join walks the full hierarchy.</div>
+      <div class="src">Source <code>mv_enrolment_vs_allocation</code></div>
+    </div>
+
+    <div class="card" data-card="PG-3">
+      <div class="chead"><h3>Fund adequacy</h3><span class="cid">PG-3</span></div>
+      <p class="csub">Weeks of contribution, binned at the gate. Never a mean fund.</p>
+      <div style="margin-top:4px">
+        <div class="bar-row"><span class="bl">Under 12 weeks</span><span class="track"><span class="fill" style="width:100%;background:var(--s2)"></span></span><span class="bv">96</span></div>
+        <div class="bar-row"><span class="bl">12 to 26</span><span class="track"><span class="fill" style="width:56%;background:var(--s1)"></span></span><span class="bv">54</span></div>
+        <div class="bar-row"><span class="bl">26 to 52</span><span class="track"><span class="fill" style="width:32%;background:var(--s1)"></span></span><span class="bv">31</span></div>
+        <div class="bar-row"><span class="bl">52 and over</span><span class="track"><span class="fill" style="width:11%;background:var(--s1)"></span></span><span class="bv">11</span></div>
+      </div>
+      <p class="note">96 groups sit below the 12-week P2 gate. That is the number the programme can act on. Gold carries a label because it is fill-only at this size.</p>
+      <p class="note"><strong>Blocked on R-5:</strong> <code>fund_etb</code> ignores write-offs, so groups with a written-off loan appear stronger than they are.</p>
+      <div class="src">Source <code>mv_group_financials</code></div>
+    </div>
+
+    <div class="card" data-card="PG-4">
+      <div class="chead"><h3>Portfolio quality</h3><span class="cid">PG-4</span></div>
+      <p class="csub">Sorted by birr outstanding. Never ranked by PAR.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Region</th><th class="n">Groups lending</th><th class="n">Outstanding ETB</th><th class="n">At risk ETB</th><th class="n">PAR30</th></tr></thead>
+        <tbody>
+          <tr><td>Amhara</td><td class="n">41</td><td class="n">742,300</td><td class="n">31,900</td><td class="n">4.3%</td></tr>
+          <tr><td>Somali</td><td class="n">38</td><td class="n">596,100</td><td class="n">65,600</td><td class="n">11.0%</td></tr>
+          <tr><td>Central Ethiopia</td><td class="n">26</td><td class="n">401,800</td><td class="n">12,900</td><td class="n">3.2%</td></tr>
+          <tr><td>Afar</td><td class="n">14</td><td class="n">173,400</td><td class="n">27,700</td><td class="n">16.0%</td></tr>
+          <tr><td>Dire Dawa</td><td class="n">6</td><td class="n">71,200</td><td class="n">4,300</td><td class="n"><span class="chip mute">6.0% *</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">* Provisional. Dire Dawa has 6 lending groups, below the reporting band of 30, so the rate is never used in a comparison and the region is never ranked. Sorting by outstanding birr instead of PAR keeps the ordering stable.</p>
+      <p class="note"><strong>Caveat on the card:</strong> PAR30 currently references <code>loan.due_on</code>, correct for single-maturity loans only. It changes when <code>loan_schedule</code> carries instalments.</p>
+      <div class="src">Source <code>mv_group_financials</code>, <code>mv_loan_arrears</code> (new)</div>
+    </div>
+
+    <div class="card span2" data-card="PG-5">
+      <div class="chead"><h3>Savings compliance distribution</h3><span class="cid">PG-5</span></div>
+      <div class="blocked"><b>Does not ship until R-2 and R-3 are fixed</b>
+        <code>mv_group_compliance.savings_compliance_pct</code> computes contributions made ÷ contributions expected. <code>DEFINITIONS.md</code> defines group savings compliance as the share of members at or above 90% of their own contributions, and says in the same paragraph that it is deliberately not a group mean, because one strong saver carries a group where half the members have stopped. The view implements the mean the definition warns against, and it counts any contribution above zero rather than one at or above the bylaw amount.
+        <br><br>The P1 → P2 gate reads this column. Shipping the card first would publish the wrong number and make it official.</div>
+      <div class="src">Source <code>mv_group_compliance</code></div>
+    </div>
+
+  </div>
+  </div>
+
+  <div id="s2" hidden>
+  <div class="grid">
+
+    <div class="card span2" data-card="PG-6">
+      <div class="chead"><h3>Cohort survival</h3><span class="cid">PG-6</span></div>
+      <p class="csub">Share of groups still active at month N, by activation cohort. Read across for decay with tenure, down for cohort-over-cohort change.</p>
+      <div class="wrap">
+      <table class="heat" style="width:100%">
+        <thead><tr><th style="text-align:left">Cohort</th><th>n</th><th>M3</th><th>M6</th><th>M9</th><th>M12</th></tr></thead>
+        <tbody>
+          <tr><td style="font-size:13px;font-weight:600;padding-right:8px">Sep 2025 · Amhara</td><td style="text-align:center;font-size:12px">18</td>
+            <td><span class="cell" style="background:var(--q4)">100%</span></td><td><span class="cell" style="background:var(--q4)">94%</span></td><td><span class="cell" style="background:var(--q3)">89%</span></td><td><span class="cell cens">matures Sep</span></td></tr>
+          <tr><td style="font-size:13px;font-weight:600">Sep 2025 · Afar</td><td style="text-align:center;font-size:12px">11</td>
+            <td><span class="cell" style="background:var(--q4)">91%</span></td><td><span class="cell" style="background:var(--q2)">73%</span></td><td><span class="cell" style="background:var(--q1)">64%</span></td><td><span class="cell cens">matures Sep</span></td></tr>
+          <tr><td style="font-size:13px;font-weight:600">Dec 2025 · Amhara</td><td style="text-align:center;font-size:12px">21</td>
+            <td><span class="cell" style="background:var(--q4)">100%</span></td><td><span class="cell" style="background:var(--q3)">90%</span></td><td><span class="cell cens">matures Sep</span></td><td><span class="cell cens">matures Dec</span></td></tr>
+          <tr><td style="font-size:13px;font-weight:600">Dec 2025 · Afar</td><td style="text-align:center;font-size:12px">9</td>
+            <td><span class="cell" style="background:var(--q3)">89%</span></td><td><span class="cell" style="background:var(--q1)">67%</span></td><td><span class="cell cens">matures Sep</span></td><td><span class="cell cens">matures Dec</span></td></tr>
+          <tr><td style="font-size:13px;font-weight:600">Mar 2026 · all</td><td style="text-align:center;font-size:12px">52</td>
+            <td><span class="cell" style="background:var(--q4)">96%</span></td><td><span class="cell cens">matures Sep</span></td><td><span class="cell cens">matures Dec</span></td><td><span class="cell cens">matures Mar</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note"><strong>Hatched cells are censored, not zero.</strong> A cohort activated in March has no month-6 observation yet; the cell names the date it matures. Rendering those as 0% is how a pilot reports a collapse that has not happened.</p>
+      <p class="note">The Afar and Amhara rows at month 9, 64% against 89%, are the finding this whole pilot exists to produce. Two cohorts is not yet enough to act on: n = 11 and n = 18, both below the reporting band.</p>
+      <p class="note"><strong>Blocked on R-6:</strong> the view counts only <code>status = 'active'</code> as surviving and pushes <code>at_risk</code> into faltering, while the definitions say at-risk is a warning that does not move a group backwards. Survival is understated until that is fixed. The view also needs region added; it currently groups by kebele, giving cells of one or two groups.</p>
+      <div class="src">Source <code>mv_cohort_survival</code></div>
+    </div>
+
+    <div class="card" data-card="PG-7">
+      <div class="chead"><h3>Linkage funnel</h3><span class="cid">PG-7</span></div>
+      <p class="csub">By stage, split by type. Not a Sankey.</p>
+      <div style="margin-top:4px">
+        <div class="bar-row"><span class="bl">Proposed</span><span class="track"><span class="fill" style="width:100%;background:var(--s1)"></span></span><span class="bv">84</span></div>
+        <div class="bar-row"><span class="bl">Screened</span><span class="track"><span class="fill" style="width:89%;background:var(--s1)"></span></span><span class="bv">75</span></div>
+        <div class="bar-row"><span class="bl">Blocked</span><span class="track"><span class="fill" style="width:37%;background:var(--s2)"></span></span><span class="bv">31</span></div>
+        <div class="bar-row"><span class="bl">Pending approval</span><span class="track"><span class="fill" style="width:23%;background:var(--s1)"></span></span><span class="bv">19</span></div>
+        <div class="bar-row"><span class="bl">Approved</span><span class="track"><span class="fill" style="width:29%;background:var(--s1)"></span></span><span class="bv">25</span></div>
+        <div class="bar-row"><span class="bl">Active</span><span class="track"><span class="fill" style="width:26%;background:var(--s1)"></span></span><span class="bv">22</span></div>
+        <div class="bar-row"><span class="bl">Distressed</span><span class="track"><span class="fill" style="width:3%;background:var(--s3)"></span></span><span class="bv">2</span></div>
+      </div>
+      <p class="note">Types present: savings account 51, market offtake 26, service referral 7. <code>protection_referral</code> is excluded in SQL, not in the card, and is reported only to a protection-scoped audience.</p>
+      <div class="src">Source <code>mv_linkage_funnel</code></div>
+    </div>
+
+    <div class="card" data-card="PG-7b">
+      <div class="chead"><h3>Why linkages are blocked</h3><span class="cid">PG-7</span></div>
+      <p class="csub">The highest-value output on this tier. It says which gate is stopping subjects.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Block reason</th><th>Type</th><th class="n">Subjects</th></tr></thead>
+        <tbody>
+          <tr><td>Subject below P2</td><td>savings_account</td><td class="n">17</td></tr>
+          <tr><td>Fewer than three officers on record</td><td>savings_account</td><td class="n">6</td></tr>
+          <tr><td>No signatory bylaw recorded</td><td>savings_account</td><td class="n">4</td></tr>
+          <tr><td>Provider does not operate in this woreda</td><td>market_offtake</td><td class="n">3</td></tr>
+          <tr><td>Subject below P2</td><td>market_offtake</td><td class="n">1</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Ten of these 31 are administrative, not developmental: officers and signatory bylaws are a recording gap, and they are fixable in one facilitator visit. That distinction is invisible on a stage-count funnel.</p>
+      <div class="src">Source <code>mv_linkage_funnel</code> block reasons</div>
+    </div>
+
+    <div class="card" data-card="PG-8">
+      <div class="chead"><h3>Time from P1 to P2</h3><span class="cid">PG-8</span></div>
+      <p class="csub">Median weeks, never mean. n beneath each row.</p>
+      <div style="margin-top:4px">
+        <div class="bar-row"><span class="bl">Amhara</span><span class="track"><span class="fill" style="width:63%;background:var(--s1)"></span></span><span class="bv">57 w</span></div>
+        <div class="bar-row"><span class="bl"></span><span class="den" style="font-size:11px">n = 19 eligible · 33 not yet eligible</span><span></span></div>
+        <div class="bar-row"><span class="bl">Central Ethiopia</span><span class="track"><span class="fill" style="width:68%;background:var(--s1)"></span></span><span class="bv">61 w</span></div>
+        <div class="bar-row"><span class="bl"></span><span class="den" style="font-size:11px">n = 11 eligible · 26 not yet eligible</span><span></span></div>
+        <div class="bar-row"><span class="bl">Somali</span><span class="track"><span class="fill" style="width:74%;background:var(--s1)"></span></span><span class="bv">66 w</span></div>
+        <div class="bar-row"><span class="bl"></span><span class="den" style="font-size:11px">n = 14 eligible · 47 not yet eligible</span><span></span></div>
+        <div class="bar-row"><span class="bl">Afar</span><span class="track"><span class="fill" style="width:100%;background:var(--s1)"></span></span><span class="bv">89 w</span></div>
+        <div class="bar-row"><span class="bl"></span><span class="den" style="font-size:11px">n = 4 eligible · 27 not yet eligible · provisional</span><span></span></div>
+      </div>
+      <p class="note">The maturation guard does the work here. 133 groups are inside the 52-week window and cannot have passed the gate, so they are excluded from the denominator and counted separately. Without the guard every region reads as failing.</p>
+      <div class="src">Source <code>mv_phase_progression</code> (new)</div>
+    </div>
+
+    <div class="card" data-card="PG-9">
+      <div class="chead"><h3>Dormancy and exits</h3><span class="cid">PG-9</span></div>
+      <p class="csub">Counts by region. Cadence changes when dormancy is reached.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Region</th><th class="n">Active</th><th class="n">At risk</th><th class="n">Dormant</th><th class="n">Split / dissolved</th></tr></thead>
+        <tbody>
+          <tr><td>Somali</td><td class="n">54</td><td class="n">5</td><td class="n">2</td><td class="n">0</td></tr>
+          <tr><td>Amhara</td><td class="n">48</td><td class="n">3</td><td class="n">1</td><td class="n">0</td></tr>
+          <tr><td>Afar</td><td class="n">23</td><td class="n">5</td><td class="n">2</td><td class="n">1</td></tr>
+          <tr><td>Central Ethiopia</td><td class="n">34</td><td class="n">2</td><td class="n">1</td><td class="n">0</td></tr>
+          <tr><td>Dire Dawa</td><td class="n">10</td><td class="n">1</td><td class="n">0</td><td class="n">0</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Dormancy is three times the bylaw cadence with a 60-day floor: 60 days for a weekly group, 90 for a monthly one. 31 groups meet monthly, so a single programme-wide dormancy rate would compare two different clocks. Do not publish one without saying so.</p>
+      <div class="src">Source <code>mv_cohort_survival</code>, <code>wlt.group.status</code></div>
+    </div>
+
+    <div class="card span2" data-card="PG-10">
+      <div class="chead"><h3>Data health</h3><span class="cid">PG-10</span></div>
+      <p class="csub">A programme card, not an IT card. Every row carries what the gap costs.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Check</th><th class="n">Affected</th><th>Worst woreda</th><th>Consequence</th></tr></thead>
+        <tbody>
+          <tr><td>Meetings that did not reconcile</td><td class="n">23</td><td>Dubti</td><td>Each raises an at-risk flag and blocks a phase submission.</td></tr>
+          <tr><td>Meetings recorded more than 7 days late</td><td class="n">61</td><td>Chifra</td><td>Readiness cards were wrong for a week. Facilitators acted on stale gates.</td></tr>
+          <tr><td>Groups with no treasurer on record</td><td class="n">9</td><td>Aysaita</td><td>Fails a P1 condition and blocks a savings account linkage.</td></tr>
+          <tr><td>Groups with no bylaw version</td><td class="n">4</td><td>Dubti</td><td>No contribution amount, so savings compliance cannot be computed at all.</td></tr>
+          <tr><td>Attendance above 100%</td><td class="n">3</td><td>Chifra</td><td><strong>Data-quality alarm.</strong> Attendance was recorded for someone off the roster that day. Never clamped.</td></tr>
+          <tr><td>Loans with no charge basis frozen</td><td class="n">7</td><td>Semera</td><td>The fund figure for those groups is not defensible against the passbook.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Views last refreshed 02:00 EAT, 24 Aug 2026. A dashboard that does not say how stale it is invites the reader to assume it is live.</p>
+      <div class="src">Source <code>mv_meeting_reconciliation</code>, <code>mv_sync_health</code> (both new), view refresh timestamps</div>
+    </div>
+
+  </div>
+  </div>
+</section>
+
+<!-- ============================ TIER 4 ============================ -->
+<section id="t4" hidden>
+  <h2 class="sec">M&amp;E and World Bank · frozen monthly · period ending 31 Jul 2026</h2>
+  <div class="grid">
+
+    <div class="card span2" data-card="ME-1">
+      <div class="chead"><h3>Results framework</h3><span class="cid">ME-1</span></div>
+      <div class="blocked"><b>Blocked on OQ-4</b>
+        Indicator wording must be quoted verbatim from the PSNP 6 ELS results framework so that woreda figures roll up without reconciliation. That framework is not in this bundle. Do not build this card from the handbook's phrasing, and do not paraphrase.</div>
+      <div class="wrap" style="margin-top:12px">
+      <table class="tbl">
+        <thead><tr><th>Placeholder indicator</th><th class="n">Value</th><th class="n">Target</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Women enrolled in a functioning SHG</td><td class="n">3,800</td><td class="n">5,000</td><td><span class="chip ok">● on track</span></td></tr>
+          <tr><td>SHGs formed and active</td><td class="n">192</td><td class="n">250</td><td><span class="chip ok">● on track</span></td></tr>
+          <tr><td>SHGs reaching Phase 2</td><td class="n">31</td><td class="n">—</td><td><span class="chip wait">◔ see ME-3</span></td></tr>
+          <tr><td>SHGs with a formal savings account</td><td class="n">22</td><td class="n">—</td><td><span class="chip wait">◔ no target set</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Wording above is descriptive placeholder text, not framework language. As-of date belongs in the card title, not a footnote.</p>
+      <div class="src">Source: WLT views joined to an indicator target table, to be created</div>
+    </div>
+
+    <div class="card" data-card="ME-2">
+      <div class="chead"><h3>Women reached against the ceiling</h3><span class="cid">ME-2</span></div>
+      <p class="csub">Cumulative, both series in counts, one axis.</p>
+      <div class="row" style="border:0;padding-top:4px"><div class="main"><div class="lab">Enrolled to date</div><div class="metric">3,800</div><div class="den">of a 5,000 ceiling · 76%</div></div></div>
+      <div class="track" style="height:20px;margin-top:8px"><span class="fill" style="width:76%;background:var(--s1);display:block;height:100%"></span></div>
+      <div class="wrap" style="margin-top:12px">
+      <table class="tbl">
+        <thead><tr><th>Region</th><th class="n">Enrolled</th><th class="n">Allocation</th></tr></thead>
+        <tbody>
+          <tr><td>Somali</td><td class="n">1,214</td><td class="n">1,600</td></tr>
+          <tr><td>Amhara</td><td class="n">1,043</td><td class="n">1,200</td></tr>
+          <tr><td>Central Ethiopia</td><td class="n">731</td><td class="n">908</td></tr>
+          <tr><td>Afar</td><td class="n">604</td><td class="n">1,000</td></tr>
+          <tr><td>Dire Dawa</td><td class="n">208</td><td class="n">292</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Blocked on R-1, same as PG-2.</p>
+      <div class="src">Source <code>mv_enrolment_vs_allocation</code></div>
+    </div>
+
+    <div class="card" data-card="ME-3">
+      <div class="chead"><h3>Group maturity</h3><span class="cid">ME-3</span></div>
+      <p class="csub">The maturation guard is visible on the card, not buried in a note.</p>
+      <div class="card alt" style="margin-bottom:10px">
+        <div class="lab">Phase 2 attained</div>
+        <div class="metric">31 <span style="font-size:18px;font-weight:600;color:var(--ink-600)">of 88 eligible</span></div>
+        <div class="den"><strong>162 groups are not yet eligible.</strong> The gate requires 52 weeks since P1 entry.</div>
+      </div>
+      <div class="stack" style="height:24px"><span style="width:19%;background:var(--q1)"></span><span style="width:52%;background:var(--q2)"></span><span style="width:24%;background:var(--q3)"></span><span style="width:5%;background:var(--q4)"></span></div>
+      <div class="legend"><span><i style="background:var(--q1)"></i>Forming 37</span><span><i style="background:var(--q2)"></i>P1 100</span><span><i style="background:var(--q3)"></i>P2 46</span><span><i style="background:var(--q4)"></i>P3+ 9</span></div>
+      <p class="note">Publishing "31 of 250" would report the pilot as failing when the only fact established is that most groups are younger than the gate. This is the most likely false negative in the whole reporting set.</p>
+      <div class="src">Source <code>mv_groups_by_phase</code>, <code>mv_cohort_survival</code></div>
+    </div>
+
+    <div class="card" data-card="ME-4">
+      <div class="chead"><h3>Savings and portfolio</h3><span class="cid">ME-4</span></div>
+      <p class="csub">Member savings, not programme disbursement.</p>
+      <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Measure</th><th class="n">Value</th><th class="n">Denominator</th></tr></thead>
+        <tbody>
+          <tr><td>Total group funds held</td><td class="n">4,182,000 ETB</td><td class="n">192 groups</td></tr>
+          <tr><td>Fund per member</td><td class="n">1,101 ETB</td><td class="n">3,800 members</td></tr>
+          <tr><td>Groups lending internally</td><td class="n">125</td><td class="n">of 192</td></tr>
+          <tr><td>Loans outstanding</td><td class="n">1,984,800 ETB</td><td class="n">612 loans</td></tr>
+          <tr><td>PAR30</td><td class="n">7.2%</td><td class="n">of outstanding principal</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note"><strong>This is a stock, and it may be partly a liability.</strong> If FSCO answers open question Q1 with share-out rather than accumulation, part of the 4.18m is a pending distribution to members, not an accumulated asset. Do not describe it as capital formation until that is settled.</p>
+      <div class="src">Source <code>mv_group_financials</code> · blocked on R-5</div>
+    </div>
+
+    <div class="card span2" data-card="ME-5">
+      <div class="chead"><h3>What changed, and what is uncertain</h3><span class="cid">ME-5</span></div>
+      <p class="csub">Hand-written. A sentence beats another chart.</p>
+      <div class="narr">
+        <p><strong>This month.</strong> 24 groups activated, all five regions now have groups past P1, and the first 22 savings accounts opened. Afar remains 40% behind its allocation and carries the highest PAR30 at 16% on a small portfolio.</p>
+        <p><strong>Three things this report cannot yet tell you:</strong></p>
+        <ul>
+          <li><strong>The share-out question is open.</strong> Until FSCO answers it, the 4.18m birr in ME-4 is a stock of uncertain type. Many of these women have prior VSLA exposure and will expect a distribution.</li>
+          <li><strong>Phase attainment is measured against provisional thresholds.</strong> Six gate values are still marked NEEDS FSCO, including group savings compliance at 80%, which the handbook never defines. Attainment against a provisional threshold is a provisional number.</li>
+          <li><strong>61% of meetings have been reconciled against the paper register.</strong> Paper stays primary in the pilot. The digital fund figure is defensible for that 61%.</li>
+        </ul>
+      </div>
+      <div class="src">Hand-written each month. Do not generate it.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================ RATIONALE ============================ -->
+<section id="t5" hidden>
+
+  <h2 class="sec">Six defects in the current reporting layer</h2>
+  <div class="card">
+    <p class="csub">Found by reading <code>sql/004_reporting_views.sql</code> against <code>DEFINITIONS.md</code>. Four change a number. Fix before building the card that reads them, and write one assertion per fix: the current 32-assertion suite catches none of these.</p>
+    <div class="wrap">
+    <table class="tbl">
+      <thead><tr><th>ID</th><th>View</th><th>Defect</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><strong>R-1</strong></td><td><code>mv_enrolment_vs_allocation</code></td><td>Geography join reaches one level below region; groups anchor at kebele, which is two levels down.</td><td>Every region reports <strong>zero enrolled</strong>. Assertion A31 only checks the target column, so the suite passes.</td></tr>
+        <tr><td><strong>R-2</strong></td><td><code>mv_group_compliance</code></td><td>Savings compliance computes a group mean; the definition specifies the share of members at or above 90%.</td><td>One strong saver carries a group where half have stopped. Read by the P1 → P2 gate.</td></tr>
+        <tr><td><strong>R-3</strong></td><td><code>mv_group_compliance</code></td><td>Numerator counts any amount above zero, not a contribution at or above the bylaw amount.</td><td>5 birr against a 50 birr bylaw counts as compliant.</td></tr>
+        <tr><td><strong>R-4</strong></td><td><code>mv_group_compliance</code></td><td>Meeting adherence is absent from the view the definitions say surfaces it.</td><td>A named P1 → P2 gate condition has no source column.</td></tr>
+        <tr><td><strong>R-5</strong></td><td><code>mv_group_financials</code></td><td><code>fund_etb</code> ignores write-offs and adjustments and treats reversals as ordinary entries.</td><td>Fund and fund adequacy overstated. Also cannot split cash from bank, which W4 needs.</td></tr>
+        <tr><td><strong>R-6</strong></td><td><code>mv_cohort_survival</code></td><td>At-risk groups counted as faltering, though the definitions call at-risk a warning that does not move a group backwards.</td><td>Survival understated by the whole at-risk population.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <h2 class="sec">Every card, its source and its shape</h2>
+  <div class="card">
+    <div class="wrap">
+    <table class="tbl">
+      <thead><tr><th>ID</th><th>Card</th><th>Source</th><th>Shape</th><th>Rejected</th></tr></thead>
+      <tbody>
+        <tr><td>FC-1</td><td>Meetings to record</td><td><code>wlt.meeting</code> + cadence</td><td>List by days late</td><td>A completion percentage</td></tr>
+        <tr><td>FC-2</td><td>Unbalanced tills</td><td><code>mv_meeting_reconciliation</code></td><td>List with birr</td><td>"Reconciliation failed"</td></tr>
+        <tr><td>FC-3</td><td>Repayments overdue</td><td><code>mv_loan_arrears</code></td><td>Two labelled blocks</td><td>One overdue count; a PAR gauge</td></tr>
+        <tr><td>FC-4</td><td>Groups at risk</td><td><code>mv_risk_register</code></td><td>List with actual vs threshold</td><td>A risk score; red styling</td></tr>
+        <tr><td>FC-5</td><td>Formation clock</td><td><code>mv_formation_clock</code></td><td>Days remaining</td><td>Expiry dates</td></tr>
+        <tr><td>FC-6</td><td>Sync and conflicts</td><td><code>mv_sync_health</code></td><td>Counts + conflict list</td><td>A toast; auto-merge</td></tr>
+        <tr><td>FC-7</td><td>Readiness card</td><td><code>mv_gate_block_reasons</code></td><td>Condition rows, actual + threshold</td><td>Traffic-light dot; radial gauge; composite score</td></tr>
+        <tr><td>FC-8</td><td>Member passbook</td><td>Ledger, roster on date</td><td>Table, worst first</td><td>Group averages</td></tr>
+        <tr><td>WO-1</td><td>Approval queue</td><td>Four tables</td><td>Counts + oldest age</td><td>Average days in queue</td></tr>
+        <tr><td>WO-2</td><td>Groups by phase</td><td><code>mv_groups_by_phase</code></td><td>4-segment stack, sequential ramp</td><td>Four categorical hues; pie</td></tr>
+        <tr><td>WO-3</td><td>Facilitator load</td><td><code>mv_sync_health</code></td><td>Counts with denominators</td><td>Rate ranking</td></tr>
+        <tr><td>WO-4</td><td>At-risk register</td><td><code>mv_risk_register</code></td><td>Table, oldest first</td><td>A count by reason</td></tr>
+        <tr><td>WO-5</td><td>What blocks P2</td><td><code>mv_gate_block_reasons</code></td><td>Row chart per condition</td><td>A single "blocked" count</td></tr>
+        <tr><td>WO-6</td><td>Overrides</td><td><code>mv_override_register</code></td><td>Table by rule</td><td>Table by facilitator first</td></tr>
+        <tr><td>WO-7</td><td>CLA readiness</td><td><code>mv_cla_readiness</code></td><td>Eligible vs threshold</td><td>Shipping a zero before stage 8</td></tr>
+        <tr><td>PG-1</td><td>Formation attrition</td><td><code>mv_formation_attrition</code></td><td>Row chart, shared baseline</td><td>Funnel chart</td></tr>
+        <tr><td>PG-2</td><td>Enrolment vs allocation</td><td><code>mv_enrolment_vs_allocation</code></td><td>Counts, one axis</td><td>Dual axis; gauge</td></tr>
+        <tr><td>PG-3</td><td>Fund adequacy</td><td><code>mv_group_financials</code></td><td>Binned at the gate</td><td>Mean fund; total only</td></tr>
+        <tr><td>PG-4</td><td>Portfolio quality</td><td><code>mv_group_financials</code></td><td>League table by birr</td><td>Ranked bar of PAR</td></tr>
+        <tr><td>PG-5</td><td>Savings compliance</td><td><code>mv_group_compliance</code></td><td>Binned</td><td>Shipping before R-2 and R-3</td></tr>
+        <tr><td>PG-6</td><td>Cohort survival</td><td><code>mv_cohort_survival</code></td><td>Heatmap, censored cells hatched</td><td>Survival curve; one retention figure</td></tr>
+        <tr><td>PG-7</td><td>Linkage funnel</td><td><code>mv_linkage_funnel</code></td><td>Row chart + block-reason table</td><td>Sankey</td></tr>
+        <tr><td>PG-8</td><td>P1 to P2 time</td><td><code>mv_phase_progression</code></td><td>Median weeks, n shown</td><td>Mean; no maturation guard</td></tr>
+        <tr><td>PG-9</td><td>Dormancy and exits</td><td><code>mv_cohort_survival</code></td><td>Counts by region</td><td>One dormancy rate across cadences</td></tr>
+        <tr><td>PG-10</td><td>Data health</td><td>New views + refresh times</td><td>Table with consequences</td><td>An IT completeness table</td></tr>
+        <tr><td>ME-1</td><td>Results framework</td><td>Views + target table</td><td>Indicator table</td><td>Paraphrased indicator wording</td></tr>
+        <tr><td>ME-2</td><td>Women reached</td><td><code>mv_enrolment_vs_allocation</code></td><td>Cumulative counts</td><td>Dual axis; gauge</td></tr>
+        <tr><td>ME-3</td><td>Group maturity</td><td><code>mv_groups_by_phase</code></td><td>Phase split + eligibility</td><td>"31 of 250"</td></tr>
+        <tr><td>ME-4</td><td>Savings and portfolio</td><td><code>mv_group_financials</code></td><td>Table with denominators</td><td>Calling it capital formation</td></tr>
+        <tr><td>ME-5</td><td>What is uncertain</td><td>Hand-written</td><td>Prose</td><td>Generating it</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <h2 class="sec">Rules that shaped every card</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="chead"><h3>Roster on the meeting date</h3></div>
+      <p class="csub">Every attendance and compliance denominator calls <code>wlt.roster_on(group_id, meeting_date)</code>. A woman who joined in month 6 must not make months 1 to 5 look worse. A card recomputing against today's roster is a review-blocking defect, the same class as computing a percentage inline.</p>
+    </div>
+    <div class="card">
+      <div class="chead"><h3>Maturation, on phase age</h3></div>
+      <p class="csub">The P2 gate needs 52 weeks since P1. In pilot month 6 no group can pass it. Every attainment denominator filters to groups old enough, and the rest are counted as <em>not yet eligible</em>. Skip this and the pilot publishes a collapse that has not happened.</p>
+    </div>
+    <div class="card">
+      <div class="chead"><h3>Small numbers, restated for groups</h3></div>
+      <p class="csub">Dire Dawa is allocated 15 groups. Suppression bands at 30 and 10 make it permanently provisional for the pre-pilot, and it is never ranked. Afar at 50 and Central Ethiopia at 45 are reportable but never league-tabled. State the consequence; do not drop the bands.</p>
+    </div>
+    <div class="card">
+      <div class="chead"><h3>Money is a higher bar than counts</h3></div>
+      <p class="csub">Ledger cards net reversals, because corrections are reversals and never edits. Fund adequacy stays in weeks of contribution, so it needs no re-indexing for inflation and stays comparable across regions. Assert both.</p>
+    </div>
+    <div class="card">
+      <div class="chead"><h3>Thresholds come from policy</h3></div>
+      <p class="csub">Every threshold renders from <code>wlt.policy_parameter</code>, never typed into a card. Otherwise a card and the gate that blocks the group will eventually disagree, and the facilitator will believe the card.</p>
+    </div>
+    <div class="card">
+      <div class="chead"><h3>Protection stays off group cards</h3></div>
+      <p class="csub">The person-only constraint stops a GBV disclosure landing on a group record. It does not stop a linkage card aggregating protection referrals into something a facilitator can drill into. Every linkage card filters the type out in SQL.</p>
+    </div>
+  </div>
+
+  <h2 class="sec">Palette</h2>
+  <div class="card">
+    <p class="csub">From <code>design_handoff_youth_employment/README.md</code>. Two palettes, never mixed. A status colour used as a series is a defect, and so is a series colour meaning failed.</p>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px">
+      <div><span class="sw" style="background:var(--s1)"></span><div class="lab" style="margin-top:5px">Series 1</div><div class="den">#12836B</div></div>
+      <div><span class="sw" style="background:var(--s2)"></span><div class="lab" style="margin-top:5px">Series 2</div><div class="den">#D08A0A · always labelled</div></div>
+      <div><span class="sw" style="background:var(--s3)"></span><div class="lab" style="margin-top:5px">Series 3</div><div class="den">#B0442A</div></div>
+      <div><span class="sw" style="background:var(--s4)"></span><div class="lab" style="margin-top:5px">Series 4</div><div class="den">#7A4CA8</div></div>
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-top:14px">
+      <div><span class="sw" style="background:var(--q1)"></span><div class="lab" style="margin-top:5px">Phase: forming</div></div>
+      <div><span class="sw" style="background:var(--q2)"></span><div class="lab" style="margin-top:5px">Phase: P1</div></div>
+      <div><span class="sw" style="background:var(--q3)"></span><div class="lab" style="margin-top:5px">Phase: P2</div></div>
+      <div><span class="sw" style="background:var(--q4)"></span><div class="lab" style="margin-top:5px">Phase: P3+</div></div>
+    </div>
+    <p class="note" style="margin-top:14px">Phase uses the sequential ramp because phase is ordered. Status uses the reserved status palette, and at risk is gold, never red: at risk is an early warning and does not move a group backwards.</p>
+  </div>
+
+</section>
+
+</main>
+
+<script>
+(function(){
+  var tabs = document.querySelectorAll('.tabs button');
+  tabs.forEach(function(b){
+    b.addEventListener('click', function(){
+      tabs.forEach(function(x){ x.setAttribute('aria-selected','false'); });
+      b.setAttribute('aria-selected','true');
+      ['t1','t2','t3','t4','t5'].forEach(function(id){
+        document.getElementById(id).hidden = (id !== b.dataset.tab);
+      });
+      window.scrollTo(0,0);
+    });
+  });
+  var subs = document.querySelectorAll('.subtabs button');
+  subs.forEach(function(b){
+    b.addEventListener('click', function(){
+      subs.forEach(function(x){ x.setAttribute('aria-selected','false'); });
+      b.setAttribute('aria-selected','true');
+      ['s1','s2'].forEach(function(id){
+        document.getElementById(id).hidden = (id !== b.dataset.sub);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

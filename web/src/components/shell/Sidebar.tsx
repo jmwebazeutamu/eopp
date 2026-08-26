@@ -1,12 +1,12 @@
 import { Tooltip } from "antd";
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import type { CurrentUser } from "../../api/types";
 import { useLang } from "../../i18n/LanguageContext";
+import { useSessionPreference } from "./preferences";
 import { Icon, ICON_PATHS } from "../ui";
 import GlobalSearch from "./GlobalSearch";
-import { ALERT_BADGE_ATTENTION_AT, isActivePath, type NavSection } from "./navModel";
+import { ALERT_BADGE_ATTENTION_AT, isActiveItem, type NavSection } from "./navModel";
 import ScopeSelector from "./ScopeSelector";
 
 /**
@@ -43,6 +43,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
+  user,
   sections,
   pathname,
   collapsed,
@@ -51,24 +52,43 @@ export default function Sidebar({
 }: SidebarProps) {
   const { t } = useLang();
   const navigate = useNavigate();
-  const [closedSections, setClosedSections] = useState<Record<string, boolean>>({});
+  /**
+   * Which sections the reader has opened, this sitting only.
+   *
+   * **Everything starts closed.** Four open sections put fifteen items in the
+   * rail, which is a list to read rather than a place to navigate — and the one
+   * a reader wants is somewhere in the middle of it. Closed by default makes the
+   * rail a set of four choices.
+   *
+   * Session-scoped rather than remembered for good: "collapsed on load" is the
+   * specified behaviour, so a lasting preference would defeat it from the second
+   * visit onwards. Within one sitting, a section stays as it was left.
+   */
+  const [openSections, setOpenSections] = useSessionPreference<Record<string, boolean>>(
+    "nav.openSections",
+    user.id,
+    {},
+  );
 
-  useEffect(() => {
-    setClosedSections((current) => {
-      const next = Object.fromEntries(sections.map((section) => [section.titleKey, current[section.titleKey] ?? false]));
-      const activeSection = sections.find((section) => section.items.some((entry) => isActivePath(entry.path, pathname)));
-      if (activeSection) next[activeSection.titleKey] = false;
-      const currentKeys = Object.keys(current);
-      const nextKeys = Object.keys(next);
-      if (
-        currentKeys.length === nextKeys.length &&
-        nextKeys.every((key) => current[key] === next[key])
-      ) {
-        return current;
-      }
-      return next;
-    });
-  }, [pathname, sections]);
+  const activeKey = sectionKey(
+    sections.find((section) => section.items.some((entry) => isActiveItem(entry, pathname))),
+  );
+
+  /**
+   * A section is open when the reader opened it, or when the page they are on
+   * lives in it.
+   *
+   * Derived rather than written into state on navigation. Storing it would mean
+   * that arriving at a page and then leaving it leaves the section open behind
+   * you — the rail slowly reverting to the fully-expanded list this replaces.
+   * An explicit close still wins: `false` in the record beats being active, so
+   * somebody who shuts the section they are standing in gets what they asked for.
+   */
+  function isOpen(section: NavSection) {
+    const key = sectionKey(section);
+    if (key in openSections) return openSections[key];
+    return key === activeKey;
+  }
 
   return (
     <nav
@@ -141,10 +161,12 @@ export default function Sidebar({
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 8 }}>
         {sections.map((section, index) => {
-          const open = collapsed || !closedSections[section.titleKey];
+          // A heading-less section is a single top-level item: nothing to
+          // collapse, so nothing to close.
+          const open = collapsed || section.titleKey === null || isOpen(section);
 
           return (
-            <div key={section.titleKey}>
+            <div key={sectionKey(section)}>
               {index > 0 && (
                 <hr
                   style={{
@@ -156,15 +178,12 @@ export default function Sidebar({
                 />
               )}
 
-              {!collapsed && (
+              {!collapsed && section.titleKey !== null && (
                 <div style={{ padding: index === 0 ? "10px 12px 4px" : "0 12px 4px" }}>
                   <button
                     type="button"
                     onClick={() =>
-                      setClosedSections((current) => ({
-                        ...current,
-                        [section.titleKey]: !current[section.titleKey],
-                      }))
+                      setOpenSections({ ...openSections, [sectionKey(section)]: !open })
                     }
                     aria-expanded={open}
                     style={{
@@ -208,7 +227,7 @@ export default function Sidebar({
 
               {open &&
                 section.items.map((entry) => {
-                  const active = isActivePath(entry.path, pathname);
+                  const active = isActiveItem(entry, pathname);
                   const label = t(entry.labelKey);
                   const button = (
                     <button
@@ -324,4 +343,18 @@ function NavBadge({ count }: { count: number }) {
       {count}
     </span>
   );
+}
+
+
+/**
+ * The key a section is remembered under.
+ *
+ * Its heading where it has one; its first path where it does not, so a
+ * heading-less top-level item still has a stable identity if one is ever made
+ * collapsible. Never the array index — inserting a section above would shift
+ * every remembered state onto the wrong row.
+ */
+function sectionKey(section: NavSection | undefined): string {
+  if (!section) return "";
+  return section.titleKey ?? section.items[0]?.path ?? "";
 }

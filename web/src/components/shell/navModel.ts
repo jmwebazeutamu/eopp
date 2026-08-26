@@ -1,6 +1,7 @@
 import type { CurrentUser } from "../../api/types";
 import type { StringKey } from "../../i18n/strings";
 import { visibleTiers } from "../../pages/dashboard/tierAccess";
+import { visibleDelivery } from "../../pages/delivery/deliveryAccess";
 import { ICON_PATHS } from "../ui";
 
 /**
@@ -24,11 +25,29 @@ export interface NavItem {
   icon: string;
   /** Live count rendered right-aligned. Only Alerts carries one today. */
   badgeCount?: number;
+  /**
+   * Other routes this item stands for.
+   *
+   * One rail entry can front several screens: `/delivery` lands on whichever of
+   * Training, Placements, Enterprises or Verification is the reader's, and the
+   * four keep their original URLs so older links still work. Without this the
+   * rail loses track the moment the redirect completes — nothing is lit, and
+   * the section holding the page collapses because no item claims the route.
+   */
+  ownsPaths?: string[];
 }
 
 export interface NavSection {
-  /** Section heading, rendered above the group and dropped when collapsed. */
-  titleKey: StringKey;
+  /**
+   * Section heading, rendered above the group and dropped when the rail is
+   * collapsed to icons.
+   *
+   * **Null means a top-level item with no heading**, which cannot be collapsed
+   * and is always shown. Grievances is the only one: it belongs to neither
+   * programme, so filing it under either would say something untrue about who
+   * the channel is for.
+   */
+  titleKey: StringKey | null;
   items: NavItem[];
 }
 
@@ -47,19 +66,40 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
   const hasCases = user.access.case_scope !== "NONE";
   const hasReferrals = user.access.referral_scope !== "NONE";
 
-  // Each dashboard tier is a destination of its own rather than four pages
-  // behind one "Dashboard" entry. Nothing used to reveal that Results existed.
-  // A role offered none — the LINKED roles, which see individual referrals but
-  // never a denominator — contributes no items at all.
-  const tiers: NavItem[] = visibleTiers(user).map((tier) => ({
-    path: `/dashboard/${tier.path}`,
-    labelKey: tier.labelKey,
-    icon: TIER_ICONS[tier.path] ?? ICON_PATHS.dashboard,
-  }));
+  // **One entry, not one per tier.** Four tier links were four rows of the rail
+  // spent on one destination, and the tiers are already tabs on the page they
+  // lead to — so the rail was duplicating a control that exists, better, one
+  // click away.
+  //
+  // `/dashboard` rather than a tier path: `DashboardHome` sends each role to
+  // its own landing tier, so a case manager gets her work and a donor gets
+  // results without the rail having to know which. `isActivePath` lights this
+  // item on every `/dashboard/*` route, so the reader still sees where they are.
+  //
+  // A role offered no tier at all — the LINKED roles, which see individual
+  // referrals but never a denominator — gets no item, because `/dashboard`
+  // would bounce them straight out again.
+  const tiers: NavItem[] =
+    visibleTiers(user).length > 0 ? [item("/dashboard", "nav.dashboard", ICON_PATHS.dashboard)] : [];
 
-  const dashboard: NavItem[] = [...tiers];
-
+  // The tiers lead the PSNP section rather than standing as a section of their
+  // own. Every one of them reports on the youth-employment caseload — My work
+  // is a case manager's queue, Results is the donor's view of placements — so a
+  // top-level "Dashboard" heading claimed a breadth they do not have, and put
+  // four PSNP screens above the section that names PSNP.
   const work: NavItem[] = [
+    ...tiers,
+    // The register leads the operational items, the same way it does in the WLT
+    // section: somebody is registered before a case is opened for them, and the
+    // nav reads better in the order the work happens than in alphabetical
+    // groups. It was under Directory, which is where a *reference* list belongs
+    // — partners, user accounts — and this is a working screen.
+    //
+    // Under PSNP rather than at the top level, unlike Grievances, because it is
+    // already gated on `hasCases`: a WLT role never sees it and gets
+    // `/wlt/beneficiaries` instead. The two views read one register (handoff
+    // D1, one identity) and each programme reaches it through its own door.
+    ...(hasCases ? [item("/youth", "nav.registry", ICON_PATHS.registry)] : []),
     ...(hasCases ? [item("/cases", "nav.cases", ICON_PATHS.cases)] : []),
     ...(hasReferrals ? [item("/referrals", "nav.referrals", ICON_PATHS.queue)] : []),
     ...(hasCases ? [{ ...item("/alerts", "nav.alerts", ICON_PATHS.alerts), badgeCount: options.openAlerts }] : []),
@@ -69,20 +109,23 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
   // scoped server-side: a trainer sees the enrolments she recorded, a case
   // manager her caseload's, a supervisor her woreda's. Hiding an item does not
   // secure it; this only avoids offering a screen that would come back empty.
-  const delivery: NavItem[] = hasCases
-    ? [
-        item("/training", "nav.training", ICON_PATHS.cases),
-        item("/placements", "nav.placements", ICON_PATHS.partners),
-        // Sprint 6. Same reasoning as the two above: scoped server-side, so an
-        // enterprise officer sees her own records and a supervisor her woreda's.
-        item("/enterprises", "nav.enterprises", ICON_PATHS.partners),
-        item("/verification", "nav.verification", ICON_PATHS.queue),
-      ]
+  // **One entry, not four.** Training, Placements, Enterprises and Verification
+  // are four screens that are each a single queue, and side by side in the rail
+  // they spent four of nine PSNP rows on work most roles never do. They are
+  // tabs now, on the dashboard's pattern.
+  //
+  // `visibleDelivery` narrows by role rather than by `hasCases`, which is the
+  // more useful half: a trainer used to be offered Placements, Enterprises and
+  // Verification — three screens that, scoped through `LINKED_THROUGH`, return
+  // her nothing. She now gets Training, and no tab strip, because a strip with
+  // one tab is a control that cannot do anything.
+  const deliveryScreens = visibleDelivery(user);
+  const delivery: NavItem[] = deliveryScreens.length
+    ? [{ ...item("/delivery", "nav.delivery", ICON_PATHS.queue), ownsPaths: deliveryScreens.map((s) => s.path) }]
     : [];
 
 
   const directory: NavItem[] = [
-    ...(hasCases ? [item("/youth", "nav.registry", ICON_PATHS.registry)] : []),
     item("/partners", "nav.partners", ICON_PATHS.partners),
     // User administration is the one genuine role test: §7 grants it to the
     // system administrator alone, and no scope column expresses that.
@@ -108,6 +151,17 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
         // a woman is registered, then seated in a group, then her group reaches
         // a service or a structure. The register leads because before it the
         // module had no first step at all.
+        // Her queue leads, the same way My work leads the youth rail: the
+        // question this module's Tier 1 answers is "what do I record today",
+        // and it is not answerable from a register or a group list.
+        // One entry, four tiers as tabs — the same shape the youth rail now
+        // uses. `/wlt/dashboard` lands each role on its own tier, and the item
+        // stands for every route beneath it so the rail keeps track after the
+        // redirect.
+        {
+          ...item("/wlt/dashboard", "nav.wltDashboard", ICON_PATHS.dashboard),
+          ownsPaths: ["/wlt/home"],
+        },
         item("/wlt/beneficiaries", "nav.wltBeneficiaries", ICON_PATHS.registry),
         item("/wlt/groups", "nav.wltGroups", ICON_PATHS.cases),
         item("/wlt/linkages", "nav.wltLinkages", ICON_PATHS.partners),
@@ -119,23 +173,15 @@ export function buildNav(user: CurrentUser, options: { openAlerts: number }): Na
   // An empty section would otherwise draw a heading and a divider over nothing:
   // a partner staff account is offered no Work items at all.
   return [
-    { titleKey: "nav.sectionDashboard" as StringKey, items: dashboard },
-    { titleKey: "nav.sectionWork" as StringKey, items: [...work, ...delivery, ...grievances] },
+    { titleKey: "nav.sectionWork" as StringKey, items: [...work, ...delivery] },
     { titleKey: "nav.sectionWlt" as StringKey, items: wlt },
+    // Between the two programmes and the directory, and under no heading. It
+    // sat inside the PSNP group, which said the complaints channel was a
+    // youth-side screen — and a savings group's complaint is not.
+    { titleKey: null, items: grievances },
     { titleKey: "nav.sectionDirectory" as StringKey, items: directory },
   ].filter((section) => section.items.length > 0);
 }
-
-/**
- * One icon per tier, so the collapsed 64px rail can still tell them apart.
- * Four identical dashboard glyphs would be four blank squares.
- */
-const TIER_ICONS: Record<string, string> = {
-  "my-work": ICON_PATHS.dashboard,
-  woreda: ICON_PATHS.woreda,
-  programme: ICON_PATHS.programme,
-  results: ICON_PATHS.results,
-};
 
 function item(path: string, labelKey: StringKey, icon: string): NavItem {
   return { path, labelKey, icon };
@@ -150,4 +196,17 @@ function item(path: string, labelKey: StringKey, icon: string): NavItem {
  */
 export function isActivePath(navPath: string, pathname: string): boolean {
   return pathname === navPath || pathname.startsWith(`${navPath}/`);
+}
+
+/**
+ * Whether a nav item owns the current location — its own path, or any it fronts.
+ *
+ * Used for the highlight and for deciding which section to expand. A bare
+ * `isActivePath` against the item's path alone left `/training` claimed by
+ * nobody, so the rail lit nothing and folded the section the reader was
+ * standing in.
+ */
+export function isActiveItem(navItem: NavItem, pathname: string): boolean {
+  if (isActivePath(navItem.path, pathname)) return true;
+  return (navItem.ownsPaths ?? []).some((owned) => isActivePath(owned, pathname));
 }

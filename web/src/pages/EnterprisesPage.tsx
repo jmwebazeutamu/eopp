@@ -6,6 +6,7 @@ import { api, errorMessage } from "../api/client";
 import type { Enterprise, Paginated, Summary } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import ListPage from "../components/ListPage";
+import DeliveryTabs from "./delivery/DeliveryTabs";
 import { Button, Card, CapsLabel, MutedChip } from "../components/ui";
 import { MILESTONE_TONE, PLAN_TONE } from "../design/sprint6Status";
 import { useLang } from "../i18n/LanguageContext";
@@ -94,6 +95,7 @@ export default function EnterprisesPage() {
 
   return (
     <ListPage
+      tabs={<DeliveryTabs />}
       title={t("enterprises.title")}
       subtitle={t("enterprises.subtitle", { count: total })}
       searchPlaceholder={t("enterprises.search")}
