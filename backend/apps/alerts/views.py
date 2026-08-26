@@ -1,5 +1,6 @@
 """Alert API — spec §4.13, §10 Sprint 4."""
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
@@ -135,6 +136,11 @@ class AlertViewSet(ScopedQuerySetMixin, viewsets.ReadOnlyModelViewSet):
             {
                 "open_total": open_alerts.count(),
                 "assigned_to_me": open_alerts.for_user(request.user).count(),
+                # The alert about the alert: how many have sat unread. Every row
+                # here exists because something passed a threshold; this counts
+                # the second failure, the queue itself going unworked.
+                "unactioned": open_alerts.unactioned_for(settings.ALERT_UNACTIONED_DAYS).count(),
+                "unactioned_days": settings.ALERT_UNACTIONED_DAYS,
                 # Kept for the navigation badge and the dashboards.
                 "by_type": by_type,
                 **summary_response(open_alerts, counters),

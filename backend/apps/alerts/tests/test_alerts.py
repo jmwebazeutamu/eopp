@@ -487,3 +487,75 @@ def test_run_all_detections_reports_each_job(case, make_referral, case_manager, 
         "replacement_prompts",
         "auto_resolved",
     }
+
+
+# ---------------------------------------------------------------------------
+# The unread counter
+# ---------------------------------------------------------------------------
+
+
+def _age_alert(alert, days):
+    """Backdate when the detection job raised it, without touching the row."""
+    Alert.objects.filter(pk=alert.pk).update(triggered_date=date.today() - timedelta(days=days))
+    alert.refresh_from_db()
+    return alert
+
+
+def test_the_summary_counts_alerts_nobody_has_touched(case, case_manager, as_user, settings):
+    """The alert about the alert.
+
+    Every row in this inbox exists because something already passed a
+    threshold. What this counts is the second failure — the queue itself going
+    unworked — and nothing on the screen said so before.
+    """
+    settings.STALL_ALERT_THRESHOLD_DAYS = 30
+    settings.ALERT_UNACTIONED_DAYS = 7
+    _age_case(case, 45)
+    tasks.detect_stalled_cases()
+    _age_alert(Alert.objects.get(case=case), 20)
+
+    body = as_user(case_manager).get("/api/v1/alerts/summary/").data
+    assert body["unactioned"] == 1
+    # The screen states the threshold it is counting against rather than
+    # printing a bare number, the same way the confirmation cards do.
+    assert body["unactioned_days"] == 7
+
+
+def test_an_alert_raised_today_is_not_yet_unread(case, case_manager, as_user, settings):
+    """Otherwise the counter equals the open total and says nothing."""
+    settings.STALL_ALERT_THRESHOLD_DAYS = 30
+    settings.ALERT_UNACTIONED_DAYS = 7
+    _age_case(case, 45)
+    tasks.detect_stalled_cases()
+
+    body = as_user(case_manager).get("/api/v1/alerts/summary/").data
+    assert body["open_total"] == 1
+    assert body["unactioned"] == 0
+
+
+def test_a_resolved_alert_is_not_counted_however_old(case, case_manager, settings):
+    """It counts the queue, not the archive. `unactioned_for` narrows `open()`,
+    so an alert that was worked and closed drops out no matter how long it sat
+    before somebody got to it."""
+    settings.STALL_ALERT_THRESHOLD_DAYS = 30
+    _age_case(case, 45)
+    tasks.detect_stalled_cases()
+    alert = _age_alert(Alert.objects.get(case=case), 60)
+    alert.resolve(AlertStatus.ACTIONED, actor=case_manager)
+
+    assert Alert.objects.unactioned_for(7).count() == 0
+
+
+def test_the_threshold_is_read_from_settings_not_written_into_the_view(case, case_manager, as_user, settings):
+    """A display threshold nobody has agreed yet (TODO(open-question)), so it
+    has to be movable without a deploy."""
+    settings.STALL_ALERT_THRESHOLD_DAYS = 30
+    _age_case(case, 45)
+    tasks.detect_stalled_cases()
+    _age_alert(Alert.objects.get(case=case), 10)
+
+    settings.ALERT_UNACTIONED_DAYS = 7
+    assert as_user(case_manager).get("/api/v1/alerts/summary/").data["unactioned"] == 1
+
+    settings.ALERT_UNACTIONED_DAYS = 30
+    assert as_user(case_manager).get("/api/v1/alerts/summary/").data["unactioned"] == 0

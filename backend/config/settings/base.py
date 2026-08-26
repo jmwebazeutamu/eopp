@@ -404,6 +404,16 @@ PLACEMENT_TARGET_PER_QUARTER = config("PLACEMENT_TARGET_PER_QUARTER", default=0,
 FOLLOW_UP_DUE_DAYS = config("FOLLOW_UP_DUE_DAYS", default=14, cast=int)  # Follow-Up (§4.9)
 RETENTION_CHECK_DUE_DAYS = config("RETENTION_CHECK_DUE_DAYS", default=30, cast=int)  # Placement (§4.7)
 
+# How long an open alert may sit before the inbox reports it as unread.
+#
+# A display threshold, deliberately not one of the §11 programme thresholds — it
+# changes nothing about when an alert is raised or resolved. It answers a
+# different question: whether the queue itself is being worked.
+#
+# TODO(open-question): 7 is a working default. Supervisors should say what
+# "nobody has looked at this" means in a woreda office.
+ALERT_UNACTIONED_DAYS = config("ALERT_UNACTIONED_DAYS", default=7, cast=int)
+
 # How long a grievance may sit before it is overdue (§4.10).
 #
 # TODO(open-question): §11 — there is no stated grievance service standard. 21

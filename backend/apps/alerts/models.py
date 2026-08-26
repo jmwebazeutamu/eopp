@@ -12,7 +12,7 @@ source of truth (see the querysets in `apps.referrals.models` and
 inbox and its resolution is recorded.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -75,6 +75,21 @@ class AlertQuerySet(models.QuerySet):
 
     def of_type(self, alert_type):
         return self.filter(alert_type=alert_type)
+
+    def unactioned_for(self, days, as_of=None):
+        """Open, and nobody has touched it for `days`.
+
+        **The alert about the alert.** Every row here already exists because
+        something passed a threshold; what this counts is the second failure —
+        the queue itself going unread. An inbox where the oldest item is six
+        weeks old is not a working inbox, and nothing on the screen said so.
+
+        Counted from `triggered_date`, which is when the detection job raised
+        it, not from when somebody last looked: a row that has been opened and
+        closed without action is exactly the row this should still count.
+        """
+        as_of = as_of or date.today()
+        return self.open().filter(triggered_date__lt=as_of - timedelta(days=days))
 
 
 class Alert(BaseModel):
