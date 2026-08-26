@@ -218,3 +218,37 @@ def test_the_timeline_route_refuses_a_disclosure_and_logs_the_attempt(as_user, s
 
     assert response.status_code == 403
     assert GrievanceAccess.objects.get(grievance=disclosure).granted is False
+
+
+def test_the_statement_leads_even_just_after_local_midnight(raise_grievance, supervisor):
+    """The bug this pins was found at 01:34 local, after passing all afternoon.
+
+    `date_raised` is written by `date.today()` in Africa/Addis_Ababa;
+    `created_at` is a UTC timestamp. Between 00:00 and 03:00 local the two
+    disagree about which day it is — the date is already tomorrow while the
+    timestamp is still yesterday evening — so anchoring the date at *UTC*
+    midnight sorted the complainant's statement after a note written minutes
+    after it, and the case file opened with the wrong entry.
+
+    Reproduced by hand rather than by waiting for 01:34: the note is stamped
+    into the window where the two representations cross.
+    """
+    from datetime import datetime, timedelta
+    from datetime import timezone as dt_timezone
+
+    from apps.grievances.models import GrievanceNote
+
+    grievance = raise_grievance()
+    note = services.add_note(grievance, body="Payment roll checked.", author=supervisor)
+
+    # 22:30 UTC on the day before `date_raised` — 01:30 the next morning in
+    # Addis, which is when somebody would actually be typing this.
+    crossing = datetime.combine(grievance.date_raised, datetime.min.time(), tzinfo=dt_timezone.utc) - timedelta(
+        hours=1, minutes=30
+    )
+    GrievanceNote.objects.filter(pk=note.pk).update(created_at=crossing)
+
+    events = timeline.build(grievance)
+
+    assert events[0]["type"] == timeline.STATEMENT
+    assert events[1]["type"] == timeline.NOTE

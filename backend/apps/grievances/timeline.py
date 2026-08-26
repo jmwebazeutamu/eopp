@@ -17,8 +17,10 @@ correction appends; it does not overwrite.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, time, timezone
+from datetime import datetime, time
+from datetime import timezone as dt_timezone
 
+from django.utils.timezone import get_current_timezone
 from django.utils.translation import gettext as _
 
 STATEMENT = "STATEMENT"
@@ -46,15 +48,23 @@ class Event:
 def _moment(value):
     """A date or a datetime as one comparable, aware type.
 
-    History rows carry timestamps and `date_raised` carries a date. Sorting them
-    together needs one type, and comparing a naive datetime against an aware one
-    raises — which would surface as a 500 on whichever case happened to mix them.
+    **A bare date is anchored at local midnight, not UTC midnight**, and that is
+    the whole of this function's difficulty. `date_raised` is written by
+    `date.today()` in Africa/Addis_Ababa; `created_at` is a UTC timestamp. Between
+    00:00 and 03:00 local the two disagree about which day it is — the date is
+    already tomorrow while the timestamp is still yesterday evening — so a
+    statement raised today sorted *after* a note written minutes later, and the
+    case file opened with the wrong entry.
+
+    Found at 01:34 local by a test that had passed all afternoon. It is the same
+    fault the meeting-staleness warning had, and it will keep recurring wherever
+    a stored date meets a stored timestamp.
     """
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=dt_timezone.utc)
     if value is None:
-        return datetime.min.replace(tzinfo=timezone.utc)
-    return datetime.combine(value, time.min, tzinfo=timezone.utc)
+        return datetime.min.replace(tzinfo=dt_timezone.utc)
+    return datetime.combine(value, time.min, tzinfo=get_current_timezone())
 
 
 def _day(value):
