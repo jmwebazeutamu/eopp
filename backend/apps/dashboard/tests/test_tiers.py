@@ -498,3 +498,105 @@ class TestAbandonmentRule:
         fail_abandoned_referrals()
         assert Referral.objects.filter(case=case, status=ReferralStatus.PENDING_CONFIRMATION).count() == 0
         assert Referral.objects.filter(case=case, status=ReferralStatus.FAILED).count() == 1
+
+
+# ---------------------------------------------------------------------------
+# The grievance panel on Tier 3
+# ---------------------------------------------------------------------------
+
+
+class TestGrievancePanel:
+    """The programme tier's complaints card.
+
+    Every other test on this endpoint ran with an empty grievance table, so the
+    panel returned early on `if not total` and the whole card went unexercised.
+    That is how `resolution_inputs` kept calling `GrievanceQuerySet.resolved()`
+    for a day after the eight-state rebuild deleted it: the suite was green and
+    `/dashboard/programme/` was a 500 for anyone whose scope held one complaint.
+    Each test below therefore starts by putting a complaint in the table.
+    """
+
+    @staticmethod
+    def _conclude(grievance, supervisor, outcome):
+        """One complaint, walked the whole way to a shut file."""
+        from apps.grievances import services
+
+        services.acknowledge(grievance, method="By phone", actor=supervisor)
+        services.start_review(grievance, actor=supervisor)
+        services.decide(
+            grievance,
+            outcome=outcome,
+            reason="Explained to the complainant in the woreda office.",
+            actor=supervisor,
+        )
+        return services.record_feedback_and_close(grievance, method="In person", actor=supervisor)
+
+    @pytest.fixture
+    def complain(self, db, supervisor):
+        from apps.grievances import services
+        from apps.grievances.models import ComplaintType, RaisedBy
+
+        def _complain(summary="The training centre had no materials."):
+            return services.raise_grievance(
+                complaint_type=ComplaintType.SERVICE_QUALITY,
+                raised_by=RaisedBy.YOUTH,
+                summary=summary,
+                assigned_staff=supervisor,
+                woreda="Adama",
+            )
+
+        return _complain
+
+    def test_the_tier_serves_a_scope_that_holds_a_complaint(self, locations, supervisor, as_user, complain):
+        """The regression itself. One grievance in scope used to 500 the tier."""
+        complain()
+        response = as_user(supervisor).get(URLS["programme"])
+        assert response.status_code == 200
+        assert response.data["casework"]["grievances"]["total"] == 1
+
+    def test_a_dismissed_complaint_does_not_count_against_the_channel(self, locations, supervisor, as_user, complain):
+        """The reason the fix is not a one-word rename.
+
+        Under the old field, `resolved` meant "the file is finished" *and* "the
+        complaint was upheld". Carrying that ratio forward would divide upheld
+        by everything concluded, so a complaint properly investigated and found
+        unfounded would read as a channel that failed to resolve it. Upheld is
+        reported out of what was **judged**.
+        """
+        from apps.grievances.models import Outcome
+
+        self._conclude(complain("Upheld one"), supervisor, Outcome.UPHELD)
+        self._conclude(complain("Dismissed one"), supervisor, Outcome.NOT_UPHELD)
+
+        panel = as_user(supervisor).get(URLS["programme"]).data["casework"]["grievances"]
+        assert panel["upheld"] == 1
+        assert panel["not_upheld"] == 1
+        # Two is the whole denominator, so the rate itself is withheld under the
+        # suppression band — `percent` is None and the counts carry the finding.
+        # What is pinned here is the denominator: the dismissed complaint is in
+        # it, and nothing else concluded is.
+        assert panel["upheld_rate"]["d"] == 2
+        assert panel["upheld_rate"]["n"] == 1
+
+    def test_a_withdrawn_complaint_is_named_and_kept_out_of_the_rate(self, locations, supervisor, as_user, complain):
+        """Nobody ruled on it, so it belongs in neither half of the fraction —
+        and it is still counted, because a channel people walk away from is a
+        finding of its own."""
+        from apps.grievances.models import Outcome
+
+        self._conclude(complain("Upheld one"), supervisor, Outcome.UPHELD)
+        self._conclude(complain("Withdrawn one"), supervisor, Outcome.WITHDRAWN)
+
+        panel = as_user(supervisor).get(URLS["programme"]).data["casework"]["grievances"]
+        assert panel["concluded"] == 2
+        assert panel["not_judged"] == 1
+        assert panel["upheld_rate"]["d"] == 1
+
+    def test_an_open_complaint_is_neither_upheld_nor_dismissed(self, locations, supervisor, as_user, complain):
+        """Otherwise the rate falls every time somebody files a complaint."""
+        complain()
+        panel = as_user(supervisor).get(URLS["programme"]).data["casework"]["grievances"]
+        assert panel["open"] == 1
+        assert panel["concluded"] == 0
+        assert panel["upheld_rate"] is None
+        assert panel["available"] is False

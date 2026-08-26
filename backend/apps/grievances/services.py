@@ -344,15 +344,45 @@ def overturn_rate(grievances):
     return {"appeals_decided": total, "overturned": overturned.count()}
 
 
-def resolution_inputs(grievances):
-    """`(resolved, concluded)` — the two numbers the resolution rate is built from.
+def decision_counts(grievances):
+    """What the concluded files were decided to be.
 
-    The denominator is grievances that have **concluded**, of either kind. One
-    still open is neither resolved nor unresolved, and counting it as a failure
-    would make the rate fall every time somebody files a complaint.
+    Replaces `resolution_inputs`, which returned `(resolved, concluded)` and
+    called `GrievanceQuerySet.resolved()` — a method the eight-state rebuild
+    removed, because `RESOLVED` had meant two things at once. Left as it was,
+    the ratio it fed would now read "upheld / concluded" under the old label,
+    so a complaint properly investigated and found unfounded would count
+    against the channel that investigated it.
+
+    Five numbers, because the enum draws the distinctions and a rate must not
+    flatten them:
+
+    * `concluded` — the file is shut, of any kind.
+    * `upheld` / `not_upheld` — judged on the merits, either way.
+    * `not_judged` — withdrawn or referred to another body. Concluded, but
+      nobody ever ruled on it, so it belongs in neither half of a rate.
+    * `no_outcome_recorded` — shut with no `Outcome` at all. Not a rounding
+      error: migration `0005` deliberately wrote no outcome onto rows carried
+      over from the four-status model, because the old value could not say
+      which one it had been. It shrinks as those files are revisited, and
+      hiding it inside `not_judged` would make it look settled.
+
+    The denominator for an upheld rate is `upheld + not_upheld` and nothing
+    else. One still open is neither upheld nor dismissed, and counting it as a
+    failure would make the rate fall every time somebody files a complaint.
     """
-    concluded = grievances.filter(status__in=GrievanceStatus.terminal()).count()
-    return grievances.resolved().count(), concluded
+    concluded = grievances.filter(status__in=GrievanceStatus.terminal())
+    upheld = concluded.upheld().count()
+    not_upheld = concluded.filter(outcome=Outcome.NOT_UPHELD).count()
+    not_judged = concluded.filter(outcome__in=(Outcome.REFERRED, Outcome.WITHDRAWN)).count()
+    total = concluded.count()
+    return {
+        "concluded": total,
+        "upheld": upheld,
+        "not_upheld": not_upheld,
+        "not_judged": not_judged,
+        "no_outcome_recorded": total - upheld - not_upheld - not_judged,
+    }
 
 
 def median_days_to_resolution(grievances):

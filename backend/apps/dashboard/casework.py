@@ -20,9 +20,9 @@ from apps.followups.models import ContactOutcome, FollowUp
 from apps.followups.services import awaiting_follow_up, unverified_outcomes
 from apps.grievances.models import Grievance
 from apps.grievances.services import (
+    decision_counts,
     median_days_to_resolution,
     partner_quality_feedback,
-    resolution_inputs,
 )
 from apps.users.permissions import scope_queryset
 
@@ -175,15 +175,25 @@ def grievance_panel(grievances, today=None):
     """Whether the complaints channel actually works.
 
     Two numbers do the work: how many are open past the standard, and how long
-    a complaint takes to conclude. A resolution *rate* alone reads well for a
-    channel that closes everything unresolved, which is why `resolved` and
-    `closed` are counted apart — as §4.10 keeps them apart.
+    a complaint takes to conclude. A single "resolution rate" reads well for a
+    channel that shuts everything without deciding it, which is why the
+    concluded files are broken out by what was actually decided — status is
+    where the work got to, `Outcome` is the finding, and the rebuild of
+    2026-08-25 separated them precisely so this card could stop conflating
+    them.
+
+    The rate reported is therefore **upheld out of judged**, never upheld out
+    of concluded. A withdrawn complaint and one still carrying no recorded
+    outcome are counted and named, not folded into a denominator that would
+    read them as failures.
     """
     total = grievances.count()
     if not total:
         return {"available": False, "reason": str(NO_GRIEVANCES_YET), "open": 0}
 
-    resolved, concluded = resolution_inputs(grievances)
+    decisions = decision_counts(grievances)
+    concluded = decisions["concluded"]
+    judged = decisions["upheld"] + decisions["not_upheld"]
     overdue = grievances.overdue(settings.GRIEVANCE_RESPONSE_DAYS, as_of=today)
 
     return {
@@ -193,8 +203,12 @@ def grievance_panel(grievances, today=None):
         "open": grievances.open().count(),
         "overdue": overdue.count(),
         "threshold_days": settings.GRIEVANCE_RESPONSE_DAYS,
-        "resolution_rate": rate(resolved, concluded) if concluded else None,
-        "closed_unresolved": concluded - resolved,
+        "concluded": concluded,
+        "upheld_rate": rate(decisions["upheld"], judged) if judged else None,
+        "upheld": decisions["upheld"],
+        "not_upheld": decisions["not_upheld"],
+        "not_judged": decisions["not_judged"],
+        "no_outcome_recorded": decisions["no_outcome_recorded"],
         "median_days_to_resolution": median_days_to_resolution(grievances),
         "about_referral_quality": grievances.about_referral_quality().count(),
     }
