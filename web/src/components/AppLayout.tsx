@@ -74,7 +74,7 @@ export default function AppLayout() {
   }, [refreshBadge, location.pathname]);
 
   if (loading) return null;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
 
   const sections = buildNav(user, { openAlerts });
 

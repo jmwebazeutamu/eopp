@@ -1445,6 +1445,232 @@ export const STRINGS = {
   "common.cancel": "Cancel",
   "common.save": "Save",
   "common.none": "—",
+  // ---------------------------------------------------------------------
+  // The public landing page (`pages/landing/`).
+  //
+  // Copy is part of the spec: these are the mock's own words, not a
+  // paraphrase. Where a sentence differs from `Landing_Page_Redesign_v1.html`
+  // it is because a spec disagreed with the mock, and the build prompt makes
+  // the spec win. Each of those is noted at the string.
+  // ---------------------------------------------------------------------
+  "landing.skip": "Skip to sign in",
+  "landing.brandSub": "PSNP 6 · Women's Livelihoods Transformation",
+  "landing.signInCta": "Sign in",
+  "landing.langGroup": "Language",
+
+  "landing.heroEyebrow": "Self Help Groups · Enhanced Livelihoods Support",
+  "landing.heroTitle": "A group moves up a phase when the numbers say it is ready.",
+  "landing.heroLede":
+    "Facilitators record meetings, savings and loans. The platform computes the phase gate from that ledger and routes it to the woreda office. Nobody approves their own group, and no gate is passed on assertion.",
+  "landing.heroLedeEmphasis": "Nobody approves their own group",
+  "landing.heroFactOffline": "Meetings captured offline",
+  "landing.heroFactAudit": "Every ledger entry audited",
+  "landing.heroFactLangs": "Amharic and Afaan Oromoo",
+
+  "landing.signInTitle": "Sign in",
+  "landing.signInLede": "Use the account your woreda FSCO issued you.",
+  "landing.username": "Username",
+  "landing.usernameRequired": "Enter your username.",
+  "landing.password": "Password",
+  "landing.passwordRequired": "Enter your password.",
+  "landing.passwordHint": "Password managers and pasting are supported.",
+  "landing.reveal": "Show",
+  "landing.hide": "Hide",
+  "landing.revealLabel": "Show password",
+  "landing.submit": "Sign in",
+  "landing.submitting": "Signing in…",
+  // The one message that is not a field error. It covers a wrong password,
+  // a suspended account and an unreachable server alike, because the server
+  // deliberately does not say which — and never fails silently.
+  "landing.failed": "Could not sign in. Check your username and password, or ask your woreda FSCO whether the account is active.",
+  "landing.signedIn": "Signed in. Opening your workspace.",
+  "landing.mobileNote":
+    "Running a meeting today? Use the mobile app. It records attendance, savings and loan repayments without a connection and syncs when you are back in range.",
+  // The mock offers "Forgot password" and "Trust this device for 30 days".
+  // Neither exists in this build — there is no reset flow and no device trust —
+  // so neither is offered. A dead control on a sign-in page is worse than its
+  // absence, because the person clicking it has already failed to get in.
+  "landing.helpTitle": "Cannot get in?",
+  "landing.helpBody": "Your woreda FSCO issues and resets accounts. The user manual explains what each screen does.",
+  "landing.manual": "Open the user manual",
+
+  "landing.statsLabel": "How the model is structured",
+  "landing.statGroupSize": "Women in a Self Help Group",
+  "landing.statCla": "Groups in a kebele form one CLA",
+  "landing.statFederation": "CLAs in a woreda form a federation",
+  // TODO(source): the mock says "33 linkage steps, each with its own gate" and
+  // no source carries a 33. Only W1 of the linkage workflows has a numbered
+  // step table, of eight rows; W2 to W8 are prose. Replaced with the figure
+  // that is traceable — the twelve states of `wlt.LinkageStatus` — pending the
+  // product owner confirming what 33 was counting.
+  "landing.statLinkage": "States in the linkage lifecycle, each gated",
+  "landing.statsSource": "Thresholds are the configured programme values, not illustrations.",
+
+  "landing.phasesEyebrow": "How a group moves",
+  "landing.phasesTitle": "Four phases. Every gate computed from the ledger, then approved by the woreda",
+  "landing.phasesBody":
+    "A facilitator cannot advance a group by ticking a box. The conditions below are calculated from recorded meetings, savings and loans. When they are all met the group becomes eligible, and the woreda office approves or refuses it.",
+  "landing.phaseFormingTitle": "Forming",
+  "landing.phaseFormingBody":
+    "Roster and committee in place, bylaws recorded, first savings meeting closed with a balanced till.",
+  "landing.phaseOneTitle": "Phase 1: saving",
+  "landing.phaseOneBody":
+    "Weekly saving establishes the habit and the fund. Attendance and compliance are measured, not asserted.",
+  "landing.phaseTwoTitle": "Phase 2: lending",
+  "landing.phaseTwoBody":
+    "Internal lending starts. One bad loan holds the whole group. PAR30 must be zero at the gate.",
+  "landing.phaseThreeTitle": "Phase 3: CLA",
+  "landing.phaseThreeBody":
+    "Eligible groups in one kebele each elect delegates. The event stays open until every pair is recorded.",
+  "landing.phaseFourTitle": "Phase 4: federation",
+  "landing.phaseFourBody":
+    "CLAs that have been running a year or more. Only here does an external credit facility become possible.",
+
+  // Gate conditions. Every threshold arrives as a variable — none is typed here.
+  "landing.condRoster": "Roster {range}",
+  "landing.condCommittee": "Chair, secretary, treasurer",
+  "landing.condBylaws": "Bylaws recorded",
+  "landing.condBalancedTill": "First savings meeting balanced",
+  "landing.condAdherence": "Adherence ≥{pct}%",
+  "landing.condAttendance": "Attendance ≥{pct}%",
+  "landing.condSavings": "Savings compliance ≥{pct}%",
+  "landing.condMeetings": "{n}+ savings meetings",
+  "landing.condPar30": "PAR30 = {pct}%",
+  "landing.condFund": "Fund ≥{weeks} weeks",
+  "landing.condCycles": "{n} loan cycle closed",
+  "landing.condSocialFund": "Social fund active",
+  "landing.condSincePhaseOne": "{weeks}+ weeks since Phase 1",
+  "landing.condEligibleGroups": "{n}+ eligible SHGs",
+  "landing.condDelegates": "{n} delegates each",
+  "landing.condClaConstitution": "CLA constitution recorded",
+  "landing.condFederationConstitution": "Federation constitution recorded",
+  "landing.condMinClas": "{n}+ CLAs",
+  "landing.condClaMonths": "{n}+ months each",
+  "landing.condWoredaApproval": "Woreda approval",
+
+  "landing.modulesEyebrow": "What the platform holds",
+  "landing.modulesTitle": "The group ledger, and the two ways a group connects outward",
+  "landing.modulesBody":
+    "Structural linkage is vertical and exclusive: a group has one parent at a time. Service linkage is external and concurrent: a bank account, a buyer agreement, a cooperative membership can all run at once.",
+  "landing.modLedger": "Savings and loan ledger",
+  "landing.modLedgerBody": "Contributions, loans, repayments, service charge and the social fund",
+  "landing.modGates": "Phase gates",
+  "landing.modGatesBody": "Conditions computed continuously, with the shortfall shown",
+  "landing.modEnrolment": "Enrolment",
+  "landing.modEnrolmentBody": "PSNP ELS caseload imported, facilitator exceptions verified",
+  "landing.modFormation": "Group formation",
+  "landing.modFormationBody": "Composition by IGA, literacy and at least one device per group",
+  "landing.modMeetings": "Meetings",
+  "landing.modMeetingsBody": "Attendance, adherence and the balanced till, captured offline",
+  "landing.modPortfolio": "Portfolio quality",
+  "landing.modPortfolioBody": "PAR30, delinquency, default and fund adequacy per group",
+  "landing.modStructural": "Structural linkage",
+  "landing.modStructuralBody": "SHG into CLA, CLA into federation. One parent at a time",
+  "landing.modService": "Service linkage",
+  "landing.modServiceBody": "Bank accounts, buyer agreements, cooperative membership",
+  "landing.modCredit": "Credit facility",
+  "landing.modCreditBody": "Phase 4 only, capped at own funds, CLA or federation as subject",
+  "landing.modApprovals": "Approvals",
+  "landing.modApprovalsBody": "Routed to the woreda FSCO. No self-approval, enforced in the database",
+  "landing.modGrievances": "Grievances",
+  "landing.modGrievancesBody": "Intake, routing, resolution and appeal",
+  "landing.modReporting": "Reporting",
+  "landing.modReportingBody": "Kebele, woreda and programme views on one refresh schedule",
+  // Not yet built, and said so rather than omitted: the module grid otherwise
+  // reads as a description of what ships today.
+  "landing.modSoon": "Not built yet",
+
+  "landing.rolesEyebrow": "Who signs in",
+  "landing.rolesTitle": "Six roles, and a wall between recording and approving",
+  "landing.rolesBody":
+    "Permissions are scoped by geography and by the groups you are assigned. You land on the screen your job starts from.",
+  "landing.roleScope": "Scope",
+  "landing.roleLands": "Lands on:",
+  "landing.roleFacilitator": "WLT group facilitator",
+  "landing.roleFacilitatorScope": "Assigned groups",
+  "landing.roleFacilitatorBody":
+    "Forms groups, runs meeting capture, keeps the savings and loan ledger. Records, never approves.",
+  "landing.roleFacilitatorLands": "group roster and readiness",
+  "landing.roleWoreda": "WLT woreda officer (FSCO)",
+  "landing.roleWoredaScope": "Own woreda",
+  "landing.roleWoredaBody":
+    "Approves phase advancement, CLA formation and service linkages, and drafts a group where no facilitator yet works that kebele. Cannot run a group.",
+  "landing.roleWoredaLands": "approval queue, oldest first",
+  "landing.roleRegion": "WLT region officer (FSCO)",
+  "landing.roleRegionScope": "Own region",
+  "landing.roleRegionBody": "The tier above the woreda. Reviews and approves; records nothing.",
+  "landing.roleRegionLands": "woreda oversight",
+  "landing.roleFederal": "WLT federal officer (FSCO)",
+  "landing.roleFederalScope": "All woredas",
+  "landing.roleFederalBody":
+    "Watches phase progression, portfolio quality and linkage pipelines across the pilot.",
+  "landing.roleFederalLands": "programme dashboard",
+  "landing.roleMne": "Monitoring and evaluation",
+  "landing.roleMneScope": "All case records, read only",
+  // Stated as built, not as the mock had it. M&E carries `group_scope: NONE`,
+  // so it reads the youth programme's indicators and no group data at all.
+  "landing.roleMneBody":
+    "Pulls indicators against the agreed formulas. No write access anywhere, and no access to group ledgers.",
+  "landing.roleMneLands": "verification queues",
+  "landing.roleAdmin": "System administrator",
+  "landing.roleAdminScope": "Everything",
+  "landing.roleAdminBody":
+    "Runs the PSNP ELS import, resolves duplicate identities, issues accounts and owns the taxonomy.",
+  "landing.roleAdminLands": "user and partner directory",
+  "landing.rolesNote":
+    "A facilitator who can see a group roster does not thereby see those women's youth case files. The boundary runs both ways and is enforced by the server, not by the menu.",
+
+  "landing.fieldEyebrow": "Built for the conditions",
+  "landing.fieldTitle": "Designed around weekly meetings under a tree",
+  "landing.fieldOfflineTitle": "Offline first, not offline tolerant",
+  "landing.fieldOfflineBody":
+    "A meeting is recorded where it happens. Attendance, savings and repayments are written locally and synced later. Group selection requires at least one member with a device.",
+  "landing.fieldStorageTitle": "Records stay in country",
+  "landing.fieldStorageBody":
+    "Ledgers, bylaws and photographs sit in self-hosted storage under government control, not a third-party cloud.",
+  "landing.fieldLiteracyTitle": "Built for low literacy",
+  "landing.fieldLiteracyBody":
+    "Literacy level is a recorded selection criterion, so the interface and the printed group records are designed against it rather than around it.",
+  // The mock illustrates this with a timed sync trace carrying figures — "21 of
+  // 23 present", "fund adequacy now 12.4 weeks". Rule 4 forbids group data on a
+  // public page and rule 2 forbids invented numbers, and an invented trace is
+  // both. The shape of the day is described instead, without quantities.
+  "landing.syncTitle": "What a meeting day looks like",
+  "landing.syncStep1": "Attendance taken at the meeting, with no signal",
+  "landing.syncStep2": "Savings recorded and the till counted against the ledger",
+  "landing.syncStep3": "Repayments and any new loan issued, still offline",
+  "landing.syncStep4": "Back in range: the meeting is pushed, and the gates recompute",
+  "landing.syncNote": "An unbalanced till keeps the meeting open. It is never closed on a discrepancy.",
+
+  "landing.roadmapEyebrow": "One platform, two programmes",
+  "landing.roadmapTitle": "WLT and youth employment referrals on one registry",
+  "landing.roadmapBodyOne":
+    "The registry, the geography hierarchy, the permissions model and the referral engine are shared, so a young woman in a Self Help Group and a young person in a training placement are the same person record, never two.",
+  "landing.roadmapBodyTwo":
+    "The separation is deliberate in the other direction too. A facilitator with access to a group roster does not thereby gain access to those women's case files.",
+  "landing.roadmapNow": "Now",
+  "landing.roadmapNext": "Next",
+  "landing.roadmapLater": "Later",
+  // Reordered against the mock, which has youth employment as "Next". Sprints
+  // 0 to 6 of the youth programme are built and deployed — intake, pathway
+  // assignment, the referral engine, training, placement, enterprise,
+  // follow-up and grievances. Listing it as forthcoming would be untrue.
+  "landing.roadmapNowTitle": "Both programmes, live",
+  "landing.roadmapNowBody":
+    "Group formation, ledger, phase gates and linkage; youth intake, pathway assignment and the referral engine",
+  "landing.roadmapNextTitle": "Offline capture on a phone",
+  "landing.roadmapNextBody": "The facilitator's client, its sync queue and conflict resolution",
+  "landing.roadmapLaterTitle": "Federation and payments",
+  "landing.roadmapLaterBody": "Federation interface, digital payments, financial provider data exchange",
+
+  "landing.footBlurb":
+    "Group management and linkage for the Women's Livelihoods Transformation pilot under PSNP 6, and case management for the youth employment programme. Access is issued by your woreda FSCO.",
+  "landing.footAccess": "Get access",
+  "landing.footSupport": "Support",
+  "landing.footRequest": "Ask your woreda FSCO for an account",
+  "landing.footManual": "User manual",
+  "landing.footStatus": "Service status",
+  "landing.footRelease": "Pilot release",
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

@@ -70,7 +70,7 @@ api.interceptors.response.use(
         return api(original);
       } catch {
         tokens.clear();
-        window.location.href = "/login";
+        window.location.href = "/";
       }
     }
     return Promise.reject(error);

@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landing Page Redesign</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;600;700&display=swap">
+<style>
+:root{
+  --green-900:#0A3A2C; --green-700:#0F4F3C; --green-500:#1C7A5B; --green-100:#E4EFE9;
+  --green-border:#9CC4B4; --green-ink:#0B4A38;
+  --gold-700:#7A5308; --gold-500:#C98A15; --gold-300:#E9C877; --gold-100:#FBF1DC; --gold-border:#E0BC72;
+  --terra-700:#8A3A1E; --terra-500:#A84B2A; --terra-100:#F7E7DF;
+  --ink-900:#1A1915; --ink-600:#4E4A42; --ink-400:#6B6659;
+  --line:#E3DED2; --line-soft:#F4F1EA;
+  --paper:#F7F4EE; --surface:#FFFFFF; --surface-alt:#FCFBF8; --fill-muted:#F1EEE7;
+  --on-green:#F2F7F4; --on-green-dim:#A9C6BA;
+  --hero-ground:var(--green-900);
+  --shadow-card:0 1px 2px rgba(26,25,21,.06), 0 12px 32px -12px rgba(10,58,44,.28);
+  --shadow-soft:0 1px 2px rgba(26,25,21,.05), 0 6px 18px -12px rgba(26,25,21,.35);
+  --r-card:14px; --r-control:8px;
+  --font:'Archivo','Noto Sans Ethiopic',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --green-100:#12352A; --green-border:#2A5A48; --green-ink:#8FD3B8; --green-500:#3E9E7C;
+    --gold-100:#3A2E10; --gold-300:#C9A24A; --gold-500:#E0B457; --gold-700:#E9C877; --gold-border:#5C4818;
+    --terra-100:#3A1F14; --terra-500:#D0805E; --terra-700:#E09A78;
+    --ink-900:#EFEBE1; --ink-600:#B4AEA1; --ink-400:#8E887B;
+    --line:#302D27; --line-soft:#26241F;
+    --paper:#16150F; --surface:#1D1C16; --surface-alt:#211F19; --fill-muted:#24221B;
+    --hero-ground:#0A2B21;
+    --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -14px rgba(0,0,0,.7);
+    --shadow-soft:0 1px 2px rgba(0,0,0,.4), 0 8px 20px -14px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --green-100:#12352A; --green-border:#2A5A48; --green-ink:#8FD3B8; --green-500:#3E9E7C;
+  --gold-100:#3A2E10; --gold-300:#C9A24A; --gold-500:#E0B457; --gold-700:#E9C877; --gold-border:#5C4818;
+  --terra-100:#3A1F14; --terra-500:#D0805E; --terra-700:#E09A78;
+  --ink-900:#EFEBE1; --ink-600:#B4AEA1; --ink-400:#8E887B;
+  --line:#302D27; --line-soft:#26241F;
+  --paper:#16150F; --surface:#1D1C16; --surface-alt:#211F19; --fill-muted:#24221B;
+  --hero-ground:#0A2B21;
+  --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 14px 34px -14px rgba(0,0,0,.7);
+  --shadow-soft:0 1px 2px rgba(0,0,0,.4), 0 8px 20px -14px rgba(0,0,0,.6);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink-900);
+  font-family:var(--font); font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{margin:0; text-wrap:balance; letter-spacing:-.018em; font-weight:700; line-height:1.15}
+p{margin:0}
+a{color:inherit}
+.wrap{max-width:1160px; margin:0 auto; padding:0 24px}
+.eyebrow{
+  font-size:11.5px; font-weight:700; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ink-400);
+}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- top bar ---------- */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter:saturate(160%) blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.topbar__in{display:flex; align-items:center; gap:20px; height:60px}
+.brand{display:flex; align-items:center; gap:11px; text-decoration:none; margin-right:auto}
+.brand__mark{
+  width:32px; height:32px; border-radius:9px; flex:none;
+  background:var(--green-700); display:grid; place-items:center;
+}
+.brand__mark svg{width:19px; height:19px; display:block}
+.brand__name{font-weight:700; font-size:15px; letter-spacing:-.01em; line-height:1.15}
+.brand__sub{font-size:11px; color:var(--ink-400); line-height:1.15; margin-top:1px}
+.langs{display:flex; gap:2px; background:var(--fill-muted); padding:3px; border-radius:999px}
+.langs button{
+  font:inherit; font-size:12.5px; font-weight:600; border:0; background:transparent;
+  color:var(--ink-600); padding:6px 12px; border-radius:999px; cursor:pointer;
+  min-height:32px; transition:background .18s ease, color .18s ease;
+}
+.langs button[aria-pressed="true"]{background:var(--surface); color:var(--ink-900); box-shadow:var(--shadow-soft)}
+.langs button:hover{color:var(--ink-900)}
+.topbar__cta{
+  display:inline-flex; align-items:center; min-height:36px; padding:0 16px;
+  border-radius:var(--r-control); background:var(--green-700); color:#fff;
+  font-size:13.5px; font-weight:600; text-decoration:none;
+  transition:background .18s ease;
+}
+.topbar__cta:hover{background:var(--green-900)}
+
+/* ---------- prototype ribbon ---------- */
+.ribbon{
+  background:var(--gold-100); border-bottom:1px solid var(--gold-border);
+  color:var(--gold-700); font-size:12.5px; font-weight:600;
+}
+.ribbon__in{display:flex; align-items:center; gap:9px; padding:9px 0}
+.ribbon svg{width:15px; height:15px; flex:none}
+
+/* ---------- hero ---------- */
+.hero{position:relative; padding:0 0 76px; background:var(--hero-ground); overflow:hidden}
+.hero__ground{position:absolute; inset:0;}
+.hero__ground::after{
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(120% 90% at 88% 0%, rgba(201,138,21,.20), transparent 58%),
+    radial-gradient(80% 70% at 0% 100%, rgba(28,122,91,.42), transparent 62%);
+}
+.hero__in{position:relative; display:grid; grid-template-columns:1fr 400px; gap:56px; padding-top:68px; align-items:start}
+.hero__copy{color:var(--on-green); padding-bottom:24px}
+.hero .eyebrow{color:var(--gold-300)}
+.hero h1{font-size:clamp(34px,4.2vw,52px); font-weight:800; letter-spacing:-.03em; margin:16px 0 0; max-width:20ch}
+.hero__lede{margin-top:20px; font-size:17.5px; line-height:1.6; color:var(--on-green-dim); max-width:52ch}
+.hero__lede strong{color:var(--on-green); font-weight:600}
+.hero__facts{
+  display:flex; flex-wrap:wrap; gap:10px; margin-top:28px; padding-top:0; list-style:none; padding-left:0;
+}
+.hero__facts li{
+  display:inline-flex; align-items:center; gap:8px;
+  border:1px solid rgba(156,196,180,.34); border-radius:999px;
+  padding:7px 14px 7px 11px; font-size:13px; font-weight:500; color:var(--on-green);
+  background:rgba(255,255,255,.05);
+}
+.hero__facts svg{width:14px; height:14px; flex:none; color:var(--gold-300)}
+
+/* ---------- sign-in card ---------- */
+.signin{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card);
+  box-shadow:var(--shadow-card); padding:26px 26px 22px; position:relative;
+}
+.signin__head{border-bottom:1px solid var(--line-soft); padding-bottom:16px; margin-bottom:18px}
+.signin h2{font-size:19px}
+.signin__head p{font-size:13.5px; color:var(--ink-600); margin-top:5px}
+.field{display:flex; flex-direction:column; gap:6px; margin-bottom:14px}
+.field label{font-size:13px; font-weight:600}
+.field .hint{font-size:12px; color:var(--ink-400)}
+.control{position:relative; display:flex}
+.field input{
+  font:inherit; font-size:15px; width:100%; min-height:44px; padding:10px 12px;
+  border:1px solid var(--line); border-radius:var(--r-control);
+  background:var(--surface-alt); color:var(--ink-900);
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+.field input::placeholder{color:var(--ink-400)}
+.field input:focus{outline:none; border-color:var(--green-500); box-shadow:0 0 0 3px color-mix(in srgb, var(--green-500) 22%, transparent)}
+.field input[aria-invalid="true"]{border-color:var(--terra-500); background:var(--terra-100)}
+.reveal{
+  position:absolute; right:5px; top:50%; transform:translateY(-50%);
+  min-width:44px; min-height:36px; border:0; background:transparent; cursor:pointer;
+  color:var(--ink-600); font:inherit; font-size:12.5px; font-weight:600; border-radius:6px;
+}
+.reveal:hover{color:var(--ink-900); background:var(--fill-muted)}
+.field-err{
+  display:none; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--terra-700);
+}
+.field-err.on{display:flex}
+.field-err svg{width:13px; height:13px; flex:none}
+.signin__row{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:4px 0 18px}
+.check{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-600); cursor:pointer; min-height:44px}
+.check input{width:17px; height:17px; accent-color:var(--green-700); cursor:pointer}
+.link{font-size:13px; font-weight:600; color:var(--green-ink); text-decoration:none; border-bottom:1px solid var(--green-border)}
+.link:hover{border-bottom-color:currentColor}
+.btn-primary{
+  width:100%; min-height:46px; border:0; border-radius:var(--r-control);
+  background:var(--green-700); color:#fff; font:inherit; font-size:15px; font-weight:600;
+  cursor:pointer; transition:background .18s ease, transform .06s ease;
+}
+.btn-primary:hover{background:var(--green-900)}
+.btn-primary:active{transform:translateY(1px)}
+.btn-primary:focus-visible{outline:3px solid var(--gold-500); outline-offset:2px}
+.signin__note{
+  margin-top:16px; padding-top:15px; border-top:1px solid var(--line-soft);
+  font-size:12.5px; color:var(--ink-600); display:flex; gap:9px; align-items:flex-start;
+}
+.signin__note svg{width:15px; height:15px; flex:none; color:var(--green-500); margin-top:2px}
+.form-status{
+  display:none; margin-bottom:14px; padding:10px 12px; border-radius:var(--r-control);
+  background:var(--gold-100); border:1px solid var(--gold-border); color:var(--gold-700);
+  font-size:12.5px; font-weight:600;
+}
+.form-status.on{display:block}
+
+/* ---------- stat strip ---------- */
+.strip{border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--surface-alt)}
+.strip__in{display:grid; grid-template-columns:repeat(4,1fr); gap:0}
+.stat{padding:26px 28px; border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat__v{font-size:27px; font-weight:800; letter-spacing:-.03em; line-height:1.1}
+.stat__l{font-size:13px; color:var(--ink-600); margin-top:5px}
+
+/* ---------- generic section ---------- */
+section.band{padding:76px 0}
+.band--alt{background:var(--surface-alt); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
+.band__head{max-width:60ch; margin-bottom:36px}
+.band__head h2{font-size:clamp(25px,2.8vw,33px); letter-spacing:-.025em; margin-top:13px}
+.band__head p{margin-top:13px; font-size:16.5px; color:var(--ink-600)}
+
+/* ---------- lifecycle rail ---------- */
+.rail{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; counter-reset:step}
+.step{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card);
+  padding:18px 17px 17px; position:relative; box-shadow:var(--shadow-soft);
+}
+.step::before{
+  counter-increment:step; content:counter(step,decimal-leading-zero);
+  font-size:11.5px; font-weight:800; letter-spacing:.08em; color:var(--gold-700);
+  display:block; margin-bottom:9px;
+}
+.step h3{font-size:15px}
+.step p{font-size:13.5px; color:var(--ink-600); margin-top:7px}
+.step__states{display:flex; flex-wrap:wrap; gap:5px; margin-top:12px}
+.pill{
+  font-size:11px; font-weight:600; padding:3px 8px; border-radius:999px;
+  border:1px solid var(--green-border); background:var(--green-100); color:var(--green-ink);
+}
+.pill--warn{border-color:var(--gold-border); background:var(--gold-100); color:var(--gold-700)}
+.pill--stop{border-color:color-mix(in srgb, var(--terra-500) 45%, transparent); background:var(--terra-100); color:var(--terra-700)}
+
+/* ---------- module grid ---------- */
+.modules{display:grid; grid-template-columns:repeat(4,1fr); gap:12px}
+.mod{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card);
+  padding:16px 16px 15px; transition:border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.mod:hover{border-color:var(--green-border); transform:translateY(-2px); box-shadow:var(--shadow-soft)}
+.mod__ico{width:30px; height:30px; border-radius:8px; background:var(--green-100); display:grid; place-items:center; color:var(--green-ink); margin-bottom:11px}
+.mod__ico svg{width:16px; height:16px}
+.mod h3{font-size:14.5px}
+.mod p{font-size:13px; color:var(--ink-600); margin-top:5px}
+.mod--core{background:var(--green-100); border-color:var(--green-border)}
+.mod--core .mod__ico{background:var(--green-700); color:#fff}
+.mod--core h3{color:var(--green-ink)}
+.mod--core p{color:var(--green-ink); opacity:.82}
+
+/* ---------- roles ---------- */
+.roles{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+.role{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:20px 19px;
+}
+.role h3{font-size:15.5px}
+.role__scope{font-size:12px; font-weight:600; color:var(--gold-700); margin-top:4px; letter-spacing:.03em; text-transform:uppercase}
+.role p{font-size:13.5px; color:var(--ink-600); margin-top:10px}
+.role__lands{font-size:12.5px; color:var(--ink-400); margin-top:12px; padding-top:11px; border-top:1px solid var(--line-soft)}
+.role__lands b{color:var(--ink-600); font-weight:600}
+
+/* ---------- field note ---------- */
+.fieldnote{display:grid; grid-template-columns:1.05fr 1fr; gap:44px; align-items:center}
+.fnlist{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:16px}
+.fnlist li{display:flex; gap:13px; align-items:flex-start}
+.fnlist svg{width:19px; height:19px; flex:none; color:var(--green-500); margin-top:2px}
+.fnlist h3{font-size:15px}
+.fnlist p{font-size:13.5px; color:var(--ink-600); margin-top:4px}
+.figure{
+  background:var(--green-900); border-radius:var(--r-card); padding:24px; color:var(--on-green);
+  box-shadow:var(--shadow-card);
+}
+.figure__t{font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--gold-300)}
+.sync{list-style:none; padding:0; margin:16px 0 0; display:flex; flex-direction:column; gap:0}
+.sync li{display:flex; gap:13px; padding:11px 0; border-bottom:1px solid rgba(156,196,180,.2); font-size:13.5px; align-items:center}
+.sync li:last-child{border-bottom:0}
+.sync .t{font-size:12px; color:var(--on-green-dim); width:58px; flex:none; font-variant-numeric:tabular-nums}
+.sync .dot{width:8px; height:8px; border-radius:50%; background:var(--gold-500); flex:none}
+.sync .dot--q{background:var(--on-green-dim)}
+
+/* ---------- footer ---------- */
+footer{background:var(--green-900); color:var(--on-green-dim); padding:52px 0 34px; font-size:13.5px}
+.foot__grid{display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:40px; padding-bottom:30px; border-bottom:1px solid rgba(156,196,180,.22)}
+.foot h4{font-size:12px; letter-spacing:.09em; text-transform:uppercase; color:var(--gold-300); margin-bottom:13px}
+.foot ul{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:9px}
+.foot a{text-decoration:none; border-bottom:1px solid transparent}
+.foot a:hover{color:var(--on-green); border-bottom-color:rgba(156,196,180,.5)}
+.foot__brand p{margin-top:12px; max-width:42ch; line-height:1.6}
+.foot__bottom{display:flex; justify-content:space-between; gap:20px; padding-top:22px; font-size:12.5px; flex-wrap:wrap}
+footer .brand__name{color:var(--on-green)}
+
+.fieldnote__h{font-size:clamp(25px,2.8vw,33px); letter-spacing:-.025em; margin:13px 0 26px}
+.roadmap__in{display:grid; grid-template-columns:1.05fr 1fr; gap:48px; align-items:start}
+.roadmap__p{font-size:15.5px; color:var(--ink-600); margin-top:14px; max-width:56ch}
+.phases{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px}
+.phase{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:16px 18px; display:flex; flex-direction:column; gap:5px}
+.phase--now{background:var(--green-100); border-color:var(--green-border)}
+.phase__tag{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400)}
+.phase h3{font-size:15px}
+.phase p{font-size:13.5px; color:var(--ink-600)}
+.phase--now .phase__tag{color:var(--gold-700)}
+.phase--now h3{color:var(--green-ink)}
+.phase--now p{color:var(--green-ink); opacity:.85}
+@media (max-width:1000px){ .roadmap__in{grid-template-columns:1fr; gap:30px} }
+
+:focus-visible{outline:3px solid var(--gold-500); outline-offset:2px; border-radius:4px}
+@media (prefers-reduced-motion: reduce){*{transition:none !important; animation:none !important}}
+
+@media (max-width:1000px){
+  .hero__in{grid-template-columns:1fr; gap:32px}
+  .hero__copy{padding-bottom:0}
+  .signin{max-width:440px}
+  .strip__in{grid-template-columns:repeat(2,1fr)}
+  .stat:nth-child(2){border-right:0}
+  .stat:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .rail{grid-template-columns:repeat(2,1fr)}
+  .modules{grid-template-columns:repeat(2,1fr)}
+  .roles{grid-template-columns:repeat(2,1fr)}
+  .fieldnote{grid-template-columns:1fr; gap:30px}
+  .foot__grid{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .topbar__in{height:auto; padding:10px 0 11px; flex-wrap:wrap; gap:9px}
+  .topbar__cta{display:none}
+  .brand{margin-right:0; width:100%}
+  .brand__name{white-space:nowrap}
+  .langs{width:100%; justify-content:space-between}
+  .langs button{flex:1; font-size:12.5px; padding:6px 4px}
+  .signin__row{flex-direction:column; align-items:flex-start; gap:2px; margin-bottom:16px}
+  .check{min-height:40px}
+  .hero{padding-bottom:48px}
+  .hero__in{padding-top:40px}
+  section.band{padding:52px 0}
+  .rail,.modules,.roles{grid-template-columns:1fr}
+  .strip__in{grid-template-columns:1fr}
+  .stat{border-right:0; border-bottom:1px solid var(--line)}
+  .foot__grid{grid-template-columns:1fr; gap:28px}
+}
+</style>
+
+
+</head>
+<body>
+<div class="ribbon">
+  <div class="wrap ribbon__in">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+    <span>Design prototype. This is not a live sign-in page and no credentials are sent anywhere.</span>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="wrap topbar__in">
+    <a class="brand" href="#top">
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#F2F7F4" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="7" r="2.6"/><circle cx="16.6" cy="9.4" r="2.1"/><path d="M2.6 19v-1.6A4.4 4.4 0 0 1 7 13h2a4.4 4.4 0 0 1 4.4 4.4V19"/><path d="M15 13.6h1.4a4 4 0 0 1 4 4V19"/></svg>
+      </span>
+      <span>
+        <span class="brand__name">Temsalet</span>
+        <span class="brand__sub">PSNP 6 &middot; Women's Livelihoods Transformation</span>
+      </span>
+    </a>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" aria-pressed="true">English</button>
+      <button type="button" aria-pressed="false">አማርኛ</button>
+      <button type="button" aria-pressed="false">Afaan Oromoo</button>
+    </div>
+    <a class="topbar__cta" href="#signin">Sign in</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero__ground" aria-hidden="true"></div>
+    <div class="wrap hero__in">
+      <div class="hero__copy">
+        <p class="eyebrow">Self Help Groups &middot; Enhanced Livelihoods Support</p>
+        <h1>A group moves up a phase when the numbers say it is ready.</h1>
+        <p class="hero__lede">Facilitators record meetings, savings and loans. The platform computes the phase gate from that ledger and routes it to the woreda office. <strong>Nobody approves their own group</strong>, and no gate is passed on assertion.</p>
+        <ul class="hero__facts">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>Meetings captured offline</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>Every ledger entry audited</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>Amharic and Afaan Oromoo</li>
+        </ul>
+      </div>
+
+      <div class="signin" id="signin">
+        <div class="signin__head">
+          <h2>Sign in</h2>
+          <p>Use the account your woreda FSCO issued you.</p>
+        </div>
+        <form id="loginForm" novalidate>
+          <div class="form-status" id="formStatus" role="status"></div>
+
+          <div class="field">
+            <label for="user">Username or phone number</label>
+            <div class="control">
+              <input id="user" name="user" type="text" inputmode="text" autocomplete="username" placeholder="e.g. h.bekele or 09XXXXXXXX" aria-describedby="userErr">
+            </div>
+            <p class="field-err" id="userErr">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <span>Enter your username or the phone number on your account.</span>
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="pass">Password</label>
+            <div class="control">
+              <input id="pass" name="pass" type="password" autocomplete="current-password" aria-describedby="passErr passHint">
+              <button type="button" class="reveal" id="revealBtn" aria-pressed="false" aria-controls="pass">Show</button>
+            </div>
+            <p class="field-err" id="passErr">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <span>Enter your password.</span>
+            </p>
+            <p class="hint" id="passHint">Password managers and pasting are supported.</p>
+          </div>
+
+          <div class="signin__row">
+            <label class="check" for="trust">
+              <input type="checkbox" id="trust" name="trust">
+              <span>Trust this device for 30 days</span>
+            </label>
+            <a class="link" href="#support">Forgot password</a>
+          </div>
+
+          <button class="btn-primary" type="submit">Sign in</button>
+        </form>
+        <p class="signin__note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+          <span>Running a meeting today? Use the mobile app. It records attendance, savings and loan repayments without a connection and syncs when you are back in range.</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="strip" aria-label="How the model is structured">
+    <div class="wrap strip__in">
+      <div class="stat"><p class="stat__v tnum">15&ndash;25</p><p class="stat__l">Women in a Self Help Group</p></div>
+      <div class="stat"><p class="stat__v tnum">8</p><p class="stat__l">Groups in a kebele form one CLA</p></div>
+      <div class="stat"><p class="stat__v tnum">10</p><p class="stat__l">CLAs in a woreda form a federation</p></div>
+      <div class="stat"><p class="stat__v tnum">33</p><p class="stat__l">Linkage steps, each with its own gate</p></div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="band__head">
+        <p class="eyebrow">How a group moves</p>
+        <h2>Four phases. Every gate computed from the ledger, then approved by the woreda</h2>
+        <p>A facilitator cannot advance a group by ticking a box. The conditions below are calculated from recorded meetings, savings and loans. When they are all met the group becomes eligible, and the woreda office approves or refuses it.</p>
+      </div>
+      <div class="rail">
+        <article class="step">
+          <h3>Forming</h3>
+          <p>Roster and committee in place, bylaws recorded, first savings meeting closed with a balanced till.</p>
+          <div class="step__states"><span class="pill">Roster 15&ndash;25</span><span class="pill">Chair, secretary, treasurer</span></div>
+        </article>
+        <article class="step">
+          <h3>Phase 1: saving</h3>
+          <p>Weekly saving establishes the habit and the fund. Attendance and compliance are measured, not asserted.</p>
+          <div class="step__states"><span class="pill">Adherence &ge;90%</span><span class="pill">Attendance &ge;80%</span><span class="pill">10+ meetings</span></div>
+        </article>
+        <article class="step">
+          <h3>Phase 2: lending</h3>
+          <p>Internal lending starts. One bad loan holds the whole group. PAR30 must be zero at the gate.</p>
+          <div class="step__states"><span class="pill">Fund &ge;12 weeks</span><span class="pill">1 loan cycle closed</span><span class="pill--stop pill">PAR30 = 0</span></div>
+        </article>
+        <article class="step">
+          <h3>Phase 3: CLA</h3>
+          <p>Eight or more eligible groups in one kebele each elect two delegates. The event stays open until every pair is recorded.</p>
+          <div class="step__states"><span class="pill">8+ eligible SHGs</span><span class="pill">2 delegates each</span><span class="pill--warn pill">Woreda approval</span></div>
+        </article>
+        <article class="step">
+          <h3>Phase 4: federation</h3>
+          <p>Ten or more CLAs, each running a year or more. Only here does an external credit facility become possible.</p>
+          <div class="step__states"><span class="pill">10+ CLAs</span><span class="pill">12+ months each</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band--alt">
+    <div class="wrap">
+      <div class="band__head">
+        <p class="eyebrow">What the platform holds</p>
+        <h2>The group ledger, and the two ways a group connects outward</h2>
+        <p>Structural linkage is vertical and exclusive: a group has one parent at a time. Service linkage is external and concurrent: a bank account, a buyer agreement, a cooperative membership can all run at once.</p>
+      </div>
+      <div class="modules">
+        <article class="mod mod--core">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M12 3v7"/><path d="M8 10h8l1 11H7Z"/><path d="M8 6h8"/></svg></span>
+          <h3>Savings and loan ledger</h3>
+          <p>Contributions, loans, repayments, service charge and the social fund</p>
+        </article>
+        <article class="mod mod--core">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+          <h3>Phase gates</h3>
+          <p>Conditions computed continuously, with the shortfall shown</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>
+          <h3>Enrolment</h3>
+          <p>PSNP ELS caseload imported, facilitator exceptions verified</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span>
+          <h3>Group formation</h3>
+          <p>Composition by IGA, literacy and at least one device per group</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 15 2 2 4-4"/></svg></span>
+          <h3>Meetings</h3>
+          <p>Attendance, adherence and the balanced till, captured offline</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>
+          <h3>Portfolio quality</h3>
+          <p>PAR30, delinquency, default and fund adequacy per group</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v6"/><path d="M6 21v-4a6 6 0 0 1 12 0v4"/><circle cx="12" cy="11" r="2"/><path d="M4 21h16"/></svg></span>
+          <h3>Structural linkage</h3>
+          <p>SHG into CLA, CLA into federation. One parent at a time</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span>
+          <h3>Service linkage</h3>
+          <p>Bank accounts, buyer agreements, cooperative membership</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 11h20"/><path d="M6 15h4"/></svg></span>
+          <h3>Credit facility</h3>
+          <p>Phase 4 only, capped at own funds, CLA or federation as subject</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H7l-3 3Z"/><path d="M9 9h6"/></svg></span>
+          <h3>Approvals</h3>
+          <p>Routed to the woreda FSCO. No self-approval, enforced in the database</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M12 9v4M12 16h.01"/></svg></span>
+          <h3>Grievances</h3>
+          <p>Intake, routing, resolution and appeal</p>
+        </article>
+        <article class="mod">
+          <span class="mod__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></span>
+          <h3>Reporting</h3>
+          <p>Kebele, woreda and programme views on one refresh schedule</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="band__head">
+        <p class="eyebrow">Who signs in</p>
+        <h2>Five roles, and a wall between recording and approving</h2>
+        <p>Permissions are scoped by geography and by the groups you are assigned. You land on the screen your job starts from.</p>
+      </div>
+      <div class="roles">
+        <article class="role">
+          <h3>WLT facilitator</h3>
+          <p class="role__scope">Assigned groups</p>
+          <p>Forms groups, runs meeting capture, keeps the savings and loan ledger. Records, never approves.</p>
+          <p class="role__lands"><b>Lands on:</b> group roster and readiness</p>
+        </article>
+        <article class="role">
+          <h3>Woreda FSCO</h3>
+          <p class="role__scope">Own woreda</p>
+          <p>Approves phase advancement, CLA formation and service linkages. Cannot approve a group they recorded.</p>
+          <p class="role__lands"><b>Lands on:</b> approval queue, oldest first</p>
+        </article>
+        <article class="role">
+          <h3>CF or DA</h3>
+          <p class="role__scope">Own kebele</p>
+          <p>Existing PSNP field staff. Verifies enrolment exceptions and supports groups in the kebele.</p>
+          <p class="role__lands"><b>Lands on:</b> kebele group list</p>
+        </article>
+        <article class="role">
+          <h3>Programme manager</h3>
+          <p class="role__scope">All woredas</p>
+          <p>Watches phase progression, portfolio quality and linkage pipelines across the pilot.</p>
+          <p class="role__lands"><b>Lands on:</b> programme dashboard</p>
+        </article>
+        <article class="role">
+          <h3>Monitoring and evaluation</h3>
+          <p class="role__scope">All woredas, read only</p>
+          <p>Pulls indicators against the agreed formulas. No write access anywhere in the ledger.</p>
+          <p class="role__lands"><b>Lands on:</b> indicator library</p>
+        </article>
+        <article class="role">
+          <h3>Registry administrator</h3>
+          <p class="role__scope">All woredas</p>
+          <p>Runs the PSNP ELS import, resolves duplicate identities, issues accounts.</p>
+          <p class="role__lands"><b>Lands on:</b> import and reconciliation queue</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band--alt">
+    <div class="wrap fieldnote">
+      <div>
+        <p class="eyebrow">Built for the conditions</p>
+        <h2 class="fieldnote__h">Designed around weekly meetings under a tree</h2>
+        <ul class="fnlist">
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>
+            <div><h3>Offline first, not offline tolerant</h3><p>A meeting is recorded where it happens. Attendance, savings and repayments are written locally and synced later. Group selection requires at least one member with a device.</p></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg>
+            <div><h3>Records stay in country</h3><p>Ledgers, bylaws and photographs sit in self-hosted storage under government control, not a third-party cloud.</p></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            <div><h3>Built for low literacy</h3><p>Literacy level is a recorded selection criterion, so the interface and the printed group records are designed against it rather than around it.</p></div>
+          </li>
+        </ul>
+      </div>
+      <div class="figure">
+        <p class="figure__t">A facilitator capturing Tuesday's meeting</p>
+        <ul class="sync">
+          <li><span class="t">09:40</span><span class="dot dot--q"></span><span>21 of 23 present, no signal</span></li>
+          <li><span class="t">09:55</span><span class="dot dot--q"></span><span>Savings recorded, till balanced</span></li>
+          <li><span class="t">10:12</span><span class="dot dot--q"></span><span>2 repayments, 1 new loan issued</span></li>
+          <li><span class="t">14:30</span><span class="dot"></span><span>Signal restored, meeting pushed</span></li>
+          <li><span class="t">14:30</span><span class="dot"></span><span>Fund adequacy now 12.4 weeks, Phase 2 gate met</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="band roadmap">
+    <div class="wrap">
+      <div class="roadmap__in">
+        <div>
+          <p class="eyebrow">One platform, two programmes</p>
+          <h2 class="fieldnote__h">WLT ships first. Youth employment referrals follow</h2>
+          <p class="roadmap__p">The registry, the geography hierarchy, the permissions model and the referral engine are shared. Youth employment case management is built on the same foundations in a later phase, so a young woman in a Self Help Group and a young person in a training placement are the same person record, never two.</p>
+          <p class="roadmap__p">The separation is deliberate in the other direction too. A facilitator with access to a group roster does not thereby gain access to those women's case files.</p>
+        </div>
+        <ol class="phases">
+          <li class="phase phase--now">
+            <span class="phase__tag">Now</span>
+            <h3>Women's Livelihoods Transformation</h3>
+            <p>Group formation, ledger, phase gates, structural and service linkage</p>
+          </li>
+          <li class="phase">
+            <span class="phase__tag">Next</span>
+            <h3>Youth employment case management</h3>
+            <p>Intake, pathway assignment and the referral engine on the same registry</p>
+          </li>
+          <li class="phase">
+            <span class="phase__tag">Later</span>
+            <h3>Federation and payments</h3>
+            <p>Federation interface, digital payments, financial provider data exchange</p>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="support">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div class="foot foot__brand">
+        <span class="brand__name">Temsalet</span>
+        <p>Group management and linkage for the Women's Livelihoods Transformation pilot under PSNP 6. Access is issued by your woreda FSCO.</p>
+      </div>
+      <div class="foot">
+        <h4>Get access</h4>
+        <ul>
+          <li><a href="#signin">Request an account</a></li>
+          <li><a href="#signin">Reset your password</a></li>
+          <li><a href="#signin">Partner organisation sign-up</a></li>
+        </ul>
+      </div>
+      <div class="foot">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#signin">Help desk</a></li>
+          <li><a href="#signin">Mobile app download</a></li>
+          <li><a href="#signin">Data protection notice</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot__bottom">
+      <span>Design prototype &middot; not a live service</span>
+      <span>Pilot release &middot; August 2026</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var langs = document.querySelectorAll('.langs button');
+  langs.forEach(function(b){
+    b.addEventListener('click', function(){
+      langs.forEach(function(x){ x.setAttribute('aria-pressed','false'); });
+      b.setAttribute('aria-pressed','true');
+    });
+  });
+
+  var pass = document.getElementById('pass');
+  var reveal = document.getElementById('revealBtn');
+  reveal.addEventListener('click', function(){
+    var shown = pass.type === 'text';
+    pass.type = shown ? 'password' : 'text';
+    reveal.textContent = shown ? 'Show' : 'Hide';
+    reveal.setAttribute('aria-pressed', shown ? 'false' : 'true');
+    pass.focus();
+  });
+
+  var form = document.getElementById('loginForm');
+  var status = document.getElementById('formStatus');
+  function setErr(input, errEl, bad){
+    errEl.classList.toggle('on', bad);
+    input.setAttribute('aria-invalid', bad ? 'true' : 'false');
+  }
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var u = document.getElementById('user');
+    var uErr = document.getElementById('userErr');
+    var pErr = document.getElementById('passErr');
+    var badU = !u.value.trim();
+    var badP = !pass.value.trim();
+    setErr(u, uErr, badU);
+    setErr(pass, pErr, badP);
+    status.classList.remove('on');
+    if (badU) { u.focus(); return; }
+    if (badP) { pass.focus(); return; }
+    status.textContent = 'This is a design prototype. Nothing was submitted and no credentials left this page.';
+    status.classList.add('on');
+  });
+})();
+</script>
+
+</body>
+</html>

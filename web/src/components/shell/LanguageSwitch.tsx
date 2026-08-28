@@ -12,7 +12,21 @@ import { LANGUAGES, useLang } from "../../i18n/LanguageContext";
  * `LanguageProvider`'s job and none of it changes here. The `yep.lang` storage
  * key is unchanged.
  */
-export default function LanguageSwitch({ tone = "light" }: { tone?: "light" | "dark" }) {
+export default function LanguageSwitch({
+  tone = "light",
+  size = "compact",
+}: {
+  tone?: "light" | "dark";
+  /**
+   * `comfortable` raises the buttons to the 44px minimum target.
+   *
+   * The default stays 36 because inside the account menu these sit in a list
+   * of menu rows and 44 would break that rhythm; the public landing page has
+   * no such constraint and is the screen most likely to be met on a phone by
+   * somebody who has never used it.
+   */
+  size?: "compact" | "comfortable";
+}) {
   const { lang, setLang, t } = useLang();
   const onDark = tone === "dark";
 
@@ -30,8 +44,8 @@ export default function LanguageSwitch({ tone = "light" }: { tone?: "light" | "d
             // "አማርኛ" with Amharic phonetics rather than the page language's.
             lang={entry.code}
             style={{
-              minHeight: 36,
-              padding: "0 12px",
+              minHeight: size === "comfortable" ? 44 : 36,
+              padding: size === "comfortable" ? "0 16px" : "0 12px",
               borderRadius: "var(--r-button)",
               border: `1px solid ${selected ? "var(--green-700)" : onDark ? "rgba(255,255,255,.25)" : "var(--line)"}`,
               background: selected ? "var(--green-700)" : "transparent",

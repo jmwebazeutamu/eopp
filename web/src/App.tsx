@@ -17,7 +17,7 @@ import MyWorkPage from "./pages/dashboard/MyWorkPage";
 import ProgrammePage from "./pages/dashboard/ProgrammePage";
 import ResultsPage from "./pages/dashboard/ResultsPage";
 import WoredaPage from "./pages/dashboard/WoredaPage";
-import LoginPage from "./pages/LoginPage";
+import LandingPage from "./pages/landing/LandingPage";
 import EnterprisesPage from "./pages/EnterprisesPage";
 import FacilitatorHomePage from "./pages/wlt/FacilitatorHomePage";
 import WltDashboardPage from "./pages/wlt/WltDashboardPage";
@@ -56,15 +56,37 @@ function Home() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/cases" replace />;
   if (user.access.case_scope === "LINKED") return <Navigate to="/referrals" replace />;
-  // Nothing at all: not the system administrator since the 2026-08-16
-  // deviation, but still any role the matrix does not cover.
-  if (user.access.case_scope === "NONE") return <Navigate to="/users" replace />;
+  if (user.access.case_scope === "NONE") {
+    // A WLT role before anything else. All four carry `case_scope: NONE` — that
+    // is how the module boundary is expressed — so the branch below would have
+    // sent a facilitator to the user directory, which she also cannot open.
+    // Unreachable until now because the old sign-in navigated to /cases itself;
+    // making `/` the post-sign-in destination is what exposed it.
+    if (user.access.group_scope !== "NONE") return <Navigate to="/wlt/dashboard" replace />;
+    // Nothing at all: not the system administrator since the 2026-08-16
+    // deviation, but still any role the matrix does not cover.
+    return <Navigate to="/users" replace />;
+  }
   // A role that reads case records widely but writes none of them is a
   // supervisory one, and the handoff designs the dashboard for exactly them.
   // Case-facing roles keep landing on their caseload, which is their work.
   //
   if (!user.access.case_write) return <Navigate to="/dashboard" replace />;
   return <Navigate to="/cases" replace />;
+}
+
+/**
+ * The front door.
+ *
+ * Waits for the auth bootstrap before choosing: `AuthProvider` starts with
+ * `loading` true while it exchanges a stored refresh token, and rendering the
+ * public page during that window would flash a marketing hero at somebody who
+ * is already signed in.
+ */
+function Root() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return user ? <Home /> : <LandingPage />;
 }
 
 /**
@@ -190,9 +212,18 @@ export default function App() {
           <AuthProvider>
             <LanguageProvider>
             <Routes>
-              <Route path="/login" element={<LoginPage />} />
+              {/* The bare login card this replaces lived here. Kept as a
+                  redirect rather than deleted outright: it is the URL the
+                  401 handler used to send people to, so it is in browser
+                  histories and in at least one runbook. */}
+              <Route path="/login" element={<Navigate to="/" replace />} />
+              {/* `/` is public. Signed out it is the landing page; signed in it
+                  is the redirect it has always been, so the sign-in form does
+                  not need to restate where each role goes. Outside AppLayout
+                  because the landing page carries its own chrome and must
+                  render for somebody with no account at all. */}
+              <Route path="/" element={<Root />} />
               <Route element={<AppLayout />}>
-                <Route index element={<Home />} />
                 {/* The four tiers. Each is a first-class sidebar destination;
                     the index picks the one this role is actually for, rather
                     than showing everyone tier 1. */}
