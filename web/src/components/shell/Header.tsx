@@ -1,116 +1,71 @@
-import { Select } from "antd";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useLang } from "../../i18n/LanguageContext";
 import { Icon, ICON_PATHS } from "../ui";
 import GlobalSearch from "./GlobalSearch";
-import { SCOPE_ALL, useScope } from "./ScopeContext";
+import ScopeSelector from "./ScopeSelector";
 
 /**
- * The header, doing three jobs in 56px.
+ * The application header: brand, global search, woreda scope, account.
  *
- * It used to be an 80px bar carrying the full product name a second time (the
- * rail said it too), a "Woreda: —" label that was empty for exactly the
- * accounts that can see every woreda, and the language switch. The name belongs
- * on the login screen, the language switch moved into the account menu, and the
- * woreda label became the control it was reaching for.
+ * Desktop carries all four. On a phone the bar holds the brand, a search
+ * button (a 480px field and a scope select cannot share 390px; the search opens
+ * over the bar instead) and whatever the shell passes as `menu` — the labelled
+ * Menu button — while scope and account move into the drawer.
  */
-export const HEADER_HEIGHT = 56;
-export const HEADER_HEIGHT_PHONE = 48;
-
-export default function Header({ isPhone = false }: { isPhone?: boolean }) {
+export default function Header({
+  isPhone = false,
+  menu,
+  account,
+}: {
+  isPhone?: boolean;
+  menu?: React.ReactNode;
+  account?: React.ReactNode;
+}) {
   const { t } = useLang();
-  const scope = useScope();
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <header
-      className={isPhone ? "on-dark" : undefined}
-      style={{
-        height: isPhone ? HEADER_HEIGHT_PHONE : HEADER_HEIGHT,
-        flexShrink: 0,
-        background: isPhone ? "var(--green-900)" : "var(--paper)",
-        color: isPhone ? "var(--on-dark)" : "var(--ink-900)",
-        padding: isPhone ? "0 10px" : "0 24px",
-        display: "flex",
-        alignItems: "center",
-        gap: isPhone ? 8 : 16,
-        position: "relative",
-        justifyContent: isPhone ? undefined : "flex-end",
-        borderBottom: isPhone ? "none" : "1px solid #e9e2d3",
-      }}
-    >
-      {isPhone && (
-        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
-          {t("shell.appMark")}
-        </span>
-      )}
+    <header className="app-header on-dark" data-phone={isPhone || undefined}>
+      <div className="app-header-inner">
+      <Link to="/" className="app-brand">
+        <span className="app-brand-mark">{t("shell.appMark")}</span>
+        <span className="app-brand-name">{t("app.name")}</span>
+      </Link>
 
-      {/* At 390px a 480px search field and a scope selector cannot both sit in
-          the bar; the field truncated its own placeholder to "Searc". The
-          search opens over the header instead, full width, which is also where
-          a phone keyboard expects it. */}
       {isPhone ? (
         searchOpen ? (
-          <div style={{ position: "absolute", inset: "0 8px", display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="app-search-sheet">
             <GlobalSearch autoFocus />
-            <button
-              type="button"
-              onClick={() => setSearchOpen(false)}
-              aria-label={t("common.close")}
-              style={{
-                minWidth: 44,
-                minHeight: 44,
-                border: "none",
-                background: "transparent",
-                color: "var(--on-dark)",
-                font: "inherit",
-                fontFamily: "var(--font-body)",
-                cursor: "pointer",
-              }}
-            >
-              {"\u2715"}
+            <button type="button" className="icon-button" onClick={() => setSearchOpen(false)} aria-label={t("common.close")}>
+              {"✕"}
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setSearchOpen(true)}
-            aria-label={t("search.label")}
-            style={{
-              marginLeft: "auto",
-              minWidth: 44,
-              minHeight: 44,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "none",
-              background: "transparent",
-              color: "var(--on-dark)",
-              cursor: "pointer",
-            }}
-          >
-            <Icon path={ICON_PATHS.search} size={20} />
-          </button>
+          <>
+            <button
+              type="button"
+              className="icon-button app-spacer"
+              onClick={() => setSearchOpen(true)}
+              aria-label={t("search.label")}
+            >
+              <Icon path={ICON_PATHS.search} size={20} />
+            </button>
+            {menu}
+          </>
         )
-      ) : null}
-
-      <div style={{ marginLeft: isPhone ? 0 : "auto", display: "flex", alignItems: "center", gap: 8 }}>
-        {scope.selectable ? (
-          <Select
-            aria-label={t("shell.scope")}
-            value={scope.woreda}
-            onChange={scope.setWoreda}
-            size="middle"
-            style={{ minWidth: isPhone ? 120 : 160 }}
-            options={[
-              { value: SCOPE_ALL, label: t("shell.allWoredas") },
-              ...scope.options.map((name) => ({ value: name, label: name })),
-            ]}
-          />
-        ) : (
-          <span style={{ color: isPhone ? "var(--on-dark-2)" : "var(--ink-600)", fontSize: 13, whiteSpace: "nowrap" }}>{scope.label}</span>
-        )}
+      ) : (
+        <>
+          <div className="app-search">
+            <GlobalSearch />
+          </div>
+          <div className="app-scope">
+            <ScopeSelector />
+          </div>
+          {account}
+        </>
+      )}
       </div>
     </header>
   );

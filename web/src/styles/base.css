@@ -128,10 +128,9 @@ p {
 
 .page {
   padding: 14px;
-  max-width: 1180px;
-  /* Centred in whatever width the shell leaves. Without this, collapsing the
-     rail moved the table 176px left and left a dead gutter on the right — the
-     control appeared to do nothing. */
+  max-width: var(--content-max);
+  /* Centred in whatever width the shell leaves, so the page and the navigation
+     rows above it share a left edge. */
   margin-inline: auto;
 }
 
@@ -1044,7 +1043,7 @@ p {
  * distinct job — they are not three ways of saying "small screen":
  *
  *   900px  every multi-column grid collapses to one column
- *   780px  the structural switch: nav rail vs bottom tab bar, table vs cards
+ *   780px  the structural switch: nav rows vs drawer menu, table vs cards
  *          (the `.only-phone` / `.only-laptop` helpers below)
  *   640px  the KPI row drops from three columns to two
  *
@@ -2647,4 +2646,348 @@ button.row-link {
   .landing__statv {
     font-size: 28px;
   }
+}
+
+
+/* -- Shell: header, primary and secondary navigation ---------------------
+ *
+ * Header (dark), primary row (dark, one step lighter), secondary row (paper).
+ * No breakpoint of its own: the rows measure themselves and move what does not
+ * fit behind "More" (OverflowNav), and the 780px switch decides rows vs drawer.
+ */
+.app-header {
+  position: relative;
+  flex-shrink: 0;
+  padding: 0 14px;
+  background: var(--rail-bg);
+  color: var(--on-dark);
+}
+.app-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+.app-header[data-phone] {
+  padding: 0 10px;
+  background: var(--green-900);
+}
+.app-header[data-phone] .app-header-inner {
+  min-height: 48px;
+  gap: 8px;
+}
+/* The header and both navigation rows use the page's own side padding
+   (.page: 14px, 32px from 780px), so brand, first link and page title share a
+   left edge at every width. The list is pulled back by a link's padding so the
+   link *text* — not its hit area — is what lines up. */
+@media (min-width: 780px) {
+  .app-header,
+  .topnav {
+    padding-inline: 32px;
+  }
+}
+.app-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.app-brand-mark {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.app-brand-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--on-dark-2);
+}
+.app-header[data-phone] .app-brand-name {
+  display: none;
+}
+.app-search {
+  flex: 1 1 0;
+  min-width: 160px;
+  max-width: 440px;
+  margin-left: auto;
+}
+.app-scope {
+  flex: 0 0 180px;
+}
+.app-spacer {
+  margin-left: auto;
+}
+.app-search-sheet {
+  position: absolute;
+  inset: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.icon-button,
+.menu-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--on-dark);
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+.icon-button {
+  min-width: 44px;
+}
+.menu-button {
+  padding: 0 12px;
+  border: 1px solid var(--on-dark-3);
+  border-radius: var(--r-button);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.topnav {
+  flex-shrink: 0;
+  padding: 0 14px;
+}
+.topnav-primary {
+  background: var(--green-700);
+  color: var(--on-dark);
+}
+.topnav-secondary {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.topnav-inner {
+  position: relative;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+.topnav-list {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 0 -14px;
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+}
+.topnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+/* Active is a fill/underline and a weight, never colour alone. */
+.topnav-primary .topnav-link {
+  color: var(--on-dark-2);
+}
+.topnav-primary .topnav-link:hover {
+  background: var(--rail-active);
+}
+.topnav-primary .topnav-link[data-current] {
+  color: var(--on-dark);
+  background: var(--rail-active);
+  border-bottom-color: var(--gold-300);
+}
+.topnav-primary :where(a, button):focus-visible {
+  outline: 2px solid var(--on-dark);
+  outline-offset: -2px;
+}
+.topnav-secondary .topnav-link {
+  color: var(--ink-600);
+}
+.topnav-secondary .topnav-link:hover {
+  background: var(--green-100);
+}
+.topnav-secondary .topnav-link[data-current] {
+  color: var(--green-900);
+  border-bottom-color: var(--green-500);
+}
+.topnav-more {
+  position: relative;
+}
+.topnav-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--overlay);
+}
+.topnav-menu .topnav-link,
+.topnav-primary .topnav-menu .topnav-link {
+  width: 100%;
+  color: var(--ink-900);
+  border-bottom: 0;
+  border-left: 3px solid transparent;
+  border-radius: var(--r-button);
+  background: transparent;
+}
+.topnav-menu .topnav-link:hover {
+  background: var(--green-100);
+}
+.topnav-menu .topnav-link[data-current] {
+  background: var(--green-100);
+  color: var(--green-900);
+  border-left-color: var(--green-500);
+}
+/* A hidden copy of the row, used only to read widths. visibility:hidden takes it
+   out of the tab order and the accessibility tree. */
+.topnav-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 0;
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.account-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+.account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--on-dark);
+  font-family: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}
+.account-trigger[aria-expanded="true"] {
+  background: var(--rail-active);
+}
+.account-trigger-text {
+  display: block;
+  max-width: 170px;
+  min-width: 0;
+  line-height: 1.25;
+}
+.account-trigger-name,
+.account-trigger-role {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-trigger-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.account-trigger-role {
+  font-size: 11.5px;
+  color: var(--on-dark-3);
+}
+.account-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 14px;
+  background: var(--surface);
+  color: var(--ink-900);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--overlay);
+}
+.account-group {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.account-action {
+  margin-top: 12px;
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: transparent;
+  color: var(--ink-900);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.drawer-module {
+  margin-bottom: 12px;
+}
+.drawer-module ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.drawer-heading {
+  margin: 8px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-600);
+}
+.drawer-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--touch);
+  padding: 0 12px;
+  border-left: 3px solid transparent;
+  border-radius: var(--r-button);
+  color: var(--ink-900);
+  font-size: 15px;
+  text-decoration: none;
+}
+.drawer-link[data-current] {
+  background: var(--green-100);
+  border-left-color: var(--green-500);
+  font-weight: 700;
+}
+.drawer-scope {
+  margin: 4px 0 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }

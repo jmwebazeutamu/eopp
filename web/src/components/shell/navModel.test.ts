@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AccessMatrix, CurrentUser, Role } from "../../api/types";
-import { buildNav, isActiveItem, isActivePath } from "./navModel";
+import { activeModule, buildModules, buildNav, isActiveItem, isActivePath } from "./navModel";
 
 /**
  * Which items a role is offered.
@@ -177,5 +177,46 @@ describe("isActiveItem", () => {
 
     expect(isActiveItem(cases, "/cases/abc")).toBe(true);
     expect(isActiveItem(cases, "/caseload")).toBe(false);
+  });
+});
+
+describe("buildModules", () => {
+  const modules = (user: CurrentUser) => buildModules(buildNav(user, { openAlerts: 0 }));
+
+  it("lands on the module's first permitted destination, never on a route the role lacks", () => {
+    const work = modules(userWith("CASE_MANAGER", {})).find((m) => m.key === "nav.sectionWork")!;
+    expect(work.landing).toBe(work.items[0].path);
+    expect(work.items.map((i) => i.path)).toContain(work.landing);
+  });
+
+  it("gives a one-page module no secondary destinations", () => {
+    const grievances = modules(userWith("CASE_MANAGER", {})).find((m) => m.landing === "/grievances")!;
+    expect(grievances.items).toEqual([]);
+  });
+
+  it("offers a role with no case or group access only what it is allowed", () => {
+    const partner = modules(userWith("PARTNER_STAFF", { case_scope: "NONE", referral_scope: "LINKED" }));
+    expect(partner.flatMap((m) => [m.landing, ...m.items.map((i) => i.path)])).not.toContain("/youth");
+  });
+
+  it("rolls the alert count up to the module that holds it", () => {
+    const work = buildModules(buildNav(userWith("CASE_MANAGER", {}), { openAlerts: 7 })).find(
+      (m) => m.key === "nav.sectionWork",
+    )!;
+    expect(work.badgeCount).toBe(7);
+  });
+});
+
+describe("activeModule", () => {
+  const sections = buildNav(userWith("CASE_MANAGER", {}), { openAlerts: 0 });
+  const mods = buildModules(sections);
+
+  it("follows nested routes and similar prefixes", () => {
+    expect(activeModule(mods, sections, "/cases/abc-123")?.key).toBe("nav.sectionWork");
+    expect(activeModule(mods, sections, "/partners")?.key).toBe("nav.sectionDirectory");
+  });
+
+  it("is none for a route no module owns", () => {
+    expect(activeModule(mods, sections, "/nowhere")).toBeUndefined();
   });
 });

@@ -241,8 +241,8 @@ export const ICON_PATHS = {
   results: "M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8z",
   // Rail collapse chevrons. Two paths rather than one rotated, so the icon
   // reads correctly in a right-to-left layout if one is ever added.
-  railCollapse: "M15 6l-6 6 6 6",
-  railExpand: "M9 6l6 6-6 6",
+  chevronDown: "M6 9l6 6 6-6",
+  menu: "M4 6h16M4 12h16M4 18h16",
   check: "M4 13l5 5L20 7",
 } as const;
 

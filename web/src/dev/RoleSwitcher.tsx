@@ -391,7 +391,7 @@ const LAUNCHER: React.CSSProperties = {
   right: 16,
   // Clears the 56px tab bar plus its breathing room on a phone. The tab bar is
   // sticky inside the main column, so it occupies the bottom of the viewport.
-  bottom: "calc(var(--tabbar-height, 56px) + 20px)",
+  bottom: 20,
   zIndex: 900,
   display: "flex",
   alignItems: "center",
@@ -410,7 +410,7 @@ const LAUNCHER: React.CSSProperties = {
 const PANEL: React.CSSProperties = {
   position: "fixed",
   right: 16,
-  bottom: "calc(var(--tabbar-height, 56px) + 20px)",
+  bottom: 20,
   zIndex: 900,
   width: "min(360px, calc(100vw - 32px))",
   maxHeight: "min(70vh, 620px)",

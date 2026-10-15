@@ -16,11 +16,11 @@ import UserMenu, { initialsOf } from "./UserMenu";
  * stretched to the height of the page, 2,153px below the fold.
  */
 
-function renderMenu(onSignOut = vi.fn(), collapsed = false) {
+function renderMenu(onSignOut = vi.fn()) {
   render(
     <LanguageProvider>
       <UserMenu user={testUser("CASE_MANAGER", { full_name: "Almaz Tesfaye", woreda_assignment: ["Adama"] })}
-        collapsed={collapsed} onSignOut={onSignOut} />
+        onSignOut={onSignOut} />
     </LanguageProvider>,
   );
   return onSignOut;
@@ -46,7 +46,7 @@ describe("UserMenu", () => {
     // every woreda. An em dash reads as "none", which is the opposite.
     render(
       <LanguageProvider>
-        <UserMenu user={testUser("SYSTEM_ADMIN", { woreda_assignment: [] })} collapsed={false} onSignOut={vi.fn()} />
+        <UserMenu user={testUser("SYSTEM_ADMIN", { woreda_assignment: [] })} onSignOut={vi.fn()} />
       </LanguageProvider>,
     );
     return userEvent.setup().click(screen.getByRole("button", { expanded: false })).then(() => {
@@ -85,11 +85,9 @@ describe("UserMenu", () => {
     expect(onSignOut).toHaveBeenCalledOnce();
   });
 
-  it("keeps the account reachable by name when the rail is collapsed", async () => {
+  it("names the account on the trigger, so the avatar is never an unlabelled circle", async () => {
     const user = userEvent.setup();
-    renderMenu(vi.fn(), true);
-    // At 64px the name is not drawn, so it has to be in the accessible name or
-    // the avatar is an unlabelled circle.
+    renderMenu();
     const trigger = screen.getByRole("button", { name: /Almaz Tesfaye/ });
     await user.click(trigger);
     expect(screen.getByRole("dialog")).toBeInTheDocument();

@@ -41,11 +41,10 @@ offices, personal case data. Breaking one is a defect, not a preference.
    categories, not as general accents.
 4. **Three breakpoints, each with one job.** `900px` collapses every
    multi-column grid to one column · `780px` is the structural switch — tables
-   + nav rail above, cards + bottom tab bar below · `640px` drops the KPI row
+   + horizontal nav rows above, cards + a Menu drawer below · `640px` drops the KPI row
    from three columns to two. All three live in `base.css`; a grid that
    declares its own reflow width elsewhere will not collapse with the rest.
-   The tab bar is `position: sticky` inside the main column, never `fixed`.
-   Touch targets 48px, tab bar 56px.
+   There is no side rail and no bottom tab bar. Touch targets 48px.
 
    The handoff specifies 780px alone. 900 and 640 were added on the
    programme's instruction of 2026-08-18 — do not "restore" the single

@@ -97,10 +97,10 @@
   --overlay: 0 8px 24px rgba(26, 25, 21, 0.28);
 
   /* -- Layout ----------------------------------------------------------- */
-  /* The rail has two widths; Sidebar.tsx owns them (RAIL_EXPANDED /
-     RAIL_COLLAPSED). Kept for anything still reading the old single value. */
-  --rail-width: 232px;
-  --tabbar-height: 56px;
+  /* The widest the working area grows. Tables and dashboards use the width the
+     side rail used to take; the navigation rows share this cap so their left
+     edge lines up with the page on an ultrawide screen. */
+  --content-max: 1600px;
   --touch: 48px; /* minimum touch target, low-end Android */
 
   /* Set per language by LanguageProvider; Ge'ez needs the looser leading. */

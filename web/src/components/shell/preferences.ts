@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
  *
  * Same storage strategy as `yep.lang`: localStorage, so a preference survives a
  * reload without a round trip and without a schema change. Keyed by user id,
- * because these are shared office machines — a supervisor collapsing the rail
+ * because these are shared office machines — a supervisor choosing compact rows
  * must not collapse it for the case manager who signs in after them.
  *
  * Deliberately not on the User model. These are display choices with no audit
@@ -49,52 +49,6 @@ export function usePreference<T>(name: string, userId: string | undefined, fallb
 function read<T>(name: string, userId: string | undefined, fallback: T): T {
   try {
     const raw = localStorage.getItem(storageKey(name, userId));
-    return raw === null ? fallback : (JSON.parse(raw) as T);
-  } catch {
-    return fallback;
-  }
-}
-
-
-/**
- * The same thing, for the rest of this sitting only.
- *
- * `sessionStorage`, not `localStorage`, and the difference is the whole point
- * for the nav sections: they are specified to open **collapsed** every time the
- * app is loaded, and a localStorage preference would defeat that from the
- * second visit onwards. Within one sitting, a section somebody opened stays
- * open as they move around — reopening it on every navigation is the fault this
- * exists to avoid.
- *
- * Keyed by user id like its sibling, because these are shared office machines.
- */
-export function useSessionPreference<T>(name: string, userId: string | undefined, fallback: T) {
-  const [value, setValue] = useState<T>(() => readSession(name, userId, fallback));
-
-  useEffect(() => {
-    setValue(readSession(name, userId, fallback));
-    // `fallback` is intentionally absent — see `usePreference`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, userId]);
-
-  const store = useCallback(
-    (next: T) => {
-      setValue(next);
-      try {
-        sessionStorage.setItem(storageKey(name, userId), JSON.stringify(next));
-      } catch {
-        // Private browsing, or a full quota. A preference is not worth an error.
-      }
-    },
-    [name, userId],
-  );
-
-  return [value, store] as const;
-}
-
-function readSession<T>(name: string, userId: string | undefined, fallback: T): T {
-  try {
-    const raw = sessionStorage.getItem(storageKey(name, userId));
     return raw === null ? fallback : (JSON.parse(raw) as T);
   } catch {
     return fallback;

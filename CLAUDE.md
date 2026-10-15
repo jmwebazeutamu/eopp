@@ -439,10 +439,9 @@ These need validation, but they are not on the §11 list.
 - **WLT dashboards — Tier 1 and Tiers 2-4 built** (2026-08-26), in React on the
   existing token layer. The handoff's Django-template port is **not** done; see
   its section below.
-- **Sprint 7 — next.** The §8 Metabase deliverable: nine analytical dashboards
-  against a read-only Postgres role, on port 8009. Note that the four-tier
-  React dashboard already built does **not** discharge it — see the dashboard
-  handoff section above.
+- **Sprint 7 — built 2026-10-16.** The nine §8 dashboards in Metabase on 8009,
+  against a read-only role; see the Metabase section. The four-tier React
+  dashboards remain — they serve different readers and neither discharges the other.
 
 Later sprints: 6 enterprise/follow-up/grievance · 7 dashboards ·
 8–9 mobile · 10 hardening.
@@ -659,9 +658,9 @@ faults that have already shipped here once.
   text — it is 2.6:1.
 - **Three breakpoints, in `base.css` only.** `900px` collapses every
   multi-column grid to one column; `780px` is the structural switch (below it:
-  cards and a bottom tab bar sticky *inside* the main column, never
-  `position: fixed`; at or above: nav rail and tables); `640px` drops the KPI
-  row to two columns. Touch targets 48px, tab bar 56px. The design handoff
+  cards and a Menu drawer; at or above: the horizontal navigation rows
+  and tables); `640px` drops the KPI
+  row to two columns. Touch targets 48px. The design handoff
   specifies 780px alone — 900 and 640 were added on the programme's
   instruction of 2026-08-18 and supersede it.
 - **Card padding is 18px/20px**, gaps 16px between cards and 24px between
@@ -675,8 +674,8 @@ faults that have already shipped here once.
   (`docs/design_handoff_alerts_inbox/`) and confirmed. This supersedes the
   design handoff's "blue is deliberately absent" for those tokens; red is
   still reserved for genuine failure, and gold still carries waiting.
-- **The rail is 232px expanded, 60px collapsed**, and the global search sits
-  in the rail rather than a top bar.
+- **There is no rail** (replaced 2026-10-16; see *The navigation*). Global search
+  and the woreda scope sit in the header.
 - **`tokens.css` wins over a handoff's hex values.** Confirmed 2026-08-19.
   The later handoffs were traced from screen captures, so each quotes the same
   surfaces at slightly different values — the page ground appears as `#f7f4ee`
@@ -736,7 +735,7 @@ jsdom applies no stylesheet, so the test suite cannot see a layout fault.
 
 ## The user manual (`web/public/manual.html`)
 
-One standalone HTML file, reached from the account menu at the foot of the rail,
+One standalone HTML file, reached from the account menu in the header,
 from the More sheet on a phone, and from the sign-in card — all opening in a
 new tab. It is on the sign-in screen for the same reason the language switch
 is: a password that will not work and a first sign-in are both on that side of
@@ -1030,7 +1029,7 @@ assembles the same refusals using the gate vocabulary the readiness card renders
   shows immediately.
 
 Screens: `/wlt/beneficiaries` (the register, with both enrolment routes) and
-`/wlt/beneficiaries/<profile>` (the journey). The rail lists them first, in
+`/wlt/beneficiaries/<profile>` (the journey). The secondary row lists them first, in
 workflow order.
 
 ### The largest gap
@@ -1482,27 +1481,71 @@ E2, D1, D4) that are definitions of done. What exists is React on `tokens.css`.
 That is a conflict with the shipped precedent above and wants a decision before
 anybody ports it.
 
-## The rail (`web/src/components/shell/`)
+## The navigation (`web/src/components/shell/`)
 
-Restructured 2026-08-26. Fifteen links across four open sections was a list to
-read rather than a place to navigate.
+**Replaced the left rail on 2026-10-16**, at the programme's instruction: the
+rail took 232px from every dashboard and table. Layout is now header → primary
+row (modules) → secondary row (the active module's screens) → page.
 
-- **Sections open collapsed; the route decides which one expands.** Derived from
-  the path, never written into state on arrival — storing it leaves a section
-  open behind you and the rail drifts back to the fully-expanded list this
-  replaces. An explicit close beats being the active section.
-- **`sessionStorage`, not `localStorage`** (`useSessionPreference`). "Collapsed
-  on load" is the specification, and a persisted preference defeats it from the
-  second visit onwards.
-- **`ownsPaths` / `isActiveItem`, because `isActivePath` could not answer it.**
-  One item owns four routes now, so with nothing owning `/training` no item lit
-  and the section holding it stayed shut.
-- **Tabs live in the screen, not the rail.** The four dashboard tiers are one
-  Dashboard link; Training, Placements, Enterprises and Verification are one
-  Delivery link. Every path is unchanged, so older links still work, and each
-  role lands on its own first screen.
-- **Grievances is top level with no heading to collapse into.** A complaints
-  channel that can be folded away is one nobody finds.
+- **One model.** `buildNav` still decides what a role is offered (§7, `ACCESS_MATRIX`
+  — never a role test in a component). `buildModules` reads its sections: a
+  section is a module, its items are the module's secondary destinations, and its
+  first item is the landing — so a link can never lead somewhere the role lacks.
+  Desktop rows (`TopNav`) and the phone drawer (`MobileNav`) both draw it.
+- **Active state is derived from the URL, never stored.** `activeModule` and
+  `isActiveItem` (segment-aware, honours `ownsPaths`) — so refresh, deep links and
+  Back all light the right link. The current page is `aria-current="page"`; its
+  module is `aria-current="true"`, so an ancestor is not announced as the page.
+- **A one-page module has no secondary row.** Grievances is the case: a row with
+  one link is a control that cannot do anything.
+- **Overflow is measured, then decided** (`OverflowNav` + pure `navOverflow.ts`):
+  what does not fit goes behind a "More" disclosure before it collides, and the
+  current page's link is kept on the row. Widths are read from a hidden copy
+  (`visibility:hidden`, so not focusable or announced). jsdom measures nothing, so
+  the arithmetic is the tested part.
+- **780px is still the structural switch**: below it a labelled **Menu** button
+  opens an antd `Drawer` (modal, focus-trapped, restores focus) with every module,
+  the woreda scope and the account. **The bottom tab bar is gone.**
+- **The account menu is `AccountPanel`**, shared by the header popup and the
+  drawer, so the two cannot offer different things.
+- **The shell shares the page's gutters** (14px, 32px from 780px) and is capped by
+  `--content-max` (1600px, which replaced `.page`'s 1180px), so brand, first link
+  and page title share a left edge and tables use the recovered width.
+- **Tabs still live in the screen**: dashboard tiers, delivery screens and WLT
+  tiers are a third level inside one destination, and are not in either row.
+
+## Metabase (`apps/reporting`, Sprint 7)
+
+Spec §8's nine dashboards, built from code. `dashboards.py` is the **only**
+place a card is defined.
+
+- **The `bi` schema is the privacy boundary.** Metabase has no row scoping, so
+  `metabase_ro` reads `bi.*` views and nothing in `public`; no view carries a
+  youth's name, contact or id (`test_no_view_exposes_a_youth_field` derives the
+  forbidden columns from `Youth`). Who may reach port 8009 (programme manager
+  and M&E) is decided at the proxy.
+- **Nothing is spelled twice.** Table and column names come from model
+  `_meta`, statuses from the enums, bands from `dashboard.rules`, thresholds
+  (`CASELOAD_CEILING`, `STALL_ALERT_THRESHOLD_DAYS`) from settings into card
+  parameter defaults, names from `BI_SCHEMA` / `METABASE_RO_ROLE` /
+  `METABASE_APP_DB`. A change to any reaches Metabase by re-running the build.
+- **Views are rebuilt on every `migrate`** (pre_migrate drops the schema,
+  post_migrate recreates it and re-grants), not by a migration: a view pins the
+  columns it reads, so a frozen migration would block the next schema change.
+- **Same definitions as the app.** Failed rate is Failed ÷ (Failed + Completed),
+  as in `dashboard/tiers.py`, and the completion rate shares that denominator,
+  so the two are complements. §8 says "total closed" — `TODO(open-question)`
+  whether Replaced and Cancelled belong in it.
+- **Rates are NULL below the provisional floor**, with `band` beside them.
+
+The service is behind the compose profile `bi` so a deploy never starts it before
+it is provisioned: set `COMPOSE_PROFILES=bi` in `infra/.env` (dev has it).
+
+```bash
+$C exec web python manage.py provision_metabase          # role + app database
+$C exec web python manage.py provision_metabase --check  # asserts the boundary
+$C exec web python manage.py build_metabase_dashboards   # rebuild, run every card
+```
 
 ## Definition of Done (spec §10.1)
 

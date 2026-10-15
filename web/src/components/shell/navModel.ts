@@ -210,3 +210,49 @@ export function isActiveItem(navItem: NavItem, pathname: string): boolean {
   if (isActivePath(navItem.path, pathname)) return true;
   return (navItem.ownsPaths ?? []).some((owned) => isActivePath(owned, pathname));
 }
+
+/**
+ * A top-level module: one entry in the horizontal primary navigation.
+ *
+ * Derived from the sections `buildNav` already filtered by role and scope, so
+ * there is exactly one model and one set of access rules. A module is a
+ * section; its secondary destinations are the section's items. Nothing here
+ * re-tests a role.
+ */
+export interface NavModule {
+  key: string;
+  /** The section heading; a heading-less section is named by its only item. */
+  labelKey: StringKey;
+  /** The first permitted destination — never a route the reader may not open. */
+  landing: string;
+  /** Destinations inside the module. Empty when the module is itself one page. */
+  items: NavItem[];
+  /** Unread alert count rolled up from its items, for the primary link. */
+  badgeCount: number;
+}
+
+export function buildModules(sections: NavSection[]): NavModule[] {
+  return sections
+    .filter((section) => section.items.length > 0)
+    .map((section) => {
+      const first = section.items[0];
+      return {
+        key: section.titleKey ?? first.path,
+        labelKey: section.titleKey ?? first.labelKey,
+        landing: first.path,
+        // One destination is the module's own page, so there is nothing to choose
+        // between and no secondary row to draw.
+        items: section.items.length > 1 ? section.items : [],
+        badgeCount: section.items.reduce((sum, entry) => sum + (entry.badgeCount ?? 0), 0),
+      };
+    });
+}
+
+/** The module that owns the current location, if any. */
+export function activeModule(modules: NavModule[], sections: NavSection[], pathname: string): NavModule | undefined {
+  const index = sections.findIndex((section) => section.items.some((entry) => isActiveItem(entry, pathname)));
+  const section = sections[index];
+  if (!section) return undefined;
+  const key = section.titleKey ?? section.items[0].path;
+  return modules.find((module) => module.key === key);
+}
