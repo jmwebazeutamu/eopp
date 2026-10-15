@@ -26,6 +26,13 @@ x-django-env: &django-env
   DB_USER: ${DB_USER:-yep}
   DB_PASSWORD: ${DB_PASSWORD:?set in infra/.env}
   DB_HOST: db
+  METABASE_RO_PASSWORD: ${METABASE_RO_PASSWORD:-}
+  BI_SCHEMA: ${BI_SCHEMA:-bi}
+  METABASE_RO_ROLE: ${METABASE_RO_ROLE:-metabase_ro}
+  METABASE_URL: ${METABASE_URL:-http://metabase:3000}
+  METABASE_ADMIN_EMAIL: ${METABASE_ADMIN_EMAIL:-}
+  METABASE_ADMIN_PASSWORD: ${METABASE_ADMIN_PASSWORD:-}
+  METABASE_APP_DB: ${METABASE_APP_DB:-metabase_app}
   DB_PORT: 5432
   CELERY_BROKER_URL: redis://redis:6379/0
   CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -243,8 +250,35 @@ services:
         condition: service_healthy
     networks: [yep]
 
-  # metabase: added in Sprint 7 (spec §8) against a read-only Postgres role,
-  # published on host port 8009.
+  # Spec §8 / Sprint 7. Connects to the `bi` schema as metabase_ro (read-only,
+  # nothing in `public`) and keeps its own state in the metabase_app database.
+  # Published on loopback only: it has no row scoping, so who may reach it is
+  # decided at the proxy, not here.
+  #
+  # Behind the `bi` profile, so a deploy does not start it before the role and
+  # database exist (it would crash-loop). Enable with COMPOSE_PROFILES=bi in
+  # infra/.env once `provision_metabase` has run.
+  metabase:
+    profiles: ["bi"]
+    image: metabase/metabase:v0.52.4
+    container_name: yep_metabase
+    restart: unless-stopped
+    ports:
+      - "${METABASE_BIND:-127.0.0.1}:${METABASE_HOST_PORT:-8009}:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: ${METABASE_APP_DB:-metabase_app}
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${DB_USER:-yep}
+      MB_DB_PASS: ${DB_PASSWORD:?set in infra/.env}
+      MB_DB_HOST: db
+      MB_SITE_URL: ${METABASE_SITE_URL:-http://localhost:8009}
+      MB_ANON_TRACKING_ENABLED: "false"
+      MB_CHECK_FOR_UPDATES: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [yep]
 
 volumes:
   db_data:

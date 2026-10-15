@@ -43,7 +43,7 @@ from apps.alerts.models import Alert, AlertStatus
 from apps.cases.models import Case, CaseStatus, Pathway, PathwayAssignment, ProfilingRecord
 from apps.partners.models import Partner
 from apps.referrals import services
-from apps.referrals.models import Referral, ReferralStatus, VerificationSource
+from apps.referrals.models import Referral, ReferralStatus, SubjectType, VerificationSource
 from apps.referrals.taxonomy import FailureReasonCode, OutcomeType, ReferralCategory
 from apps.users.models import Role, User
 from apps.youth.models import DisabilityStatus, EducationLevel, PsnpStatus, SettlementType, Sex, Youth
@@ -210,7 +210,9 @@ class Command(BaseCommand):
         for woreda in Location.objects.active().woredas().select_related("parent__parent"):
             self.chain[woreda.name] = (woreda.parent.parent.name, woreda.parent.name)
 
-        self.categories = list(ReferralCategory.objects.filter(is_active=True))
+        # A WLT category (seeded database-wide) refuses a Case subject; ask the
+        # category rather than listing codes here.
+        self.categories = [c for c in ReferralCategory.objects.filter(is_active=True) if c.permits(SubjectType.CASE)]
         self.outcomes = {o.code: o for o in OutcomeType.objects.all()}
         self.failures = list(FailureReasonCode.objects.filter(is_active=True))
         if not self.categories or not self.outcomes:

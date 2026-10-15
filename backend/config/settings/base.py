@@ -79,6 +79,7 @@ LOCAL_APPS = [
     # rather than a young person. See docs/wlt_module_handoff/ and the WLT
     # section of CLAUDE.md.
     "apps.wlt",
+    "apps.reporting",  # Spec §8 bi schema for Metabase — Sprint 7
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -473,3 +474,12 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "verbose"}},
     "root": {"handlers": ["console"], "level": config("DJANGO_LOG_LEVEL", default="INFO")},
 }
+
+
+# --- Reporting (spec §8, Sprint 7) -----------------------------------------
+# One place for the names the bi schema, the Metabase role and its application
+# database are known by. Compose, the provisioning command and the tests all
+# read these; nothing else spells them.
+BI_SCHEMA = config("BI_SCHEMA", default="bi")
+METABASE_RO_ROLE = config("METABASE_RO_ROLE", default="metabase_ro")
+METABASE_APP_DB = config("METABASE_APP_DB", default="metabase_app")
