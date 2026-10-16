@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import type { AlertSummary } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { useLang } from "../i18n/LanguageContext";
+import Footer from "./shell/Footer";
 import Header from "./shell/Header";
 import { ScopeProvider } from "./shell/ScopeContext";
 import MobileNav from "./shell/MobileNav";
@@ -106,6 +107,7 @@ export default function AppLayout() {
         <div style={{ flex: 1 }}>
           <Outlet />
         </div>
+        <Footer />
       </main>
     </div>
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />

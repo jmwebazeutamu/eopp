@@ -1670,6 +1670,18 @@ export const STRINGS = {
   "landing.footManual": "User manual",
   "landing.footStatus": "Service status",
   "landing.footRelease": "Pilot release",
+
+  "footer.label": "Site footer",
+  "footer.programmes": "Programmes",
+  "footer.youth": "Youth employment pathway",
+  "footer.wlt": "Women's Livelihoods Transformation",
+  "footer.support": "Help and support",
+  "footer.manual": "User manual",
+  "footer.status": "Service status",
+  "footer.account": "Account issues",
+  "footer.accountBody": "Your woreda FSCO issues and resets accounts.",
+  "footer.privacy": "Records on this platform are personal case data. Open them only for work you are assigned to; every access is logged.",
+  "footer.copyright": "© {year} Economic Opportunities Pathway Platform. Pilot release.",
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

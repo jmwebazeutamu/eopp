@@ -128,7 +128,11 @@ p {
 
 .page {
   padding: 14px;
-  max-width: var(--content-max);
+  /* --content-max is the *content* width, as it is for the header and
+     navigation inner boxes; the page's own padding sits outside it. Capping the
+     padded box at --content-max left page content 32px inside the brand and
+     the first nav link. */
+  max-width: calc(var(--content-max) + 28px);
   /* Centred in whatever width the shell leaves, so the page and the navigation
      rows above it share a left edge. */
   margin-inline: auto;
@@ -144,6 +148,7 @@ p {
 
   .page {
     padding: 28px 32px;
+    max-width: calc(var(--content-max) + 64px);
   }
 }
 
@@ -2665,7 +2670,7 @@ button.row-link {
   display: flex;
   align-items: center;
   gap: 16px;
-  min-height: 56px;
+  min-height: 72px;
   max-width: var(--content-max);
   margin-inline: auto;
 }
@@ -2698,14 +2703,14 @@ button.row-link {
 }
 .app-brand-mark {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 18px;
   letter-spacing: -0.01em;
 }
 .app-brand-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--on-dark-2);
 }
 .app-header[data-phone] .app-brand-name {
@@ -2770,7 +2775,7 @@ button.row-link {
 .topnav-list {
   display: flex;
   gap: 4px;
-  margin: 0 0 0 -14px;
+  margin: 0 0 0 -16px;
   padding: 0;
   list-style: none;
 }
@@ -2782,8 +2787,8 @@ button.row-link {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 14px;
+  min-height: 52px;
+  padding: 0 16px;
   border: 0;
   border-bottom: 3px solid transparent;
   background: transparent;
@@ -2976,4 +2981,87 @@ button.row-link {
   padding: 12px 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
+}
+
+/* -- App footer ----------------------------------------------------------
+ * Last child of the scroll container, so it sits under short pages and follows
+ * long ones. Same container width and side padding as the header. */
+.app-footer {
+  margin-top: var(--s6);
+  padding: 32px 14px 20px;
+  background: var(--rail-bg);
+  color: var(--on-dark-2);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.app-footer__inner {
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+.app-footer__grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  gap: 32px;
+}
+.app-footer h2 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-dark);
+}
+.app-footer ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.app-footer li + li {
+  margin-top: 6px;
+}
+.app-footer p {
+  margin: 0;
+}
+.app-footer a {
+  display: inline-block;
+  padding: 4px 0;
+  color: var(--on-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.app-footer a:hover {
+  text-decoration-thickness: 2px;
+}
+.app-footer a:focus-visible {
+  outline: 2px solid var(--on-dark);
+  outline-offset: 2px;
+}
+.app-footer__brand {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--on-dark);
+}
+.app-footer__bottom {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--on-dark-3);
+  color: var(--on-dark-3);
+  font-size: 12.5px;
+}
+@media (min-width: 780px) {
+  .app-footer {
+    padding-inline: 32px;
+  }
+}
+@media (max-width: 900px) {
+  .app-footer__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .app-footer__grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
 }
