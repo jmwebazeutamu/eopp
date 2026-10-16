@@ -72,15 +72,21 @@ export default function GrievancesPage() {
   });
   const [busy, setBusy] = useState(false);
 
-  const status = params.get("resolution_status") ?? "";
+  // The server names the parameter a counter toggles (`summary.counters[].param`),
+  // so no query-parameter name is spelled here. Every URL parameter other than
+  // the page's own `q`/`page` goes to the list as it stands, which also means a
+  // filter is applied on the first request, before the summary has answered.
+  const filterParam = summary?.counters[0]?.param;
+  const status = (filterParam && params.get(filterParam)) || "";
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const search = params.get("q") || undefined;
+      const listFilters = Object.fromEntries([...params.entries()].filter(([key]) => key !== "q" && key !== "page"));
       const [list, late, counters] = await Promise.all([
         api.get<Paginated<Grievance>>("/grievances/", {
-          params: { page_size: 200, search, resolution_status: status || undefined },
+          params: { page_size: 200, search, ...listFilters },
         }),
         api.get<GrievanceQueueCounts>("/grievances/queue-counts/"),
         api.get<Summary>("/grievances/summary/", { params: { search } }),
@@ -94,7 +100,7 @@ export default function GrievancesPage() {
     } finally {
       setLoading(false);
     }
-  }, [params, status, message, t]);
+  }, [params, message, t]);
 
   useEffect(() => {
     void load();
@@ -107,10 +113,10 @@ export default function GrievancesPage() {
     setCaseOptions(response.data.results);
   }
 
-  function setStatus(next: string) {
+  function setStatus(counter: { param: string; value: string } | null) {
     const updated = new URLSearchParams(params);
-    if (next) updated.set("resolution_status", next);
-    else updated.delete("resolution_status");
+    if (filterParam) updated.delete(filterParam);
+    if (counter) updated.set(counter.param, counter.value);
     updated.delete("page");
     setParams(updated, { replace: true });
   }
@@ -180,9 +186,10 @@ export default function GrievancesPage() {
   const sorted = [...rows].sort(byUrgency);
 
   const filters = [
-    { value: "", label: t("grievances.all"), count: summary?.total ?? 0 },
+    { value: "", param: "", label: t("grievances.all"), count: summary?.total ?? 0 },
     ...(summary?.counters ?? []).map((counter) => ({
       value: String(counter.value),
+      param: counter.param,
       label: counter.label,
       count: counter.count,
     })),
@@ -238,7 +245,7 @@ export default function GrievancesPage() {
                 type="button"
                 className="pill-filter"
                 data-active={filter.value === status ? "true" : undefined}
-                onClick={() => setStatus(filter.value)}
+                onClick={() => setStatus(filter.value ? filter : null)}
               >
                 {filter.label}
                 <span className="pill-filter__count">{filter.count}</span>

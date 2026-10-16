@@ -229,3 +229,33 @@ def test_referring_out_stops_the_clock(under_review, supervisor):
 def test_referring_out_needs_to_name_the_body(under_review, supervisor):
     with pytest.raises(TransitionError):
         services.refer_out(under_review, to="", actor=supervisor)
+
+
+# ---------------------------------------------------------------------------
+# The list filter the status counters drive
+# ---------------------------------------------------------------------------
+
+
+def test_the_summary_names_the_parameter_the_list_filters_on(as_user, supervisor, raise_grievance, acknowledged):
+    """The counter row is also the filter, and the server names its parameter.
+    A client that spelled it differently got an unfiltered list with a 200,
+    because django-filter ignores a name it does not know."""
+    raise_grievance()
+    client = as_user(supervisor)
+
+    counters = client.get("/api/v1/grievances/summary/").data["counters"]
+    param = {counter["param"] for counter in counters}
+    assert len(param) == 1
+    (param,) = param
+
+    rows = client.get("/api/v1/grievances/", {param: GrievanceStatus.ACKNOWLEDGED}).data["results"]
+    assert rows
+    assert {row["status"] for row in rows} == {GrievanceStatus.ACKNOWLEDGED}
+
+    received = next(c for c in counters if c["value"] == GrievanceStatus.RECEIVED)
+    assert len(client.get("/api/v1/grievances/", {param: GrievanceStatus.RECEIVED}).data["results"]) == received["count"]
+
+
+def test_an_unknown_status_is_refused_not_ignored(as_user, supervisor, acknowledged):
+    response = as_user(supervisor).get("/api/v1/grievances/", {"status": "NOT_A_STATUS"})
+    assert response.status_code == 400
