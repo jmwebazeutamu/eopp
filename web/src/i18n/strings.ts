@@ -27,7 +27,6 @@ export const STRINGS = {
     "Your role has no dashboard. The screens you work from are the case, referral and alert lists.",
   "nav.myWork": "My work",
   "nav.primary": "Main navigation",
-  "nav.secondary": "Section navigation",
   "nav.menu": "Menu",
   "nav.sectionDashboard": "Dashboard",
   "nav.sectionWork": "PSNP Beneficiary Referrals",

@@ -2649,11 +2649,10 @@ button.row-link {
 }
 
 
-/* -- Shell: header, primary and secondary navigation ---------------------
+/* -- Shell: header and primary navigation --------------------------------
  *
- * Header (dark), primary row (dark, one step lighter), secondary row (paper).
- * No breakpoint of its own: the rows measure themselves and move what does not
- * fit behind "More" (OverflowNav), and the 780px switch decides rows vs drawer.
+ * Header (dark), primary row (dark, one step lighter) whose modules open
+ * dropdown panels. The 780px switch decides row vs drawer.
  */
 .app-header {
   position: relative;
@@ -2759,13 +2758,9 @@ button.row-link {
   flex-shrink: 0;
   padding: 0 14px;
 }
-.topnav-primary {
+.topnav {
   background: var(--green-700);
   color: var(--on-dark);
-}
-.topnav-secondary {
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
 }
 .topnav-inner {
   position: relative;
@@ -2778,7 +2773,10 @@ button.row-link {
   margin: 0 0 0 -14px;
   padding: 0;
   list-style: none;
-  white-space: nowrap;
+}
+.topnav-item {
+  position: relative;
+  min-width: 0;
 }
 .topnav-link {
   display: inline-flex;
@@ -2789,48 +2787,37 @@ button.row-link {
   border: 0;
   border-bottom: 3px solid transparent;
   background: transparent;
-  color: inherit;
+  color: var(--on-dark-2);
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
-/* Active is a fill/underline and a weight, never colour alone. */
-.topnav-primary .topnav-link {
-  color: var(--on-dark-2);
-}
-.topnav-primary .topnav-link:hover {
+.topnav-link:hover,
+.topnav-link[aria-expanded="true"] {
   background: var(--rail-active);
 }
-.topnav-primary .topnav-link[data-current] {
+/* Active is a fill/underline and a weight, never colour alone. */
+.topnav-link[data-current] {
   color: var(--on-dark);
   background: var(--rail-active);
   border-bottom-color: var(--gold-300);
 }
-.topnav-primary :where(a, button):focus-visible {
+.topnav :where(a, button):focus-visible {
   outline: 2px solid var(--on-dark);
   outline-offset: -2px;
 }
-.topnav-secondary .topnav-link {
-  color: var(--ink-600);
-}
-.topnav-secondary .topnav-link:hover {
-  background: var(--green-100);
-}
-.topnav-secondary .topnav-link[data-current] {
-  color: var(--green-900);
-  border-bottom-color: var(--green-500);
-}
-.topnav-more {
-  position: relative;
-}
+/* The dropdown overlays the page; nothing below it moves. */
 .topnav-menu {
   position: absolute;
   top: 100%;
-  right: 0;
+  left: 0;
   z-index: 30;
-  min-width: 220px;
+  min-width: 240px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
   margin: 0;
   padding: 6px;
   list-style: none;
@@ -2839,36 +2826,35 @@ button.row-link {
   border-radius: var(--r-card);
   box-shadow: var(--overlay);
 }
-.topnav-menu .topnav-link,
-.topnav-primary .topnav-menu .topnav-link {
-  width: 100%;
-  color: var(--ink-900);
-  border-bottom: 0;
+.topnav-menu[data-align="end"] {
+  left: auto;
+  right: 0;
+}
+.topnav-menu-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
   border-left: 3px solid transparent;
   border-radius: var(--r-button);
-  background: transparent;
+  color: var(--ink-900);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
 }
-.topnav-menu .topnav-link:hover {
+.topnav-menu-link:hover {
   background: var(--green-100);
 }
-.topnav-menu .topnav-link[data-current] {
+.topnav-menu-link[data-current] {
   background: var(--green-100);
   color: var(--green-900);
   border-left-color: var(--green-500);
 }
-/* A hidden copy of the row, used only to read widths. visibility:hidden takes it
-   out of the tab order and the accessibility tree. */
-.topnav-measure {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 0;
-  display: flex;
-  gap: 4px;
-  overflow: hidden;
-  visibility: hidden;
-  pointer-events: none;
-  white-space: nowrap;
+.topnav-menu-link:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: -2px;
 }
 
 .account-menu {

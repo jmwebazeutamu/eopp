@@ -1483,36 +1483,31 @@ anybody ports it.
 
 ## The navigation (`web/src/components/shell/`)
 
-**Replaced the left rail on 2026-10-16**, at the programme's instruction: the
-rail took 232px from every dashboard and table. Layout is now header → primary
-row (modules) → secondary row (the active module's screens) → page.
+**Replaced the left rail on 2026-10-16**, then (same day) the always-visible
+secondary row with dropdown panels, per the Aetna-style brief. Layout is header →
+one primary row → page, all inside `--content-max` (1200px), so brand, first
+link and page title share a left edge.
 
-- **One model.** `buildNav` still decides what a role is offered (§7, `ACCESS_MATRIX`
-  — never a role test in a component). `buildModules` reads its sections: a
-  section is a module, its items are the module's secondary destinations, and its
-  first item is the landing — so a link can never lead somewhere the role lacks.
-  Desktop rows (`TopNav`) and the phone drawer (`MobileNav`) both draw it.
-- **Active state is derived from the URL, never stored.** `activeModule` and
-  `isActiveItem` (segment-aware, honours `ownsPaths`) — so refresh, deep links and
-  Back all light the right link. The current page is `aria-current="page"`; its
-  module is `aria-current="true"`, so an ancestor is not announced as the page.
-- **A one-page module has no secondary row.** Grievances is the case: a row with
-  one link is a control that cannot do anything.
-- **Overflow is measured, then decided** (`OverflowNav` + pure `navOverflow.ts`):
-  what does not fit goes behind a "More" disclosure before it collides, and the
-  current page's link is kept on the row. Widths are read from a hidden copy
-  (`visibility:hidden`, so not focusable or announced). jsdom measures nothing, so
-  the arithmetic is the tested part.
-- **780px is still the structural switch**: below it a labelled **Menu** button
-  opens an antd `Drawer` (modal, focus-trapped, restores focus) with every module,
-  the woreda scope and the account. **The bottom tab bar is gone.**
-- **The account menu is `AccountPanel`**, shared by the header popup and the
-  drawer, so the two cannot offer different things.
-- **The shell shares the page's gutters** (14px, 32px from 780px) and is capped by
-  `--content-max` (1600px, which replaced `.page`'s 1180px), so brand, first link
-  and page title share a left edge and tables use the recovered width.
+- **One model.** `buildNav` decides what a role is offered (§7, `ACCESS_MATRIX` —
+  never a role test in a component). `buildModules` reads its sections: a section
+  is a module, its items are the dropdown's links, its first item is the landing.
+  `TopNav` (desktop) and `MobileNav` (phone drawer) both draw it.
+- **Modules with several destinations are disclosure buttons** (`aria-expanded`,
+  `aria-controls`) opening a nonmodal panel of real links: no hover dependence, no
+  focus trap, closed panels are not rendered (nothing hidden can take focus).
+  One open at a time; closes on Escape (focus returns to the trigger), outside
+  click/touch, another trigger and navigation. The panel flips to the trigger's
+  right edge near the viewport edge and scrolls past `100vh - 140px`.
+  A one-destination module (Grievances) is a plain link.
+- **Active state is derived from the URL, never stored**: `activeModule`,
+  `isActiveItem` (segment-aware, honours `ownsPaths`). Page link is
+  `aria-current="page"`; its module trigger only `data-current`. A panel never
+  opens on load.
+- **No overflow menu**: four modules fit from 780px up; below it a labelled
+  **Menu** button opens an antd `Drawer` (modal, focus-trapped) with every module,
+  the woreda scope and the account. `AccountPanel` is shared by header and drawer.
 - **Tabs still live in the screen**: dashboard tiers, delivery screens and WLT
-  tiers are a third level inside one destination, and are not in either row.
+  tiers are a third level inside one destination.
 
 ## Metabase (`apps/reporting`, Sprint 7)
 

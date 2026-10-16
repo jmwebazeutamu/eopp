@@ -11,9 +11,8 @@ import { buildNav } from "./navModel";
 import TopNav from "./TopNav";
 
 /**
- * What the two rows say, derived from the URL. jsdom measures nothing, so the
- * overflow arithmetic is tested in `navOverflow.test.ts`; here every link is on
- * the row and the claims are about which one is current.
+ * What the row and its dropdown panels say, derived from the URL, and how a
+ * panel opens and closes.
  */
 
 const caseManager = testUser("CASE_MANAGER", {
@@ -40,43 +39,67 @@ function renderNav(path: string, user = caseManager) {
 }
 
 describe("TopNav", () => {
-  it("names the two rows differently, as landmarks", () => {
+  const nav = () => screen.getByRole("navigation", { name: "Main navigation" });
+  const trigger = () => within(nav()).getByRole("button", { name: /PSNP Beneficiary Referrals/ });
+
+  it("has one navigation landmark and no always-visible secondary row", () => {
     renderNav("/cases");
-    expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Section navigation" })).toBeInTheDocument();
-  });
-
-  it("marks the page as the page and its module only as somewhere you are inside", () => {
-    renderNav("/cases");
-    const primary = screen.getByRole("navigation", { name: "Main navigation" });
-    const secondary = screen.getByRole("navigation", { name: "Section navigation" });
-
-    // The module is `true`, never `page`: it is an ancestor of the page.
-    expect(within(primary).getByRole("link", { name: /PSNP Beneficiary Referrals/ })).toHaveAttribute("aria-current", "true");
-    expect(within(secondary).getByRole("link", { name: "Cases" })).toHaveAttribute("aria-current", "page");
-    expect(within(secondary).getByRole("link", { name: /Referrals/ })).not.toHaveAttribute("aria-current");
-  });
-
-  it("keeps the module and page lit on a detail route", () => {
-    renderNav("/cases/6f1c2d3e");
-    const secondary = screen.getByRole("navigation", { name: "Section navigation" });
-    expect(within(secondary).getByRole("link", { name: "Cases" })).toHaveAttribute("aria-current", "page");
-  });
-
-  it("lights a screen that an entry only fronts, so delivery tabs keep the row", () => {
-    renderNav("/training");
-    const secondary = screen.getByRole("navigation", { name: "Section navigation" });
-    expect(within(secondary).getByRole("link", { name: "Delivery" })).toHaveAttribute("aria-current", "page");
-  });
-
-  it("omits the secondary row for a module that is one page", () => {
-    renderNav("/grievances");
+    expect(nav()).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Section navigation" })).toBeNull();
-    const primary = screen.getByRole("navigation", { name: "Main navigation" });
-    expect(within(primary).getByRole("link", { name: "Grievances" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("does not offer a role the destinations it lacks", () => {
+  it("marks the current module without opening its panel on load", () => {
+    renderNav("/cases");
+    expect(trigger()).toHaveAttribute("data-current", "true");
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
+    expect(within(nav()).queryByRole("link", { name: "Cases" })).toBeNull();
+  });
+
+  it("opens a panel of links, with the page marked as the page", async () => {
+    renderNav("/cases/6f1c2d3e");
+    await userEvent.setup().click(trigger());
+    expect(trigger()).toHaveAttribute("aria-expanded", "true");
+    expect(within(nav()).getByRole("link", { name: "Cases" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav()).getByRole("link", { name: /Referrals/ })).not.toHaveAttribute("aria-current");
+  });
+
+  it("lights a screen that an entry only fronts", async () => {
+    renderNav("/training");
+    await userEvent.setup().click(trigger());
+    expect(within(nav()).getByRole("link", { name: "Delivery" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("closes on Escape and returns focus to the trigger", async () => {
+    const user = userEvent.setup();
+    renderNav("/cases");
+    await user.click(trigger());
+    await user.keyboard("{Escape}");
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
+    expect(trigger()).toHaveFocus();
+  });
+
+  it("closes on an outside click, and keeps only one panel open", async () => {
+    const user = userEvent.setup();
+    renderNav("/cases");
+    await user.click(trigger());
+    await user.click(document.body);
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes when a link is followed", async () => {
+    const user = userEvent.setup();
+    renderNav("/cases");
+    await user.click(trigger());
+    await user.click(within(nav()).getByRole("link", { name: /Referrals/ }));
+    expect(trigger()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("renders a one-page module as a plain link", () => {
+    renderNav("/grievances");
+    expect(within(nav()).getByRole("link", { name: "Grievances" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("does not offer a role the destinations it lacks", async () => {
     const partner = testUser("PARTNER_STAFF", {
       access: {
         case_scope: "NONE",
@@ -91,11 +114,6 @@ describe("TopNav", () => {
     renderNav("/partners", partner);
     expect(screen.queryByRole("link", { name: /registry/i })).toBeNull();
     expect(screen.queryByRole("link", { name: "Cases" })).toBeNull();
-  });
-
-  it("shows no 'More' when everything fits", () => {
-    renderNav("/cases");
-    expect(screen.queryByRole("button", { name: /More/ })).toBeNull();
   });
 });
 

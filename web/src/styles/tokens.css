@@ -100,7 +100,7 @@
   /* The widest the working area grows. Tables and dashboards use the width the
      side rail used to take; the navigation rows share this cap so their left
      edge lines up with the page on an ultrawide screen. */
-  --content-max: 1600px;
+  --content-max: 1200px;
   --touch: 48px; /* minimum touch target, low-end Android */
 
   /* Set per language by LanguageProvider; Ge'ez needs the looser leading. */
