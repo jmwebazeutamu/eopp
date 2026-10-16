@@ -103,11 +103,14 @@ export default function AppLayout() {
       />
       {!isPhone && <TopNav user={user} sections={sections} pathname={location.pathname} />}
 
-      <main id="main" tabIndex={-1} style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", paddingBottom: import.meta.env.DEV ? 72 : 0 }}>
+      <main id="main" tabIndex={-1} style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
         <div style={{ flex: 1 }}>
           <Outlet />
         </div>
-        <Footer />
+        {/* The footer is the last thing in the scroll container. The dev role
+            switcher floats over the bottom corner, so clearance for it goes
+            inside the footer rather than as blank paper beneath it. */}
+        <Footer clearance={import.meta.env.DEV ? 72 : 0} />
       </main>
     </div>
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
